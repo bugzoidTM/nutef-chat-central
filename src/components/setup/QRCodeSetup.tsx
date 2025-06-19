@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 const QRCodeSetup = () => {
   const { profile, user } = useAuth();
   const { toast } = useToast();
-  const [phoneNumber, setPhoneNumber] = useState(profile?.phone || '');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [instanceCreated, setInstanceCreated] = useState(false);
   
   const {
@@ -40,11 +40,15 @@ const QRCodeSetup = () => {
     if (!user) return;
 
     try {
+      // Gerar instance_name baseado no telefone (apenas números)
+      const instanceName = phoneNumber.replace(/\D/g, '');
+
       const { error } = await supabase
         .from('profiles')
         .update({
           whatsapp_connected: true,
-          phone: phoneNumber, // Atualizar o número no perfil
+          phone: phoneNumber,
+          instance_name: instanceName,
         })
         .eq('user_id', user.id);
 

@@ -7,12 +7,11 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Smartphone, User, Mail, Phone } from 'lucide-react';
+import { Smartphone, User, Mail } from 'lucide-react';
 
 const InitialSetup = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { user, profile } = useAuth();
@@ -23,21 +22,14 @@ const InitialSetup = () => {
     e.preventDefault();
     if (!user) return;
 
-    console.log('InitialSetup - Starting setup with data:', { name, email, phone });
+    console.log('InitialSetup - Starting setup with data:', { name, email });
 
     setLoading(true);
 
     try {
-      // Gerar instance_name baseado no telefone (apenas números)
-      const instanceName = phone.replace(/\D/g, '');
-      
-      console.log('InitialSetup - Generated instance name:', instanceName);
-
       let profileData = {
         name,
-        phone,
         setup_completed: true,
-        instance_name: instanceName,
       };
 
       // Se não existe perfil, criar um novo
@@ -49,6 +41,7 @@ const InitialSetup = () => {
             user_id: user.id,
             email: user.email || email,
             role: 'admin',
+            phone: '', // Será preenchido na próxima tela
             ...profileData,
           });
 
@@ -135,24 +128,6 @@ const InitialSetup = () => {
                 placeholder="seu@email.com"
                 required
               />
-            </div>
-            
-            <div>
-              <Label htmlFor="phone" className="flex items-center space-x-2">
-                <Phone className="h-4 w-4" />
-                <span>Telefone (WhatsApp)</span>
-              </Label>
-              <Input
-                id="phone"
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="(11) 99999-9999"
-                required
-              />
-              <p className="text-sm text-gray-600 mt-1">
-                Este número será usado para criar sua instância WhatsApp
-              </p>
             </div>
             
             <Button type="submit" className="w-full" disabled={loading}>
