@@ -14,6 +14,8 @@ serve(async (req) => {
 
   console.log('🚀 Evolution webhook received request:', req.method, req.url);
   console.log('📋 Request headers:', Object.fromEntries(req.headers.entries()));
+  console.log('🔍 User-Agent:', req.headers.get('user-agent'));
+  console.log('🔍 Content-Type:', req.headers.get('content-type'));
 
   try {
     // Initialize Supabase client
@@ -49,6 +51,23 @@ serve(async (req) => {
         { status: 400, headers: corsHeaders }
       );
     }
+
+    // Verificar se é uma chamada válida (do Evolution API ou teste autorizado)
+    const isFromEvolution = req.headers.get('user-agent')?.includes('Evolution') || 
+                           req.headers.get('user-agent')?.includes('WhatsApp') ||
+                           body?.instance || body?.instanceName;
+    
+    const hasValidAuth = req.headers.get('authorization');
+    
+    if (!isFromEvolution && !hasValidAuth) {
+      console.log('❌ Unauthorized request - not from Evolution API and no valid auth');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized - webhook expects calls from Evolution API' }), 
+        { status: 401, headers: corsHeaders }
+      );
+    }
+
+    console.log('✅ Request authorized:', { isFromEvolution, hasValidAuth: !!hasValidAuth });
 
     // Handle different webhook formats from Evolution API
     let events = [];

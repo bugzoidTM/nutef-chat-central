@@ -217,13 +217,22 @@ export const debugHelper = {
         console.log('✅ Webhook URL is correctly configured');
         console.log('✅ Webhook is enabled:', webhookConfig.enabled);
         console.log('✅ Configured events:', webhookConfig.events);
+        return { webhookConfig, expectedWebhookUrl, status: 'configured' };
       } else {
         console.error('❌ Webhook URL mismatch!');
         console.log('Expected:', expectedWebhookUrl);
         console.log('Current:', webhookConfig?.url || 'Not set');
+        
+        // Verificar se é apenas um problema de string comparison
+        console.log('🔍 URL comparison debug:');
+        console.log('Expected length:', expectedWebhookUrl.length);
+        console.log('Current length:', (webhookConfig?.url || '').length);
+        console.log('Are they equal?', webhookConfig?.url === expectedWebhookUrl);
+        console.log('Current URL:', JSON.stringify(webhookConfig?.url));
+        console.log('Expected URL:', JSON.stringify(expectedWebhookUrl));
+        
+        return { webhookConfig, expectedWebhookUrl, status: 'mismatch' };
       }
-      
-      return { webhookConfig, expectedWebhookUrl };
     } catch (error) {
       console.error('❌ Error checking webhook:', error);
     }
@@ -322,6 +331,7 @@ export const debugHelper = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qZmR6ZmdjeXN4b3h6c3poYnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAyOTc2MDcsImV4cCI6MjA2NTg3MzYwN30.Y3BEkfR24jKAdARwBc8UE-4b2_uwy7B2Sd3RYDsaTQ4'
         },
         body: JSON.stringify(testData),
       });
