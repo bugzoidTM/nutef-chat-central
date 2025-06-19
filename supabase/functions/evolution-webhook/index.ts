@@ -180,19 +180,11 @@ serve(async (req) => {
             remoteJid: data.key?.remoteJid,
             pushName: data.pushName
           });
-        } else if (data?.message) {
-          // ESTE CAMINHO NÃO DEVE SER USADO PARA EVOLUTION API!
-          console.log('⚠️ PATH 3 (BLOCKED): data.message only - CONVERTING to full data structure');
-          console.log('🔍 Original data keys:', Object.keys(data || {}));
-          
-          // Tentar reconstruir estrutura correta se temos os dados separados
-          if (data.key) {
-            messages = [data]; // usar data completo mesmo que key esteja separado
-            console.log('✅ PATH 3 CONVERTED: Found separate key, using full data');
-          } else {
-            console.log('❌ PATH 3 FAILED: No key found, skipping this message');
-            messages = []; // não processar para evitar erro
-          }
+        } else if (data?.key || data?.message) {
+          // Se temos key ou message, usar o data completo
+          messages = [data];
+          console.log('📨 PATH 3: Using complete data object (fallback)');
+          console.log('🔍 Data keys available:', Object.keys(data || {}));
         } else {
           console.log('❌ PATH 4: No valid message structure found in data:', Object.keys(data || {}));
         }
@@ -201,6 +193,11 @@ serve(async (req) => {
 
         for (const message of messages) {
           console.log('💬 Processing message:', JSON.stringify(message, null, 2));
+          
+          // Debug detalhado da estrutura da mensagem
+          console.log('🔍 Message keys:', Object.keys(message));
+          console.log('🔍 message.key:', message.key ? JSON.stringify(message.key, null, 2) : 'undefined');
+          console.log('🔍 message.message:', message.message ? JSON.stringify(message.message, null, 2) : 'undefined');
           
           // Corrigir a verificação - os dados podem estar na raiz do data ou dentro de message
           const isFromMe = message.key?.fromMe || false;
@@ -222,7 +219,7 @@ serve(async (req) => {
           }
 
           if (!remoteJid) {
-            console.log('❌ Skipping message without remoteJid');
+            console.log('⏭️ Skipping message without remoteJid');
             console.log('🔍 Available message properties:', Object.keys(message));
             console.log('🔍 Full message structure:', JSON.stringify(message, null, 2));
             continue;
