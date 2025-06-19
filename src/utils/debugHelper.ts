@@ -376,11 +376,60 @@ export const debugHelper = {
     const instance = instances[0];
     const instanceName = instance.instance_name;
     
-    console.log(`🔄 Restarting instance: ${instanceName}`);
+    console.log(`🔄 Trying to restart instance: ${instanceName}`);
+    
+    // Tentar diferentes endpoints de restart
+    const endpoints = [
+      `/instance/restart/${instanceName}`,
+      `/instance/${instanceName}/restart`,
+      `/instance/reboot/${instanceName}`,
+      `/manager/restart/${instanceName}`
+    ];
+    
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`🔄 Trying endpoint: ${endpoint}`);
+        const response = await fetch(`https://evolution.nutef.com${endpoint}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': '5be0fd0304550ebb6027dcce02ae4ab1',
+          },
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          console.log('✅ Instance restart successful with endpoint:', endpoint);
+          console.log('📄 Result:', result);
+          return result;
+        } else {
+          console.log(`❌ Failed with ${endpoint}: ${response.status}`);
+        }
+      } catch (error) {
+        console.log(`❌ Error with ${endpoint}:`, error.message);
+      }
+    }
+    
+    console.error('❌ All restart endpoints failed');
+    return null;
+  },
+
+  // Verificar status da conexão da instância
+  async checkInstanceConnection() {
+    const { instances } = await this.checkInstances();
+    if (!instances || instances.length === 0) {
+      console.error('❌ No instances found');
+      return;
+    }
+
+    const instance = instances[0];
+    const instanceName = instance.instance_name;
+    
+    console.log(`🔍 Checking connection status for: ${instanceName}`);
     
     try {
-      const response = await fetch(`https://evolution.nutef.com/instance/restart/${instanceName}`, {
-        method: 'PUT',
+      const response = await fetch(`https://evolution.nutef.com/instance/connectionState/${instanceName}`, {
+        method: 'GET',
         headers: {
           'Content-Type': 'application/json',
           'apikey': '5be0fd0304550ebb6027dcce02ae4ab1',
@@ -388,19 +437,176 @@ export const debugHelper = {
       });
       
       if (!response.ok) {
+        console.error('❌ Error checking connection:', response.status, response.statusText);
+        return;
+      }
+      
+      const connectionData = await response.json();
+      console.log('📡 Connection Status:', connectionData);
+      
+      return connectionData;
+    } catch (error) {
+      console.error('❌ Error checking connection:', error);
+    }
+  },
+
+  // Reconfigurar webhook com mais eventos
+  async reconfigureWebhookWithAllEvents() {
+    const { instances } = await this.checkInstances();
+    if (!instances || instances.length === 0) {
+      console.error('❌ No instances found');
+      return;
+    }
+
+    const instance = instances[0];
+    const instanceName = instance.instance_name;
+    const webhookUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
+    
+    console.log(`🔧 Reconfiguring webhook with ALL events for: ${instanceName}`);
+    
+    try {
+      const response = await fetch(`https://evolution.nutef.com/webhook/set/${instanceName}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': '5be0fd0304550ebb6027dcce02ae4ab1',
+        },
+        body: JSON.stringify({
+          webhook: {
+            url: webhookUrl,
+            enabled: true,
+            events: [
+              'APPLICATION_STARTUP',
+              'QRCODE_UPDATED', 
+              'CONNECTION_UPDATE',
+              'MESSAGES_UPSERT',
+              'messages.upsert',
+              'MESSAGES_UPDATE',
+              'messages.update',
+              'MESSAGES_DELETE',
+              'messages.delete',
+              'SEND_MESSAGE',
+              'send.message',
+              'CONTACTS_SET',
+              'contacts.set',
+              'CONTACTS_UPSERT',
+              'contacts.upsert',
+              'CONTACTS_UPDATE',
+              'contacts.update',
+              'PRESENCE_UPDATE',
+              'presence.update',
+              'CHATS_SET',
+              'chats.set',
+              'CHATS_UPSERT',
+              'chats.upsert',
+              'CHATS_UPDATE',
+              'chats.update',
+              'CHATS_DELETE',
+              'chats.delete',
+              'GROUPS_UPSERT',
+              'groups.upsert',
+              'GROUP_UPDATE',
+              'group.update',
+              'GROUP_PARTICIPANTS_UPDATE',
+              'group.participants.update',
+              'NEW_JWT_TOKEN'
+            ]
+          }
+        }),
+      });
+      
+      if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Error restarting instance:', response.status, response.statusText, errorText);
+        console.error('❌ Error reconfiguring webhook:', response.status, response.statusText, errorText);
         return;
       }
       
       const result = await response.json();
-      console.log('✅ Instance restart initiated:', result);
-      console.log('⏳ Wait a few seconds for the instance to reconnect...');
+      console.log('✅ Webhook reconfigured with all events:', result);
       
       return result;
     } catch (error) {
-      console.error('❌ Error restarting instance:', error);
+      console.error('❌ Error reconfiguring webhook:', error);
     }
+  },
+
+  // Testar se a instância consegue enviar mensagem
+  async testSendMessage() {
+    const { instances } = await this.checkInstances();
+    if (!instances || instances.length === 0) {
+      console.error('❌ No instances found');
+      return;
+    }
+
+    const instance = instances[0];
+    const instanceName = instance.instance_name;
+    
+    console.log(`📤 Testing send message from: ${instanceName}`);
+    
+    const testPhone = '5511932473951'; // Número que você usou para enviar mensagem
+    const testMessage = 'Teste de envio - ' + new Date().toLocaleString();
+    
+    try {
+      const response = await fetch(`https://evolution.nutef.com/message/sendText/${instanceName}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': '5be0fd0304550ebb6027dcce02ae4ab1',
+        },
+        body: JSON.stringify({
+          number: testPhone,
+          text: testMessage
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Error sending test message:', response.status, response.statusText, errorText);
+        return;
+      }
+      
+      const result = await response.json();
+      console.log('✅ Test message sent:', result);
+      console.log('📱 Check your WhatsApp to confirm message was received');
+      
+      return result;
+    } catch (error) {
+      console.error('❌ Error sending test message:', error);
+    }
+  },
+
+  // Diagnóstico completo
+  async fullDiagnosis() {
+    console.log('🔍 === DIAGNÓSTICO COMPLETO ===');
+    
+    console.log('\n1️⃣ Verificando autenticação e perfil...');
+    await this.checkAuth();
+    await this.checkProfile();
+    
+    console.log('\n2️⃣ Verificando instâncias...');
+    await this.checkInstances();
+    
+    console.log('\n3️⃣ Verificando conexão da instância...');
+    await this.checkInstanceConnection();
+    
+    console.log('\n4️⃣ Verificando configuração do webhook...');
+    await this.checkEvolutionWebhook();
+    
+    console.log('\n5️⃣ Reconfigurando webhook com todos os eventos...');
+    await this.reconfigureWebhookWithAllEvents();
+    
+    console.log('\n6️⃣ Testando envio de mensagem...');
+    await this.testSendMessage();
+    
+    console.log('\n7️⃣ Verificando conversas...');
+    await this.checkConversations();
+    
+    console.log('\n🔍 === FIM DO DIAGNÓSTICO ===');
+    console.log('📋 Próximos passos:');
+    console.log('1. Aguarde o teste de envio chegar no WhatsApp');
+    console.log('2. Responda a mensagem de teste');
+    console.log('3. Execute: debugHelper.checkConversations()');
+    console.log('4. Verifique os logs: https://supabase.com/dashboard/project/ojfdzfgcysxoxzszhbzr/functions/evolution-webhook/logs');
   }
 };
 
