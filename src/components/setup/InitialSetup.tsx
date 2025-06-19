@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,15 +6,19 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Smartphone, User } from 'lucide-react';
+import { Smartphone, User, ArrowLeft } from 'lucide-react';
 
 const InitialSetup = () => {
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { user, profile } = useAuth();
+  const { user, profile, signOut } = useAuth();
 
   console.log('InitialSetup - Rendered for user:', user?.id, 'profile:', profile);
+
+  const handleBack = async () => {
+    await signOut();
+  };
 
   const handleSetup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,8 +92,17 @@ const InitialSetup = () => {
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
+          <div className="flex justify-between items-center mb-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleBack}
+              className="p-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
             <Smartphone className="h-16 w-16 text-green-600" />
+            <div className="w-10" /> {/* Espaçador para centralizar o ícone */}
           </div>
           <CardTitle className="text-2xl">Configuração Inicial</CardTitle>
           <CardDescription>
