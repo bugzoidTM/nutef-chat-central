@@ -1,10 +1,10 @@
 
 import { useState, useCallback } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import * as evolutionApi from '@/services/evolutionApi';
+import { useEvolutionMutations } from './useEvolutionMutations';
+import { useEvolutionQueries } from './useEvolutionQueries';
 
 export const useEvolutionInstance = (phoneNumber: string) => {
   const { toast } = useToast();
@@ -19,38 +19,21 @@ export const useEvolutionInstance = (phoneNumber: string) => {
 
   const instanceName = generateInstanceName(phoneNumber);
 
-  // Create instance mutation
-  const createInstanceMutation = useMutation({
-    mutationFn: async (options?: Partial<evolutionApi.CreateInstanceRequest>) => {
-      console.log('Creating instance for phone:', phoneNumber, 'instance name:', instanceName);
-      
-      if (!user) {
-        throw new Error('Usuário não autenticado');
-      }
+  // Use the separated queries and mutations
+  const { connectionState, chats, connectionStateLoading, chatsLoading, refetchConnectionState, refetchChats } = 
+    useEvolutionQueries(instanceName, phoneNumber);
 
-      if (!profile) {
-        throw new Error('Perfil do usuário não encontrado');
-      }
+  const { createInstance, getQRCode, sendMessage, isCreatingInstance, isGettingQRCode, isSendingMessage } = 
+    useEvolutionMutations(instanceName, refetchChats);
 
-      // Check if instance already exists
-      const instanceExists = await evolutionApi.checkInstanceExists(instanceName);
-      
-      let response;
-      if (!instanceExists) {
-        // Create instance in Evolution API
-        response = await evolutionApi.createInstance(instanceName, options);
-        console.log('Evolution API response:', response);
-      } else {
-        console.log('Instance already exists, skipping creation');
-        // If instance exists, just get connection state
-        const connectionState = await evolutionApi.getConnectionState(instanceName);
-        response = {
-          instance: {
-            instanceName,
-            status: connectionState.instance.state
-          }
-        };
-      }
+  // Enhanced create instance with database integration
+  const handleCreateInstance = async (options?: any) => {
+    if (!user || !profile) {
+      throw new Error('Usuário não autenticado ou perfil não encontrado');
+    }
+
+    try {
+      const response = await createInstance(options);
       
       // Save instance in database using profile.id
       const { error: instanceError } = await supabase
@@ -59,7 +42,7 @@ export const useEvolutionInstance = (phoneNumber: string) => {
           instance_name: instanceName,
           phone: phoneNumber,
           admin_id: profile.id,
-          status: instanceExists ? 'connected' : 'connecting',
+          status: 'connecting',
           webhook_url: 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook',
         });
 
@@ -70,106 +53,28 @@ export const useEvolutionInstance = (phoneNumber: string) => {
       
       console.log('Instance saved to database successfully');
       
-      return response;
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Instância configurada",
-        description: `Instância ${instanceName} configurada com sucesso.`,
-      });
-      
-      if (data.qrcode?.base64) {
-        setQrCode(data.qrcode.base64);
+      if (response?.qrcode?.base64) {
+        setQrCode(response.qrcode.base64);
       }
-    },
-    onError: (error: any) => {
-      console.error('Error creating instance:', error);
-      toast({
-        title: "Erro ao configurar instância",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+      
+      return response;
+    } catch (error) {
+      console.error('Error in handleCreateInstance:', error);
+      throw error;
+    }
+  };
 
-  // Get QR code mutation
-  const getQRCodeMutation = useMutation({
-    mutationFn: () => evolutionApi.getQRCode(instanceName),
-    onSuccess: (data) => {
+  // Enhanced get QR code with state management
+  const handleGetQRCode = async () => {
+    try {
+      const data = await getQRCode();
       setQrCode(data.base64);
-      toast({
-        title: "QR Code gerado",
-        description: "Escaneie o QR Code com seu WhatsApp.",
-      });
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Erro ao gerar QR Code",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Connection state query
-  const {
-    data: connectionState,
-    isLoading: connectionStateLoading,
-    refetch: refetchConnectionState,
-  } = useQuery({
-    queryKey: ['connectionState', instanceName],
-    queryFn: async () => {
-      const response = await evolutionApi.getConnectionState(instanceName);
-      
-      // Update instance status in database when connection state changes
-      if (profile && instanceName && response.instance) {
-        const status = response.instance.state === 'open' ? 'connected' : 
-                      response.instance.state === 'connecting' ? 'connecting' : 'disconnected';
-        
-        await supabase
-          .from('instances')
-          .update({ status })
-          .eq('instance_name', instanceName)
-          .eq('admin_id', profile.id);
-      }
-      
-      return response;
-    },
-    refetchInterval: 5000, // Check every 5 seconds
-    retry: false,
-    enabled: !!instanceName && !!profile && phoneNumber.length > 0,
-  });
-
-  // Find chats query
-  const {
-    data: chats,
-    isLoading: chatsLoading,
-    refetch: refetchChats,
-  } = useQuery({
-    queryKey: ['chats', instanceName],
-    queryFn: () => evolutionApi.findChats(instanceName),
-    enabled: connectionState?.instance.state === 'open' && !!instanceName,
-  });
-
-  // Send message mutation
-  const sendMessageMutation = useMutation({
-    mutationFn: ({ number, text }: { number: string; text: string }) =>
-      evolutionApi.sendTextMessage(instanceName, number, text),
-    onSuccess: () => {
-      toast({
-        title: "Mensagem enviada",
-        description: "Mensagem enviada com sucesso via WhatsApp.",
-      });
-      refetchChats();
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Erro ao enviar mensagem",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+      return data;
+    } catch (error) {
+      console.error('Error getting QR code:', error);
+      throw error;
+    }
+  };
 
   const clearQrCode = useCallback(() => {
     setQrCode(null);
@@ -178,25 +83,25 @@ export const useEvolutionInstance = (phoneNumber: string) => {
   return {
     // State
     qrCode,
-    connectionState: connectionState?.instance,
-    chats: chats?.chats || [],
+    connectionState,
+    chats,
     instanceName,
     
     // Loading states
     connectionStateLoading,
     chatsLoading,
     
-    // Mutations
-    createInstance: createInstanceMutation.mutate,
-    getQRCode: getQRCodeMutation.mutate,
-    sendMessage: sendMessageMutation.mutate,
+    // Actions
+    createInstance: handleCreateInstance,
+    getQRCode: handleGetQRCode,
+    sendMessage,
     
     // Loading states for mutations
-    isCreatingInstance: createInstanceMutation.isPending,
-    isGettingQRCode: getQRCodeMutation.isPending,
-    isSendingMessage: sendMessageMutation.isPending,
+    isCreatingInstance,
+    isGettingQRCode,
+    isSendingMessage,
     
-    // Actions
+    // Utility actions
     refetchConnectionState,
     refetchChats,
     clearQrCode,
