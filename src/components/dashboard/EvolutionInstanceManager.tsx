@@ -67,6 +67,14 @@ const EvolutionInstanceManager = ({ defaultInstanceName = 'default' }: Evolution
     }
   };
 
+  const handleCreateInstance = () => {
+    createInstance({});
+  };
+
+  const handleGetQRCode = () => {
+    getQRCode();
+  };
+
   return (
     <div className="space-y-6">
       <Card>
@@ -88,7 +96,7 @@ const EvolutionInstanceManager = ({ defaultInstanceName = 'default' }: Evolution
               className="flex-1"
             />
             <Button
-              onClick={() => createInstance()}
+              onClick={handleCreateInstance}
               disabled={isCreatingInstance || !instanceName}
             >
               {isCreatingInstance ? 'Criando...' : 'Criar Instância'}
@@ -120,7 +128,7 @@ const EvolutionInstanceManager = ({ defaultInstanceName = 'default' }: Evolution
           {connectionState?.state !== 'open' && (
             <div className="space-y-3">
               <Button
-                onClick={() => getQRCode()}
+                onClick={handleGetQRCode}
                 disabled={isGettingQRCode}
                 className="w-full"
               >
