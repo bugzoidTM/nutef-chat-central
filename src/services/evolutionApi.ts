@@ -108,21 +108,35 @@ const makeRequest = async <T>(
   return data;
 };
 
-// Create instance
+// Create instance with proper webhook configuration
 export const createInstance = async (
   instanceName: string,
   options: Partial<CreateInstanceRequest> = {}
 ): Promise<CreateInstanceResponse> => {
   console.log('Creating Evolution API instance:', instanceName, 'with options:', options);
   
+  const webhookUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
+  
+  const requestBody = {
+    instanceName,
+    qrcode: true,
+    integration: 'WHATSAPP-BAILEYS',
+    webhook: webhookUrl,
+    webhook_by_events: false,
+    webhook_base64: false,
+    events: [
+      'MESSAGES_UPSERT',
+      'MESSAGES_UPDATE',
+      'CONNECTION_UPDATE'
+    ],
+    ...options,
+  };
+
+  console.log('Instance creation request body:', requestBody);
+  
   return makeRequest<CreateInstanceResponse>('/instance/create', {
     method: 'POST',
-    body: JSON.stringify({
-      instanceName,
-      qrcode: true,
-      integration: 'WHATSAPP-BAILEYS',
-      ...options,
-    }),
+    body: JSON.stringify(requestBody),
   });
 };
 
@@ -190,37 +204,23 @@ export const setWebhook = async (
       events: webhookEvents || [
         'MESSAGES_UPSERT',
         'MESSAGES_UPDATE',
-        'MESSAGES_DELETE',
-        'SEND_MESSAGE',
-        'CONTACTS_UPDATE',
-        'CONTACTS_UPSERT',
-        'PRESENCE_UPDATE',
-        'CHATS_UPDATE',
-        'CHATS_UPSERT',
-        'CHATS_DELETE',
-        'GROUPS_UPSERT',
-        'GROUP_UPDATE',
-        'GROUP_PARTICIPANTS_UPDATE',
-        'CONNECTION_UPDATE',
-        'LABELS_EDIT',
-        'LABELS_ASSOCIATION',
-        'CALL'
+        'CONNECTION_UPDATE'
       ]
     }),
   });
 };
 
-// Setup webhook automatically - new function
-export const setupWebhookAutomatically = async (instanceName: string): Promise<void> => {
-  const webhookUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
-  
-  console.log('Setting up webhook automatically for instance:', instanceName);
-  
-  await setWebhook(instanceName, webhookUrl, [
-    'MESSAGES_UPSERT'
-  ]);
-  
-  console.log('Webhook configured successfully for instance:', instanceName);
+// Check if instance exists
+export const checkInstanceExists = async (instanceName: string): Promise<boolean> => {
+  try {
+    await getConnectionState(instanceName);
+    return true;
+  } catch (error: any) {
+    if (error.message.includes('404') || error.message.includes('does not exist')) {
+      return false;
+    }
+    throw error;
+  }
 };
 
 // Updated sendMessage function to use the new sendTextMessage

@@ -55,7 +55,7 @@ const QRCodeSetup = () => {
           phone: phoneNumber,
           instance_name: instanceName,
         })
-        .eq('id', profile.id); // Use profile.id instead of user_id
+        .eq('id', profile.id);
 
       if (error) throw error;
 
@@ -222,12 +222,12 @@ const QRCodeSetup = () => {
                 {isCreatingInstance ? (
                   <>
                     <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    Criando instância...
+                    Configurando instância...
                   </>
                 ) : (
                   <>
                     <QrCode className="h-4 w-4 mr-2" />
-                    Criar Instância WhatsApp
+                    Configurar WhatsApp
                   </>
                 )}
               </Button>

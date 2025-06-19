@@ -32,30 +32,35 @@ export const useEvolutionInstance = (phoneNumber: string) => {
         throw new Error('Perfil do usuário não encontrado');
       }
 
-      // Create instance in Evolution API with webhook configuration
-      const webhookUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
-      const response = await evolutionApi.createInstance(instanceName, {
-        ...options,
-        webhook: webhookUrl,
-        webhook_by_events: false,
-        webhook_base64: false,
-        events: [
-          'MESSAGES_UPSERT',
-          'MESSAGES_UPDATE', 
-          'CONNECTION_UPDATE'
-        ]
-      });
-      console.log('Evolution API response:', response);
+      // Check if instance already exists
+      const instanceExists = await evolutionApi.checkInstanceExists(instanceName);
       
-      // Save instance in database using profile.id instead of user.id
+      let response;
+      if (!instanceExists) {
+        // Create instance in Evolution API
+        response = await evolutionApi.createInstance(instanceName, options);
+        console.log('Evolution API response:', response);
+      } else {
+        console.log('Instance already exists, skipping creation');
+        // If instance exists, just get connection state
+        const connectionState = await evolutionApi.getConnectionState(instanceName);
+        response = {
+          instance: {
+            instanceName,
+            status: connectionState.instance.state
+          }
+        };
+      }
+      
+      // Save instance in database using profile.id
       const { error: instanceError } = await supabase
         .from('instances')
         .upsert({
           instance_name: instanceName,
           phone: phoneNumber,
-          admin_id: profile.id, // Use profile.id instead of user.id
-          status: 'connecting',
-          webhook_url: webhookUrl,
+          admin_id: profile.id,
+          status: instanceExists ? 'connected' : 'connecting',
+          webhook_url: 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook',
         });
 
       if (instanceError) {
@@ -69,8 +74,8 @@ export const useEvolutionInstance = (phoneNumber: string) => {
     },
     onSuccess: (data) => {
       toast({
-        title: "Instância criada",
-        description: `Instância ${instanceName} criada com sucesso.`,
+        title: "Instância configurada",
+        description: `Instância ${instanceName} configurada com sucesso.`,
       });
       
       if (data.qrcode?.base64) {
@@ -80,7 +85,7 @@ export const useEvolutionInstance = (phoneNumber: string) => {
     onError: (error: any) => {
       console.error('Error creating instance:', error);
       toast({
-        title: "Erro ao criar instância",
+        title: "Erro ao configurar instância",
         description: error.message,
         variant: "destructive",
       });
@@ -125,14 +130,14 @@ export const useEvolutionInstance = (phoneNumber: string) => {
           .from('instances')
           .update({ status })
           .eq('instance_name', instanceName)
-          .eq('admin_id', profile.id); // Use profile.id
+          .eq('admin_id', profile.id);
       }
       
       return response;
     },
     refetchInterval: 5000, // Check every 5 seconds
     retry: false,
-    enabled: !!instanceName && !!profile,
+    enabled: !!instanceName && !!profile && phoneNumber.length > 0,
   });
 
   // Find chats query
