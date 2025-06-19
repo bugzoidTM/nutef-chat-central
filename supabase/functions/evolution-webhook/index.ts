@@ -157,7 +157,7 @@ serve(async (req) => {
         } else if (data?.message) {
           messages = [data.message];
         } else if (data && data.key) {
-          // Direct message object
+          // Direct message object from Evolution API
           messages = [data];
         }
 
@@ -166,8 +166,18 @@ serve(async (req) => {
         for (const message of messages) {
           console.log('💬 Processing message:', JSON.stringify(message, null, 2));
           
+          // Corrigir a verificação - os dados podem estar na raiz do data ou dentro de message
           const isFromMe = message.key?.fromMe || false;
           const remoteJid = message.key?.remoteJid || '';
+          
+          console.log('🔍 Debug message structure:', {
+            hasKey: !!message.key,
+            remoteJid: remoteJid,
+            isFromMe: isFromMe,
+            hasMessage: !!message.message,
+            messageKeys: message.message ? Object.keys(message.message) : [],
+            pushName: message.pushName
+          });
           
           // Skip messages sent by us
           if (isFromMe) {
@@ -176,7 +186,9 @@ serve(async (req) => {
           }
 
           if (!remoteJid) {
-            console.log('⏭️ Skipping message without remoteJid');
+            console.log('❌ Skipping message without remoteJid');
+            console.log('🔍 Available message properties:', Object.keys(message));
+            console.log('🔍 Full message structure:', JSON.stringify(message, null, 2));
             continue;
           }
 
@@ -198,8 +210,11 @@ serve(async (req) => {
             messageContent = '[Mensagem sem texto]';
           }
 
+          console.log('📝 Extracted message content:', messageContent);
+
           if (!messageContent) {
-            console.log('⏭️ Skipping message without content');
+            console.log('❌ Skipping message without content');
+            console.log('🔍 Message structure for content extraction:', JSON.stringify(message.message, null, 2));
             continue;
           }
 
