@@ -88,8 +88,8 @@ export const useEvolutionMutations = (instanceName: string, refetchChats: () => 
   });
 
   return {
-    createInstance: createInstanceMutation.mutate,
-    getQRCode: getQRCodeMutation.mutate,
+    createInstance: createInstanceMutation.mutateAsync,
+    getQRCode: getQRCodeMutation.mutateAsync,
     sendMessage: sendMessageMutation.mutate,
     isCreatingInstance: createInstanceMutation.isPending,
     isGettingQRCode: getQRCodeMutation.isPending,
