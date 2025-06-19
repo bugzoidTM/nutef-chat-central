@@ -17,23 +17,16 @@ export const useWebhookConfig = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Get webhook configs using raw SQL query
+  // Get webhook configs using direct table query
   const { data: webhookConfigs = [], isLoading } = useQuery({
     queryKey: ['webhook-configs'],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('get_webhook_configs');
+      const { data, error } = await supabase
+        .from('webhook_configs')
+        .select('*')
+        .order('created_at', { ascending: false });
       
-      if (error) {
-        // Fallback to direct query if RPC doesn't exist
-        const { data: fallbackData, error: fallbackError } = await supabase
-          .from('webhook_configs' as any)
-          .select('*')
-          .order('created_at', { ascending: false });
-        
-        if (fallbackError) throw fallbackError;
-        return (fallbackData || []) as WebhookConfig[];
-      }
-      
+      if (error) throw error;
       return (data || []) as WebhookConfig[];
     },
   });
@@ -46,7 +39,7 @@ export const useWebhookConfig = () => {
       webhookSecret?: string;
     }) => {
       const { data, error } = await supabase
-        .from('webhook_configs' as any)
+        .from('webhook_configs')
         .upsert({
           instance_name: instanceName,
           webhook_url: webhookUrl,
@@ -80,7 +73,7 @@ export const useWebhookConfig = () => {
   const toggleWebhookMutation = useMutation({
     mutationFn: async ({ id, isActive }: { id: string; isActive: boolean }) => {
       const { data, error } = await supabase
-        .from('webhook_configs' as any)
+        .from('webhook_configs')
         .update({ is_active: isActive, updated_at: new Date().toISOString() })
         .eq('id', id)
         .select()
