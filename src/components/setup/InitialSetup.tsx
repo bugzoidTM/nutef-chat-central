@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,25 +35,20 @@ const InitialSetup = () => {
         setup_completed: true,
       };
 
-      // Se não existe perfil, criar um novo
-      if (!profile) {
-        console.log('InitialSetup - Creating new profile');
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .insert({
-            user_id: user.id,
-            email: user.email, // Usar o email do usuário já cadastrado
-            role: 'admin',
-            phone: '', // Será preenchido na próxima tela
-            ...profileData,
-          });
+      // Primeiro, verificar se o perfil já existe
+      const { data: existingProfile, error: checkError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-        if (insertError) {
-          console.error('InitialSetup - Insert error:', insertError);
-          throw insertError;
-        }
-      } else {
-        // Se existe perfil, atualizar
+      if (checkError && checkError.code !== 'PGRST116') {
+        console.error('InitialSetup - Error checking existing profile:', checkError);
+        throw checkError;
+      }
+
+      if (existingProfile) {
+        // Se o perfil existe, apenas atualizar
         console.log('InitialSetup - Updating existing profile');
         const { error: updateError } = await supabase
           .from('profiles')
@@ -62,6 +58,37 @@ const InitialSetup = () => {
         if (updateError) {
           console.error('InitialSetup - Update error:', updateError);
           throw updateError;
+        }
+      } else {
+        // Se não existe perfil, criar um novo
+        console.log('InitialSetup - Creating new profile');
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: user.id,
+            email: user.email,
+            role: 'admin',
+            phone: '',
+            ...profileData,
+          });
+
+        if (insertError) {
+          console.error('InitialSetup - Insert error:', insertError);
+          // Se for erro de duplicata, ignorar e tentar atualizar
+          if (insertError.code === '23505') {
+            console.log('InitialSetup - Profile already exists, trying to update instead');
+            const { error: updateError } = await supabase
+              .from('profiles')
+              .update(profileData)
+              .eq('user_id', user.id);
+
+            if (updateError) {
+              console.error('InitialSetup - Update after duplicate error:', updateError);
+              throw updateError;
+            }
+          } else {
+            throw insertError;
+          }
         }
       }
 
@@ -102,7 +129,7 @@ const InitialSetup = () => {
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <Smartphone className="h-16 w-16 text-green-600" />
-            <div className="w-10" /> {/* Espaçador para centralizar o ícone */}
+            <div className="w-10" />
           </div>
           <CardTitle className="text-2xl">Configuração Inicial</CardTitle>
           <CardDescription>
