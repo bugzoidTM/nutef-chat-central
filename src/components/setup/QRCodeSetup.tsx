@@ -50,17 +50,17 @@ const QRCodeSetup = () => {
 
   useEffect(() => {
     // Se a instância estiver conectada e webhook configurado, finalizar setup
-    if (connectionState?.state === 'open' && webhookConfigured && user && instanceName) {
-      console.log('Finalizando setup para user:', user.id, 'instance:', instanceName);
+    if (connectionState?.state === 'open' && webhookConfigured && profile && instanceName) {
+      console.log('Finalizando setup para profile:', profile.id, 'instance:', instanceName);
       handleSetupComplete();
     }
-  }, [connectionState?.state, webhookConfigured, user, instanceName]);
+  }, [connectionState?.state, webhookConfigured, profile, instanceName]);
 
   const handleSetupComplete = async () => {
-    if (!user || !instanceName) return;
+    if (!profile || !instanceName) return;
 
     try {
-      console.log('Completing setup for user:', user.id, 'with instance:', instanceName, 'phone:', phoneNumber);
+      console.log('Completing setup for profile:', profile.id, 'with instance:', instanceName, 'phone:', phoneNumber);
 
       const { error } = await supabase
         .from('profiles')
@@ -69,7 +69,7 @@ const QRCodeSetup = () => {
           phone: phoneNumber,
           instance_name: instanceName,
         })
-        .eq('user_id', user.id);
+        .eq('id', profile.id); // Use profile.id instead of user_id
 
       if (error) throw error;
 
@@ -97,6 +97,15 @@ const QRCodeSetup = () => {
       toast({
         title: "Número obrigatório",
         description: "Por favor, insira o número do WhatsApp.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!profile) {
+      toast({
+        title: "Perfil não encontrado",
+        description: "Perfil do usuário não foi carregado. Tente recarregar a página.",
         variant: "destructive",
       });
       return;
@@ -222,7 +231,7 @@ const QRCodeSetup = () => {
               
               <Button
                 onClick={handleCreateInstance}
-                disabled={isCreatingInstance || !phoneNumber.trim()}
+                disabled={isCreatingInstance || !phoneNumber.trim() || !profile}
                 className="w-full"
               >
                 {isCreatingInstance ? (

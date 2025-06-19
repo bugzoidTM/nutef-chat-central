@@ -8,7 +8,7 @@ import * as evolutionApi from '@/services/evolutionApi';
 
 export const useEvolutionInstance = (phoneNumber: string) => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [qrCode, setQrCode] = useState<string | null>(null);
 
   // Generate friendly instance name: whatsapp_ + clean phone number
@@ -28,17 +28,21 @@ export const useEvolutionInstance = (phoneNumber: string) => {
         throw new Error('Usuário não autenticado');
       }
 
+      if (!profile) {
+        throw new Error('Perfil do usuário não encontrado');
+      }
+
       // Create instance in Evolution API
       const response = await evolutionApi.createInstance(instanceName, options);
       console.log('Evolution API response:', response);
       
-      // Save instance in database
+      // Save instance in database using profile.id instead of user.id
       const { error: instanceError } = await supabase
         .from('instances')
         .upsert({
           instance_name: instanceName,
           phone: phoneNumber,
-          admin_id: user.id,
+          admin_id: profile.id, // Use profile.id instead of user.id
           status: 'connecting',
         });
 
@@ -101,7 +105,7 @@ export const useEvolutionInstance = (phoneNumber: string) => {
       const response = await evolutionApi.getConnectionState(instanceName);
       
       // Update instance status in database when connection state changes
-      if (user && instanceName && response.instance) {
+      if (profile && instanceName && response.instance) {
         const status = response.instance.state === 'open' ? 'connected' : 
                       response.instance.state === 'connecting' ? 'connecting' : 'disconnected';
         
@@ -109,14 +113,14 @@ export const useEvolutionInstance = (phoneNumber: string) => {
           .from('instances')
           .update({ status })
           .eq('instance_name', instanceName)
-          .eq('admin_id', user.id);
+          .eq('admin_id', profile.id); // Use profile.id
       }
       
       return response;
     },
     refetchInterval: 5000, // Check every 5 seconds
     retry: false,
-    enabled: !!instanceName && !!user,
+    enabled: !!instanceName && !!profile,
   });
 
   // Find chats query
