@@ -43,10 +43,14 @@ serve(async (req) => {
     // Parse the webhook payload
     const payload: EvolutionWebhookPayload = await req.json()
     
-    console.log('Received Evolution webhook:', JSON.stringify(payload, null, 2))
+    console.log('=== EVOLUTION WEBHOOK RECEIVED ===');
+    console.log('Event:', payload.event);
+    console.log('Instance:', payload.instance);
+    console.log('Full payload:', JSON.stringify(payload, null, 2));
 
     // Only process message events
     if (payload.event !== 'messages.upsert') {
+      console.log('Event not processed, only processing messages.upsert, got:', payload.event);
       return new Response(
         JSON.stringify({ message: 'Event not processed', event: payload.event }),
         { 
@@ -63,8 +67,15 @@ serve(async (req) => {
     const senderName = data.pushName || 'Usuário'
     const isFromMe = data.key.fromMe
 
+    console.log('=== MESSAGE DETAILS ===');
+    console.log('Message text:', messageText);
+    console.log('From phone:', fromPhone);
+    console.log('Sender name:', senderName);
+    console.log('Is from me:', isFromMe);
+
     // Don't process messages sent by us
     if (isFromMe) {
+      console.log('Message from us, ignoring');
       return new Response(
         JSON.stringify({ message: 'Message from us, ignored' }),
         { 
@@ -74,17 +85,30 @@ serve(async (req) => {
       )
     }
 
-    // Find the instance
+    // Find the instance by instance_name
+    console.log('Looking for instance with name:', payload.instance);
     const { data: instance, error: instanceError } = await supabaseClient
       .from('instances')
       .select('*')
       .eq('instance_name', payload.instance)
       .single()
 
-    if (instanceError || !instance) {
-      console.error('Instance not found:', payload.instance)
+    if (instanceError) {
+      console.error('Error finding instance:', instanceError);
+      console.log('Available instances query result:', instanceError);
+      
+      // Try to list all instances for debugging
+      const { data: allInstances } = await supabaseClient
+        .from('instances')
+        .select('*');
+      
+      console.log('All instances in database:', allInstances);
+    }
+
+    if (!instance) {
+      console.error('Instance not found with name:', payload.instance);
       return new Response(
-        JSON.stringify({ error: 'Instance not found' }),
+        JSON.stringify({ error: 'Instance not found', searched_name: payload.instance }),
         { 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 404 
@@ -92,7 +116,10 @@ serve(async (req) => {
       )
     }
 
+    console.log('Found instance:', instance);
+
     // Check if conversation already exists
+    console.log('Looking for existing conversation with phone:', fromPhone, 'and instance_id:', instance.id);
     let { data: conversation, error: conversationError } = await supabaseClient
       .from('conversations')
       .select('*')
@@ -100,8 +127,13 @@ serve(async (req) => {
       .eq('instance_id', instance.id)
       .single()
 
+    if (conversationError && conversationError.code !== 'PGRST116') {
+      console.error('Error finding conversation (not "not found"):', conversationError);
+    }
+
     // Create conversation if it doesn't exist
-    if (conversationError || !conversation) {
+    if (!conversation) {
+      console.log('Creating new conversation for phone:', fromPhone);
       const { data: newConversation, error: createError } = await supabaseClient
         .from('conversations')
         .insert({
@@ -116,23 +148,32 @@ serve(async (req) => {
         .single()
 
       if (createError) {
-        console.error('Error creating conversation:', createError)
+        console.error('Error creating conversation:', createError);
         throw createError
       }
 
       conversation = newConversation
+      console.log('New conversation created:', conversation);
     } else {
+      console.log('Found existing conversation:', conversation);
       // Update existing conversation
-      await supabaseClient
+      const { error: updateError } = await supabaseClient
         .from('conversations')
         .update({
           client_name: senderName,
           last_message_at: new Date().toISOString()
         })
         .eq('id', conversation.id)
+
+      if (updateError) {
+        console.error('Error updating conversation:', updateError);
+      } else {
+        console.log('Conversation updated successfully');
+      }
     }
 
     // Insert the message
+    console.log('Inserting message for conversation:', conversation.id);
     const { error: messageError } = await supabaseClient
       .from('messages')
       .insert({
@@ -146,14 +187,19 @@ serve(async (req) => {
       })
 
     if (messageError) {
-      console.error('Error inserting message:', messageError)
+      console.error('Error inserting message:', messageError);
       throw messageError
     }
 
-    console.log('Successfully processed webhook message')
+    console.log('=== WEBHOOK PROCESSED SUCCESSFULLY ===');
+    console.log('Message saved for conversation:', conversation.id);
 
     return new Response(
-      JSON.stringify({ message: 'Webhook processed successfully' }),
+      JSON.stringify({ 
+        message: 'Webhook processed successfully',
+        conversation_id: conversation.id,
+        message_content: messageText 
+      }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200 
@@ -161,7 +207,8 @@ serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Error processing webhook:', error)
+    console.error('=== ERROR PROCESSING WEBHOOK ===');
+    console.error('Error details:', error);
     
     return new Response(
       JSON.stringify({ error: 'Internal server error', details: error.message }),

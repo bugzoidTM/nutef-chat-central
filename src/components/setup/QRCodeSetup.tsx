@@ -28,34 +28,39 @@ const QRCodeSetup = () => {
     isGettingQRCode,
     refetchConnectionState,
     clearQrCode,
+    instanceName,
   } = useEvolutionInstance(phoneNumber);
 
   const { setupWebhookAutomatically, isSettingUp } = useWebhookConfig();
 
   useEffect(() => {
+    console.log('Connection state changed:', connectionState?.state);
+    console.log('Instance created:', instanceCreated);
+    console.log('Webhook configured:', webhookConfigured);
+    console.log('Instance name:', instanceName);
+    
     // Se a instância estiver conectada e ainda não configurou webhook, configurar automaticamente
-    if (connectionState?.state === 'open' && !webhookConfigured && instanceCreated) {
-      const instanceName = phoneNumber.replace(/\D/g, '');
+    if (connectionState?.state === 'open' && !webhookConfigured && instanceCreated && instanceName) {
       console.log('Configurando webhook automaticamente para:', instanceName);
       
       setupWebhookAutomatically({ instanceName });
       setWebhookConfigured(true);
     }
-  }, [connectionState?.state, webhookConfigured, instanceCreated, phoneNumber, setupWebhookAutomatically]);
+  }, [connectionState?.state, webhookConfigured, instanceCreated, instanceName, setupWebhookAutomatically]);
 
   useEffect(() => {
     // Se a instância estiver conectada e webhook configurado, finalizar setup
-    if (connectionState?.state === 'open' && webhookConfigured && user) {
+    if (connectionState?.state === 'open' && webhookConfigured && user && instanceName) {
+      console.log('Finalizando setup para user:', user.id, 'instance:', instanceName);
       handleSetupComplete();
     }
-  }, [connectionState?.state, webhookConfigured, user]);
+  }, [connectionState?.state, webhookConfigured, user, instanceName]);
 
   const handleSetupComplete = async () => {
-    if (!user) return;
+    if (!user || !instanceName) return;
 
     try {
-      // Gerar instance_name baseado no telefone (apenas números)
-      const instanceName = phoneNumber.replace(/\D/g, '');
+      console.log('Completing setup for user:', user.id, 'with instance:', instanceName, 'phone:', phoneNumber);
 
       const { error } = await supabase
         .from('profiles')
@@ -68,6 +73,8 @@ const QRCodeSetup = () => {
 
       if (error) throw error;
 
+      console.log('Profile updated successfully');
+
       toast({
         title: "WhatsApp conectado!",
         description: "Configuração concluída com sucesso. Sistema pronto para receber mensagens.",
@@ -76,6 +83,7 @@ const QRCodeSetup = () => {
       // Recarregar para ir para o dashboard
       setTimeout(() => window.location.reload(), 2000);
     } catch (error: any) {
+      console.error('Error completing setup:', error);
       toast({
         title: "Erro ao finalizar configuração",
         description: error.message,
@@ -93,6 +101,8 @@ const QRCodeSetup = () => {
       });
       return;
     }
+    
+    console.log('Creating instance for phone:', phoneNumber);
     setInstanceCreated(true);
     createInstance({});
   };

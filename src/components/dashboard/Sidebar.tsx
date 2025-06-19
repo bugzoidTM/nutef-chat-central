@@ -1,10 +1,10 @@
+
 import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { LogoutButton } from '@/components/auth/LogoutButton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import type { SectorType, StatusType } from '@/types/dashboard';
-import WebhookSettings from './WebhookSettings';
 
 interface SidebarProps {
   selectedSector: SectorType;
@@ -26,7 +26,6 @@ const Sidebar = ({
   conversationCounts,
 }: SidebarProps) => {
   const { profile } = useAuth();
-  const [activeTab, setActiveTab] = useState('conversations');
 
   if (!profile) return null;
 
@@ -61,91 +60,55 @@ const Sidebar = ({
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="border-b border-gray-200">
-        <div className="flex">
-          <button
-            onClick={() => setActiveTab('conversations')}
-            className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'conversations'
-                ? 'border-green-500 text-green-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Conversas
-          </button>
-          {profile.role === 'admin' && (
-            <button
-              onClick={() => setActiveTab('webhooks')}
-              className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === 'webhooks'
-                  ? 'border-green-500 text-green-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Webhooks
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Tab Content */}
+      {/* Content */}
       <div className="flex-1 overflow-y-auto">
-        {activeTab === 'conversations' && (
-          <div className="p-4 space-y-6">
-            {/* Sector Filters */}
-            <div>
-              <h3 className="text-sm font-medium text-gray-900 mb-3">Setores</h3>
-              <div className="space-y-2">
-                {sectorOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => onSectorChange(option.value as SectorType)}
-                    className={`w-full flex items-center justify-between p-2 rounded-lg text-left transition-colors ${
-                      selectedSector === option.value
-                        ? 'bg-green-50 text-green-700 border border-green-200'
-                        : 'hover:bg-gray-50 text-gray-700'
-                    }`}
-                  >
-                    <span className="text-sm">{option.label}</span>
-                    <Badge variant="secondary" className="text-xs">
-                      {option.count}
-                    </Badge>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Status Filters */}
-            <div>
-              <h3 className="text-sm font-medium text-gray-900 mb-3">Status</h3>
-              <div className="space-y-2">
-                {statusOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => onStatusChange(option.value as StatusType)}
-                    className={`w-full flex items-center justify-between p-2 rounded-lg text-left transition-colors ${
-                      selectedStatus === option.value
-                        ? 'bg-green-50 text-green-700 border border-green-200'
-                        : 'hover:bg-gray-50 text-gray-700'
-                    }`}
-                  >
-                    <span className="text-sm">{option.label}</span>
-                    <Badge variant="secondary" className="text-xs">
-                      {option.count}
-                    </Badge>
-                  </button>
-                ))}
-              </div>
+        <div className="p-4 space-y-6">
+          {/* Sector Filters */}
+          <div>
+            <h3 className="text-sm font-medium text-gray-900 mb-3">Setores</h3>
+            <div className="space-y-2">
+              {sectorOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => onSectorChange(option.value as SectorType)}
+                  className={`w-full flex items-center justify-between p-2 rounded-lg text-left transition-colors ${
+                    selectedSector === option.value
+                      ? 'bg-green-50 text-green-700 border border-green-200'
+                      : 'hover:bg-gray-50 text-gray-700'
+                  }`}
+                >
+                  <span className="text-sm">{option.label}</span>
+                  <Badge variant="secondary" className="text-xs">
+                    {option.count}
+                  </Badge>
+                </button>
+              ))}
             </div>
           </div>
-        )}
 
-        {activeTab === 'webhooks' && profile.role === 'admin' && (
-          <div className="p-4">
-            <WebhookSettings />
+          {/* Status Filters */}
+          <div>
+            <h3 className="text-sm font-medium text-gray-900 mb-3">Status</h3>
+            <div className="space-y-2">
+              {statusOptions.map((option) => (
+                <button
+                  key={option.value}
+                  onClick={() => onStatusChange(option.value as StatusType)}
+                  className={`w-full flex items-center justify-between p-2 rounded-lg text-left transition-colors ${
+                    selectedStatus === option.value
+                      ? 'bg-green-50 text-green-700 border border-green-200'
+                      : 'hover:bg-gray-50 text-gray-700'
+                  }`}
+                >
+                  <span className="text-sm">{option.label}</span>
+                  <Badge variant="secondary" className="text-xs">
+                    {option.count}
+                  </Badge>
+                </button>
+              ))}
+            </div>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Footer */}

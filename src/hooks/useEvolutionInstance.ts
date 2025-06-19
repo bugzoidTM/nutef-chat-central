@@ -2,16 +2,47 @@
 import { useState, useCallback } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import * as evolutionApi from '@/services/evolutionApi';
 
-export const useEvolutionInstance = (instanceName: string) => {
+export const useEvolutionInstance = (phoneNumber: string) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [qrCode, setQrCode] = useState<string | null>(null);
+
+  // Generate instance name from phone number (only numbers)
+  const instanceName = phoneNumber.replace(/\D/g, '');
 
   // Create instance mutation
   const createInstanceMutation = useMutation({
-    mutationFn: (options?: Partial<evolutionApi.CreateInstanceRequest>) =>
-      evolutionApi.createInstance(instanceName, options),
+    mutationFn: async (options?: Partial<evolutionApi.CreateInstanceRequest>) => {
+      console.log('Creating instance for phone:', phoneNumber, 'instance name:', instanceName);
+      
+      // Create instance in Evolution API
+      const response = await evolutionApi.createInstance(instanceName, options);
+      
+      // Save instance in database if user is available
+      if (user && instanceName) {
+        const { error: instanceError } = await supabase
+          .from('instances')
+          .upsert({
+            instance_name: instanceName,
+            phone: phoneNumber,
+            admin_id: user.id,
+            status: 'connecting',
+          });
+
+        if (instanceError) {
+          console.error('Error saving instance to database:', instanceError);
+          throw instanceError;
+        }
+        
+        console.log('Instance saved to database successfully');
+      }
+      
+      return response;
+    },
     onSuccess: (data) => {
       toast({
         title: "Instância criada",
@@ -23,6 +54,7 @@ export const useEvolutionInstance = (instanceName: string) => {
       }
     },
     onError: (error: any) => {
+      console.error('Error creating instance:', error);
       toast({
         title: "Erro ao criar instância",
         description: error.message,
@@ -57,9 +89,26 @@ export const useEvolutionInstance = (instanceName: string) => {
     refetch: refetchConnectionState,
   } = useQuery({
     queryKey: ['connectionState', instanceName],
-    queryFn: () => evolutionApi.getConnectionState(instanceName),
+    queryFn: async () => {
+      const response = await evolutionApi.getConnectionState(instanceName);
+      
+      // Update instance status in database when connection state changes
+      if (user && instanceName && response.instance) {
+        const status = response.instance.state === 'open' ? 'connected' : 
+                      response.instance.state === 'connecting' ? 'connecting' : 'disconnected';
+        
+        await supabase
+          .from('instances')
+          .update({ status })
+          .eq('instance_name', instanceName)
+          .eq('admin_id', user.id);
+      }
+      
+      return response;
+    },
     refetchInterval: 5000, // Check every 5 seconds
     retry: false,
+    enabled: !!instanceName,
   });
 
   // Find chats query
@@ -70,7 +119,7 @@ export const useEvolutionInstance = (instanceName: string) => {
   } = useQuery({
     queryKey: ['chats', instanceName],
     queryFn: () => evolutionApi.findChats(instanceName),
-    enabled: connectionState?.instance.state === 'open',
+    enabled: connectionState?.instance.state === 'open' && !!instanceName,
   });
 
   // Send message mutation
@@ -102,6 +151,7 @@ export const useEvolutionInstance = (instanceName: string) => {
     qrCode,
     connectionState: connectionState?.instance,
     chats: chats?.chats || [],
+    instanceName,
     
     // Loading states
     connectionStateLoading,
