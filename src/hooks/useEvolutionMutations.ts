@@ -6,7 +6,7 @@ import * as evolutionApi from '@/services/evolutionApi';
 export const useEvolutionMutations = (instanceName: string, refetchChats: () => void) => {
   const { toast } = useToast();
 
-  // Create instance mutation with better error handling
+  // Create instance mutation with webhook included from the start
   const createInstanceMutation = useMutation({
     mutationFn: async (options?: Partial<evolutionApi.CreateInstanceRequest>) => {
       console.log('Creating instance for phone:', instanceName);
@@ -17,18 +17,9 @@ export const useEvolutionMutations = (instanceName: string, refetchChats: () => 
         
         let response;
         if (!instanceExists) {
-          // Create instance in Evolution API without webhook initially
+          // Create instance in Evolution API with webhook included
           response = await evolutionApi.createInstance(instanceName, options);
           console.log('Evolution API response:', response);
-          
-          // After instance creation, set up webhook separately
-          try {
-            await evolutionApi.setupWebhookAutomatically(instanceName);
-            console.log('Webhook configured successfully for instance:', instanceName);
-          } catch (webhookError) {
-            console.warn('Failed to configure webhook, but instance was created:', webhookError);
-            // Don't fail the whole process if webhook setup fails
-          }
         } else {
           console.log('Instance already exists, skipping creation');
           // If instance exists, just get connection state
@@ -50,7 +41,7 @@ export const useEvolutionMutations = (instanceName: string, refetchChats: () => 
     onSuccess: (data) => {
       toast({
         title: "Instância configurada",
-        description: `Instância ${instanceName} configurada com sucesso.`,
+        description: `Instância ${instanceName} configurada com sucesso com webhook habilitado.`,
       });
     },
     onError: (error: any) => {
@@ -59,7 +50,7 @@ export const useEvolutionMutations = (instanceName: string, refetchChats: () => 
       
       // Provide more specific error messages
       if (error.message.includes('Invalid "url" property')) {
-        errorMessage = 'Erro na configuração do webhook. A instância será criada sem webhook.';
+        errorMessage = 'Erro na configuração do webhook. Verifique a URL do webhook.';
       } else if (error.message.includes('400')) {
         errorMessage = 'Erro de configuração na Evolution API. Verifique os parâmetros.';
       } else if (error.message.includes('404')) {

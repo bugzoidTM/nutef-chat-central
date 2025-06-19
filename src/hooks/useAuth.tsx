@@ -54,15 +54,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .from('profiles')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle(); // Use maybeSingle instead of single to avoid errors when no profile exists
       
       if (error) {
         console.error('useAuth - Profile fetch error:', error);
-        // Se não encontrar o perfil, retorna null em vez de dar erro
-        if (error.code === 'PGRST116') {
-          console.log('useAuth - Profile not found, returning null');
-          return null;
-        }
         throw error;
       }
       
@@ -71,8 +66,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     enabled: !!user?.id,
     retry: (failureCount, error: any) => {
-      // Não tentar novamente se for erro de recursão ou perfil não encontrado
-      if (error?.code === '42P17' || error?.code === 'PGRST116') {
+      // Não tentar novamente se for erro de recursão
+      if (error?.code === '42P17') {
         return false;
       }
       return failureCount < 2;
@@ -176,16 +171,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Aguardar um pouco antes de criar o perfil
         await new Promise(resolve => setTimeout(resolve, 1000));
         
-        // Create profile
+        // Create profile with better error handling
         const { error: profileError } = await supabase
           .from('profiles')
-          .insert({
+          .upsert({
             user_id: data.user.id,
             name: userData.name || '',
             email: email,
             phone: userData.phone || '',
             role: userData.role || 'admin',
             sector: userData.sector || null,
+            setup_completed: false,
+            whatsapp_connected: false,
+            is_active: true,
+          }, {
+            onConflict: 'user_id'
           });
 
         if (profileError) {

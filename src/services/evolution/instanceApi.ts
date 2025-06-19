@@ -2,19 +2,30 @@
 import { makeRequest } from './httpClient';
 import type { CreateInstanceRequest, CreateInstanceResponse, ConnectionStateResponse, QRCodeResponse } from './types';
 
-// Create instance with simplified webhook configuration
+// Create instance with webhook configuration included from the start
 export const createInstance = async (
   instanceName: string,
   options: Partial<CreateInstanceRequest> = {}
 ): Promise<CreateInstanceResponse> => {
   console.log('Creating Evolution API instance:', instanceName, 'with options:', options);
   
+  const webhookUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
+  
   const requestBody = {
     instanceName,
     qrcode: true,
     integration: 'WHATSAPP-BAILEYS',
-    // Remove webhook configuration from instance creation
-    // The webhook will be configured separately after instance creation
+    webhook: {
+      url: webhookUrl,
+      webhook_by_events: false,
+      webhook_base64: false,
+      events: [
+        'MESSAGES_UPSERT',
+        'MESSAGES_UPDATE',
+        'CONNECTION_UPDATE',
+        'SEND_MESSAGE'
+      ]
+    },
     ...options,
   };
 

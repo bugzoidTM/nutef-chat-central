@@ -18,13 +18,14 @@ export const setWebhook = async (
       events: webhookEvents || [
         'MESSAGES_UPSERT',
         'MESSAGES_UPDATE',
-        'CONNECTION_UPDATE'
+        'CONNECTION_UPDATE',
+        'SEND_MESSAGE'
       ]
     }),
   });
 };
 
-// Setup webhook automatically
+// Setup webhook automatically with the correct Evolution API format
 export const setupWebhookAutomatically = async (instanceName: string): Promise<any> => {
   const webhookUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
   
@@ -33,6 +34,7 @@ export const setupWebhookAutomatically = async (instanceName: string): Promise<a
   return setWebhook(instanceName, webhookUrl, [
     'MESSAGES_UPSERT',
     'MESSAGES_UPDATE', 
-    'CONNECTION_UPDATE'
+    'CONNECTION_UPDATE',
+    'SEND_MESSAGE'
   ]);
 };
