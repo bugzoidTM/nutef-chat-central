@@ -8,6 +8,7 @@ const corsHeaders = {
 }
 
 interface EvolutionWebhookPayload {
+  event: string;
   instance: string;
   data: {
     key: {
@@ -15,25 +16,20 @@ interface EvolutionWebhookPayload {
       fromMe: boolean;
       id: string;
     };
-    pushName?: string;
     message: {
       conversation?: string;
       extendedTextMessage?: {
         text: string;
       };
     };
-    messageType: string;
     messageTimestamp: number;
+    pushName?: string;
+    status?: string;
   };
-  destination: string;
-  date_time: string;
-  sender: string;
-  server_url: string;
-  apikey: string;
-  event: string;
 }
 
 serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -44,103 +40,75 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    if (req.method !== 'POST') {
-      return new Response('Method not allowed', { 
-        status: 405, 
-        headers: corsHeaders 
-      })
-    }
-
+    // Parse the webhook payload
     const payload: EvolutionWebhookPayload = await req.json()
     
-    console.log('Received webhook payload:', JSON.stringify(payload, null, 2))
+    console.log('Received Evolution webhook:', JSON.stringify(payload, null, 2))
 
-    // Validate webhook payload
-    if (!payload.instance || !payload.data || !payload.data.key) {
-      console.error('Invalid webhook payload structure')
-      return new Response('Invalid payload', { 
-        status: 400, 
-        headers: corsHeaders 
-      })
+    // Only process message events
+    if (payload.event !== 'messages.upsert') {
+      return new Response(
+        JSON.stringify({ message: 'Event not processed', event: payload.event }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200 
+        }
+      )
     }
 
-    // Skip outgoing messages (fromMe: true)
-    if (payload.data.key.fromMe) {
-      console.log('Skipping outgoing message')
-      return new Response('OK - Outgoing message skipped', { 
-        status: 200, 
-        headers: corsHeaders 
-      })
+    // Extract message data
+    const { data } = payload
+    const messageText = data.message.conversation || data.message.extendedTextMessage?.text || ''
+    const fromPhone = data.key.remoteJid.replace('@s.whatsapp.net', '')
+    const senderName = data.pushName || 'Usuário'
+    const isFromMe = data.key.fromMe
+
+    // Don't process messages sent by us
+    if (isFromMe) {
+      return new Response(
+        JSON.stringify({ message: 'Message from us, ignored' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200 
+        }
+      )
     }
 
-    // Extract message content
-    let messageContent = ''
-    if (payload.data.message.conversation) {
-      messageContent = payload.data.message.conversation
-    } else if (payload.data.message.extendedTextMessage?.text) {
-      messageContent = payload.data.message.extendedTextMessage.text
-    } else {
-      console.log('Unsupported message type:', payload.data.messageType)
-      return new Response('OK - Unsupported message type', { 
-        status: 200, 
-        headers: corsHeaders 
-      })
-    }
-
-    // Extract phone number (remove @s.whatsapp.net)
-    const clientPhone = payload.data.key.remoteJid.replace('@s.whatsapp.net', '')
-    const clientName = payload.data.pushName || null
-    const instanceName = payload.instance
-
-    console.log('Processing message:', {
-      clientPhone,
-      clientName,
-      messageContent,
-      instanceName
-    })
-
-    // Get instance information
+    // Find the instance
     const { data: instance, error: instanceError } = await supabaseClient
       .from('instances')
-      .select('id, phone')
-      .eq('instance_name', instanceName)
+      .select('*')
+      .eq('instance_name', payload.instance)
       .single()
 
     if (instanceError || !instance) {
-      console.error('Instance not found:', instanceError)
-      return new Response('Instance not found', { 
-        status: 404, 
-        headers: corsHeaders 
-      })
+      console.error('Instance not found:', payload.instance)
+      return new Response(
+        JSON.stringify({ error: 'Instance not found' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 404 
+        }
+      )
     }
 
-    // Find or create conversation
+    // Check if conversation already exists
     let { data: conversation, error: conversationError } = await supabaseClient
       .from('conversations')
       .select('*')
-      .eq('client_phone', clientPhone)
+      .eq('client_phone', fromPhone)
       .eq('instance_id', instance.id)
       .single()
 
-    if (conversationError && conversationError.code !== 'PGRST116') {
-      console.error('Error finding conversation:', conversationError)
-      return new Response('Database error', { 
-        status: 500, 
-        headers: corsHeaders 
-      })
-    }
-
-    // Create new conversation if it doesn't exist
-    if (!conversation) {
-      console.log('Creating new conversation for:', clientPhone)
-      
+    // Create conversation if it doesn't exist
+    if (conversationError || !conversation) {
       const { data: newConversation, error: createError } = await supabaseClient
         .from('conversations')
         .insert({
-          client_phone: clientPhone,
-          client_name: clientName,
+          client_phone: fromPhone,
+          client_name: senderName,
           instance_id: instance.id,
-          sector: 'support', // Default sector, can be updated by admin
+          sector: 'support',
           status: 'new',
           last_message_at: new Date().toISOString()
         })
@@ -149,67 +117,58 @@ serve(async (req) => {
 
       if (createError) {
         console.error('Error creating conversation:', createError)
-        return new Response('Error creating conversation', { 
-          status: 500, 
-          headers: corsHeaders 
-        })
+        throw createError
       }
 
       conversation = newConversation
     } else {
       // Update existing conversation
-      const { error: updateError } = await supabaseClient
+      await supabaseClient
         .from('conversations')
         .update({
-          client_name: clientName || conversation.client_name,
+          client_name: senderName,
           last_message_at: new Date().toISOString()
         })
         .eq('id', conversation.id)
-
-      if (updateError) {
-        console.error('Error updating conversation:', updateError)
-      }
     }
 
-    // Insert message
-    const { data: message, error: messageError } = await supabaseClient
+    // Insert the message
+    const { error: messageError } = await supabaseClient
       .from('messages')
       .insert({
         conversation_id: conversation.id,
-        from_phone: clientPhone,
+        from_phone: fromPhone,
         to_phone: instance.phone,
-        content: messageContent,
+        content: messageText,
         direction: 'incoming',
         message_type: 'text',
-        timestamp: new Date(payload.data.messageTimestamp * 1000).toISOString()
+        timestamp: new Date(data.messageTimestamp * 1000).toISOString()
       })
-      .select()
-      .single()
 
     if (messageError) {
-      console.error('Error creating message:', messageError)
-      return new Response('Error creating message', { 
-        status: 500, 
-        headers: corsHeaders 
-      })
+      console.error('Error inserting message:', messageError)
+      throw messageError
     }
 
-    console.log('Message processed successfully:', message.id)
+    console.log('Successfully processed webhook message')
 
-    return new Response(JSON.stringify({ 
-      success: true, 
-      messageId: message.id,
-      conversationId: conversation.id 
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    })
+    return new Response(
+      JSON.stringify({ message: 'Webhook processed successfully' }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200 
+      }
+    )
 
   } catch (error) {
-    console.error('Webhook processing error:', error)
-    return new Response('Internal server error', { 
-      status: 500, 
-      headers: corsHeaders 
-    })
+    console.error('Error processing webhook:', error)
+    
+    return new Response(
+      JSON.stringify({ error: 'Internal server error', details: error.message }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500 
+      }
+    )
   }
 })
