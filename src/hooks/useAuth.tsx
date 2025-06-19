@@ -11,10 +11,32 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, userData: any) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  cleanupAuthState: () => void;
   loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Função para limpar completamente o estado de autenticação
+const cleanupAuthState = () => {
+  console.log('useAuth - Cleaning up auth state');
+  
+  // Limpar localStorage
+  Object.keys(localStorage).forEach((key) => {
+    if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+      localStorage.removeItem(key);
+    }
+  });
+  
+  // Limpar sessionStorage se existir
+  if (typeof sessionStorage !== 'undefined') {
+    Object.keys(sessionStorage).forEach((key) => {
+      if (key.startsWith('supabase.auth.') || key.includes('sb-')) {
+        sessionStorage.removeItem(key);
+      }
+    });
+  }
+};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -95,45 +117,107 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [refetchProfile]);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error };
+    try {
+      // Limpar estado antes de fazer login
+      cleanupAuthState();
+      
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      return { error };
+    } catch (error) {
+      console.error('signIn error:', error);
+      return { error };
+    }
   };
 
   const signUp = async (email: string, password: string, userData: any) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/`,
-      },
-    });
-
-    if (!error && data.user) {
-      // Create profile
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .insert({
-          user_id: data.user.id,
-          name: userData.name,
-          email: email,
-          phone: userData.phone,
-          role: userData.role || 'admin',
-          sector: userData.sector,
-        });
-
-      if (profileError) {
-        console.error('Profile creation error:', profileError);
+    try {
+      console.log('useAuth - Starting signup process for:', email);
+      
+      // Limpar estado antes de fazer signup
+      cleanupAuthState();
+      
+      // Tentar fazer logout global primeiro
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+        console.log('useAuth - Global signout completed');
+      } catch (signOutError) {
+        console.log('useAuth - Global signout failed (continuing anyway):', signOutError);
       }
-    }
+      
+      // Aguardar um pouco para garantir que o logout foi processado
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+        },
+      });
 
-    return { error };
+      if (error) {
+        console.error('useAuth - Signup error:', error);
+        
+        // Se o usuário já existe, tentar fazer login
+        if (error.message?.includes('User already registered') || error.message?.includes('already registered')) {
+          console.log('useAuth - User already exists, attempting sign in');
+          return await signIn(email, password);
+        }
+        
+        return { error };
+      }
+
+      if (data.user) {
+        console.log('useAuth - User created successfully, creating profile');
+        
+        // Aguardar um pouco antes de criar o perfil
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Create profile
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: data.user.id,
+            name: userData.name || '',
+            email: email,
+            phone: userData.phone || '',
+            role: userData.role || 'admin',
+            sector: userData.sector || null,
+          });
+
+        if (profileError) {
+          console.error('useAuth - Profile creation error:', profileError);
+          // Não retornar erro aqui pois o usuário foi criado com sucesso
+        } else {
+          console.log('useAuth - Profile created successfully');
+        }
+      }
+
+      return { error: null };
+    } catch (error) {
+      console.error('useAuth - Unexpected signup error:', error);
+      return { error };
+    }
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      cleanupAuthState();
+      await supabase.auth.signOut({ scope: 'global' });
+      // Forçar recarregamento da página para estado limpo
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 100);
+    } catch (error) {
+      console.error('signOut error:', error);
+      // Mesmo com erro, forçar limpeza e recarregamento
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 100);
+    }
   };
 
   const value = {
@@ -143,6 +227,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signIn,
     signUp,
     signOut,
+    cleanupAuthState,
     loading: loading || profileLoading,
   };
 

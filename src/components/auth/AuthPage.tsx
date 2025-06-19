@@ -14,7 +14,7 @@ const AuthPage = () => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, cleanupAuthState } = useAuth();
   const { toast } = useToast();
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -22,19 +22,28 @@ const AuthPage = () => {
     setLoading(true);
 
     try {
+      console.log('AuthPage - Starting sign in for:', email);
+      
       const { error } = await signIn(email, password);
 
       if (error) {
+        console.error('AuthPage - Sign in error:', error);
         toast({
           title: "Erro no login",
-          description: error.message,
+          description: error.message || "Erro ao fazer login",
           variant: "destructive",
         });
+      } else {
+        toast({
+          title: "Login realizado",
+          description: "Redirecionando...",
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('AuthPage - Unexpected sign in error:', error);
       toast({
         title: "Erro",
-        description: "Ocorreu um erro inesperado.",
+        description: "Ocorreu um erro inesperado no login.",
         variant: "destructive",
       });
     } finally {
@@ -47,32 +56,61 @@ const AuthPage = () => {
     setLoading(true);
 
     try {
+      console.log('AuthPage - Starting sign up for:', email);
+      
       const { error } = await signUp(email, password, {
         name: '', // Será preenchido na tela de configuração inicial
         role: 'admin', // Admin sempre
       });
 
       if (error) {
+        console.error('AuthPage - Sign up error:', error);
+        
+        let errorMessage = error.message || "Erro ao criar conta";
+        
+        // Mensagens de erro mais amigáveis
+        if (error.message?.includes('User already registered')) {
+          errorMessage = "Este email já está cadastrado. Tente fazer login.";
+        } else if (error.message?.includes('Invalid email')) {
+          errorMessage = "Email inválido. Verifique o formato do email.";
+        } else if (error.message?.includes('Password')) {
+          errorMessage = "Senha deve ter pelo menos 6 caracteres.";
+        }
+        
         toast({
           title: "Erro no cadastro",
-          description: error.message,
+          description: errorMessage,
           variant: "destructive",
         });
       } else {
         toast({
           title: "Cadastro realizado",
-          description: "Verifique seu email para confirmar o cadastro.",
+          description: "Verifique seu email para confirmar o cadastro ou continue se já foi confirmado.",
         });
+        
+        // Limpar campos após sucesso
+        setEmail('');
+        setPassword('');
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('AuthPage - Unexpected sign up error:', error);
       toast({
         title: "Erro",
-        description: "Ocorreu um erro inesperado.",
+        description: "Ocorreu um erro inesperado no cadastro.",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleClearAuth = () => {
+    console.log('AuthPage - Clearing auth state manually');
+    cleanupAuthState();
+    toast({
+      title: "Estado limpo",
+      description: "Estado de autenticação foi limpo. Tente novamente.",
+    });
   };
 
   return (
@@ -148,6 +186,17 @@ const AuthPage = () => {
               </form>
             </TabsContent>
           </Tabs>
+          
+          <div className="mt-4 text-center">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleClearAuth}
+              className="text-xs"
+            >
+              Limpar Estado de Autenticação
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
