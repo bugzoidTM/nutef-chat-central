@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { QrCode, Smartphone, Wifi, WifiOff, RefreshCw, CheckCircle, AlertCircle, Phone } from 'lucide-react';
 import { useEvolutionInstance } from '@/hooks/useEvolutionInstance';
+import { useWebhookConfig } from '@/hooks/useWebhookConfig';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +16,7 @@ const QRCodeSetup = () => {
   const { toast } = useToast();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [instanceCreated, setInstanceCreated] = useState(false);
+  const [webhookConfigured, setWebhookConfigured] = useState(false);
   
   const {
     qrCode,
@@ -29,12 +30,25 @@ const QRCodeSetup = () => {
     clearQrCode,
   } = useEvolutionInstance(phoneNumber);
 
+  const { setupWebhookAutomatically, isSettingUp } = useWebhookConfig();
+
   useEffect(() => {
-    // Se a instância estiver conectada, marcar setup como concluído
-    if (connectionState?.state === 'open' && user) {
+    // Se a instância estiver conectada e ainda não configurou webhook, configurar automaticamente
+    if (connectionState?.state === 'open' && !webhookConfigured && instanceCreated) {
+      const instanceName = phoneNumber.replace(/\D/g, '');
+      console.log('Configurando webhook automaticamente para:', instanceName);
+      
+      setupWebhookAutomatically({ instanceName });
+      setWebhookConfigured(true);
+    }
+  }, [connectionState?.state, webhookConfigured, instanceCreated, phoneNumber, setupWebhookAutomatically]);
+
+  useEffect(() => {
+    // Se a instância estiver conectada e webhook configurado, finalizar setup
+    if (connectionState?.state === 'open' && webhookConfigured && user) {
       handleSetupComplete();
     }
-  }, [connectionState?.state, user]);
+  }, [connectionState?.state, webhookConfigured, user]);
 
   const handleSetupComplete = async () => {
     if (!user) return;
@@ -56,11 +70,11 @@ const QRCodeSetup = () => {
 
       toast({
         title: "WhatsApp conectado!",
-        description: "Configuração concluída com sucesso.",
+        description: "Configuração concluída com sucesso. Sistema pronto para receber mensagens.",
       });
 
       // Recarregar para ir para o dashboard
-      setTimeout(() => window.location.reload(), 1500);
+      setTimeout(() => window.location.reload(), 2000);
     } catch (error: any) {
       toast({
         title: "Erro ao finalizar configuração",
@@ -85,6 +99,7 @@ const QRCodeSetup = () => {
 
   const handleChangeNumber = () => {
     setInstanceCreated(false);
+    setWebhookConfigured(false);
     clearQrCode();
     setPhoneNumber('');
   };
@@ -246,7 +261,15 @@ const QRCodeSetup = () => {
                 </div>
               )}
 
-              {connectionState?.state === 'open' ? (
+              {isSettingUp && (
+                <div className="text-center space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <RefreshCw className="h-8 w-8 text-blue-600 mx-auto animate-spin" />
+                  <p className="text-blue-800 font-medium">Configurando webhook automaticamente...</p>
+                  <p className="text-blue-700 text-sm">O sistema está se preparando para receber mensagens</p>
+                </div>
+              )}
+
+              {connectionState?.state === 'open' && webhookConfigured ? (
                 <div className="text-center space-y-4">
                   <CheckCircle className="h-16 w-16 text-green-500 mx-auto" />
                   <div>
@@ -254,6 +277,9 @@ const QRCodeSetup = () => {
                       WhatsApp Conectado!
                     </h3>
                     <p className="text-gray-600">
+                      Sistema configurado e pronto para receber mensagens.
+                    </p>
+                    <p className="text-sm text-gray-500 mt-2">
                       Redirecionando para o painel...
                     </p>
                   </div>

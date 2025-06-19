@@ -1,3 +1,4 @@
+
 import { EVOLUTION_CONFIG } from '@/config/evolution';
 
 // Types for Evolution API
@@ -203,6 +204,19 @@ export const setWebhook = async (
       ]
     }),
   });
+};
+
+// Setup webhook automatically - new function
+export const setupWebhookAutomatically = async (instanceName: string): Promise<void> => {
+  const webhookUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
+  
+  console.log('Setting up webhook automatically for instance:', instanceName);
+  
+  await setWebhook(instanceName, webhookUrl, [
+    'MESSAGES_UPSERT'
+  ]);
+  
+  console.log('Webhook configured successfully for instance:', instanceName);
 };
 
 // Updated sendMessage function to use the new sendTextMessage
