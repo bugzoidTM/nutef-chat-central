@@ -182,7 +182,7 @@ const QRCodeSetup = () => {
                       1. Abra o WhatsApp no seu celular
                     </p>
                     <p className="text-sm text-gray-600">
-                      2. Toque em Mais opções > Dispositivos conectados
+                      2. Toque em Mais opções &gt; Dispositivos conectados
                     </p>
                     <p className="text-sm text-gray-600">
                       3. Toque em Conectar um dispositivo

@@ -185,37 +185,46 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          instance_name: string | null
           is_active: boolean
           name: string
           phone: string
           role: Database["public"]["Enums"]["user_role"]
           sector: Database["public"]["Enums"]["sector_type"] | null
+          setup_completed: boolean | null
           updated_at: string
           user_id: string
+          whatsapp_connected: boolean | null
         }
         Insert: {
           created_at?: string
           email: string
           id?: string
+          instance_name?: string | null
           is_active?: boolean
           name: string
           phone: string
           role?: Database["public"]["Enums"]["user_role"]
           sector?: Database["public"]["Enums"]["sector_type"] | null
+          setup_completed?: boolean | null
           updated_at?: string
           user_id: string
+          whatsapp_connected?: boolean | null
         }
         Update: {
           created_at?: string
           email?: string
           id?: string
+          instance_name?: string | null
           is_active?: boolean
           name?: string
           phone?: string
           role?: Database["public"]["Enums"]["user_role"]
           sector?: Database["public"]["Enums"]["sector_type"] | null
+          setup_completed?: boolean | null
           updated_at?: string
           user_id?: string
+          whatsapp_connected?: boolean | null
         }
         Relationships: []
       }
