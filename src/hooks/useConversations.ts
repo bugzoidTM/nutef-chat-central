@@ -1,9 +1,9 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import type { SectorType, StatusType, Conversation } from '@/types/dashboard';
+import * as evolutionApi from '@/services/evolutionApi';
 
 export const useConversations = (selectedSector: SectorType, selectedStatus: StatusType) => {
   const { profile } = useAuth();
@@ -74,11 +74,15 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
         if (updateError) throw updateError;
       }
 
-      // TODO: Send message via Evolution API
-      console.log('Sending message via Evolution API:', {
-        to: conversation.client_phone,
-        content,
-      });
+      // Send message via Evolution API using the new sendTextMessage function
+      try {
+        await evolutionApi.sendTextMessage('default', conversation.client_phone, content);
+        console.log('Message sent successfully via Evolution API');
+      } catch (evolutionError) {
+        console.error('Error sending message via Evolution API:', evolutionError);
+        // Don't throw here to avoid breaking the flow if Evolution API fails
+        // The message is already saved in the database
+      }
 
       return messageData;
     },
