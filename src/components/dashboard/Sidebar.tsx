@@ -1,16 +1,10 @@
-
-import React from 'react';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { Label } from '@/components/ui/label';
-import { MessageSquare, Users, Settings, LogOut, Filter } from 'lucide-react';
+import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import Logo from '@/components/Logo';
-import type { Database } from '@/integrations/supabase/types';
-
-type SectorType = Database['public']['Enums']['sector_type'] | 'all';
-type StatusType = Database['public']['Enums']['conversation_status'] | 'all';
+import { LogoutButton } from '@/components/auth/LogoutButton';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import type { SectorType, StatusType } from '@/types/dashboard';
+import WebhookSettings from './WebhookSettings';
 
 interface SidebarProps {
   selectedSector: SectorType;
@@ -24,118 +18,139 @@ interface SidebarProps {
   };
 }
 
-const Sidebar = ({ 
-  selectedSector, 
-  selectedStatus, 
-  onSectorChange, 
+const Sidebar = ({
+  selectedSector,
+  selectedStatus,
+  onSectorChange,
   onStatusChange,
-  conversationCounts 
+  conversationCounts,
 }: SidebarProps) => {
-  const { profile, signOut } = useAuth();
+  const { profile } = useAuth();
+  const [activeTab, setActiveTab] = useState('conversations');
 
-  const sectors = [
-    { value: 'all' as const, label: 'Todos os Setores' },
-    { value: 'support' as const, label: 'Suporte' },
-    { value: 'financial' as const, label: 'Financeiro' },
-    { value: 'sales' as const, label: 'Vendas' },
+  if (!profile) return null;
+
+  const sectorOptions = [
+    { value: 'all', label: 'Todos os Setores', count: conversationCounts.new + conversationCounts.in_progress + conversationCounts.finished },
+    { value: 'support', label: 'Suporte', count: 0 },
+    { value: 'financial', label: 'Financeiro', count: 0 },
+    { value: 'sales', label: 'Vendas', count: 0 },
   ];
 
-  const statuses = [
-    { value: 'all' as const, label: 'Todas', count: conversationCounts.new + conversationCounts.in_progress + conversationCounts.finished },
-    { value: 'new' as const, label: 'Novas', count: conversationCounts.new },
-    { value: 'in_progress' as const, label: 'Em Andamento', count: conversationCounts.in_progress },
-    { value: 'finished' as const, label: 'Finalizadas', count: conversationCounts.finished },
+  const statusOptions = [
+    { value: 'all', label: 'Todos os Status', count: conversationCounts.new + conversationCounts.in_progress + conversationCounts.finished },
+    { value: 'new', label: 'Novas', count: conversationCounts.new },
+    { value: 'in_progress', label: 'Em Andamento', count: conversationCounts.in_progress },
+    { value: 'finished', label: 'Finalizadas', count: conversationCounts.finished },
   ];
 
   return (
     <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-full">
       {/* Header */}
       <div className="p-4 border-b border-gray-200">
-        <Logo className="h-10 mb-3" />
-        <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <Avatar className="h-10 w-10">
+            <AvatarFallback className="bg-green-100 text-green-600">
+              {profile.name?.charAt(0) || 'U'}
+            </AvatarFallback>
+          </Avatar>
           <div>
-            <p className="font-medium text-gray-900">{profile?.name}</p>
-            <p className="text-sm text-gray-500 capitalize">{profile?.role}</p>
+            <h2 className="font-semibold text-gray-900">{profile.name}</h2>
+            <p className="text-sm text-gray-500">{profile.role === 'admin' ? 'Administrador' : 'Atendente'}</p>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={signOut}
-            className="text-gray-500 hover:text-gray-700"
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="p-4 space-y-4">
-        <div>
-          <div className="flex items-center mb-3">
-            <Filter className="h-4 w-4 mr-2 text-gray-500" />
-            <span className="text-sm font-medium text-gray-700">Filtros</span>
-          </div>
-          
-          {/* Sector Filter */}
-          {profile?.role === 'admin' && (
-            <div className="space-y-2">
-              <Label className="text-xs text-gray-500 uppercase tracking-wide">Setor</Label>
-              <div className="space-y-1">
-                {sectors.map((sector) => (
-                  <Button
-                    key={sector.value}
-                    variant={selectedSector === sector.value ? "default" : "ghost"}
-                    size="sm"
-                    onClick={() => onSectorChange(sector.value)}
-                    className="w-full justify-start text-left"
+      {/* Navigation Tabs */}
+      <div className="border-b border-gray-200">
+        <div className="flex">
+          <button
+            onClick={() => setActiveTab('conversations')}
+            className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'conversations'
+                ? 'border-green-500 text-green-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Conversas
+          </button>
+          {profile.role === 'admin' && (
+            <button
+              onClick={() => setActiveTab('webhooks')}
+              className={`flex-1 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'webhooks'
+                  ? 'border-green-500 text-green-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Webhooks
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      <div className="flex-1 overflow-y-auto">
+        {activeTab === 'conversations' && (
+          <div className="p-4 space-y-6">
+            {/* Sector Filters */}
+            <div>
+              <h3 className="text-sm font-medium text-gray-900 mb-3">Setores</h3>
+              <div className="space-y-2">
+                {sectorOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => onSectorChange(option.value as SectorType)}
+                    className={`w-full flex items-center justify-between p-2 rounded-lg text-left transition-colors ${
+                      selectedSector === option.value
+                        ? 'bg-green-50 text-green-700 border border-green-200'
+                        : 'hover:bg-gray-50 text-gray-700'
+                    }`}
                   >
-                    {sector.label}
-                  </Button>
+                    <span className="text-sm">{option.label}</span>
+                    <Badge variant="secondary" className="text-xs">
+                      {option.count}
+                    </Badge>
+                  </button>
                 ))}
               </div>
             </div>
-          )}
 
-          <div className="space-y-2">
-            <Label className="text-xs text-gray-500 uppercase tracking-wide">Status</Label>
-            <div className="space-y-1">
-              {statuses.map((status) => (
-                <Button
-                  key={status.value}
-                  variant={selectedStatus === status.value ? "default" : "ghost"}
-                  size="sm"
-                  onClick={() => onStatusChange(status.value)}
-                  className="w-full justify-between"
-                >
-                  <span>{status.label}</span>
-                  <Badge variant="secondary" className="ml-2">
-                    {status.count}
-                  </Badge>
-                </Button>
-              ))}
+            {/* Status Filters */}
+            <div>
+              <h3 className="text-sm font-medium text-gray-900 mb-3">Status</h3>
+              <div className="space-y-2">
+                {statusOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => onStatusChange(option.value as StatusType)}
+                    className={`w-full flex items-center justify-between p-2 rounded-lg text-left transition-colors ${
+                      selectedStatus === option.value
+                        ? 'bg-green-50 text-green-700 border border-green-200'
+                        : 'hover:bg-gray-50 text-gray-700'
+                    }`}
+                  >
+                    <span className="text-sm">{option.label}</span>
+                    <Badge variant="secondary" className="text-xs">
+                      {option.count}
+                    </Badge>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
+        )}
+
+        {activeTab === 'webhooks' && profile.role === 'admin' && (
+          <div className="p-4">
+            <WebhookSettings />
+          </div>
+        )}
       </div>
 
-      <Separator />
-
-      {/* Navigation */}
-      <div className="p-4 space-y-2">
-        <Button variant="ghost" size="sm" className="w-full justify-start">
-          <MessageSquare className="h-4 w-4 mr-2" />
-          Conversas
-        </Button>
-        {profile?.role === 'admin' && (
-          <Button variant="ghost" size="sm" className="w-full justify-start">
-            <Users className="h-4 w-4 mr-2" />
-            Atendentes
-          </Button>
-        )}
-        <Button variant="ghost" size="sm" className="w-full justify-start">
-          <Settings className="h-4 w-4 mr-2" />
-          Configurações
-        </Button>
+      {/* Footer */}
+      <div className="p-4 border-t border-gray-200">
+        <LogoutButton />
       </div>
     </div>
   );

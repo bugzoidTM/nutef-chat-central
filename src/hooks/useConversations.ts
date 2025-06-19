@@ -46,12 +46,23 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
       const conversation = conversations.find(c => c.id === conversationId);
       if (!conversation) throw new Error('Conversa não encontrada');
 
+      // Get instance information for this conversation
+      const { data: instance, error: instanceError } = await supabase
+        .from('instances')
+        .select('instance_name, phone')
+        .eq('id', conversation.instance_id)
+        .single();
+
+      if (instanceError || !instance) {
+        throw new Error('Instância não encontrada');
+      }
+
       // Insert message in database
       const { data: messageData, error: messageError } = await supabase
         .from('messages')
         .insert({
           conversation_id: conversationId,
-          from_phone: 'system', // Will be replaced with instance phone
+          from_phone: instance.phone,
           to_phone: conversation.client_phone,
           content,
           direction: 'outgoing',
@@ -76,10 +87,9 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
       }
 
       // Send message via Evolution API using sendTextMessage function
-      // This uses the configured EVOLUTION_CONFIG with URL and API key from environment variables
       try {
         console.log('Sending message via Evolution API with configured environment variables');
-        await evolutionApi.sendTextMessage('default', conversation.client_phone, content);
+        await evolutionApi.sendTextMessage(instance.instance_name, conversation.client_phone, content);
         console.log('Message sent successfully via Evolution API');
       } catch (evolutionError) {
         console.error('Error sending message via Evolution API:', evolutionError);

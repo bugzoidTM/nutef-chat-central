@@ -1,4 +1,3 @@
-
 import { EVOLUTION_CONFIG } from '@/config/evolution';
 
 // Types for Evolution API
@@ -165,6 +164,43 @@ export const sendTextMessage = async (
     body: JSON.stringify({
       number,
       text,
+    }),
+  });
+};
+
+// Set webhook - POST /webhook/set/{instanceName}
+export const setWebhook = async (
+  instanceName: string,
+  webhookUrl: string,
+  webhookEvents?: string[]
+): Promise<any> => {
+  console.log('Setting webhook for instance:', instanceName, 'URL:', webhookUrl);
+  
+  return makeRequest(`/webhook/set/${instanceName}`, {
+    method: 'POST',
+    body: JSON.stringify({
+      url: webhookUrl,
+      webhook_by_events: false,
+      webhook_base64: false,
+      events: webhookEvents || [
+        'MESSAGES_UPSERT',
+        'MESSAGES_UPDATE',
+        'MESSAGES_DELETE',
+        'SEND_MESSAGE',
+        'CONTACTS_UPDATE',
+        'CONTACTS_UPSERT',
+        'PRESENCE_UPDATE',
+        'CHATS_UPDATE',
+        'CHATS_UPSERT',
+        'CHATS_DELETE',
+        'GROUPS_UPSERT',
+        'GROUP_UPDATE',
+        'GROUP_PARTICIPANTS_UPDATE',
+        'CONNECTION_UPDATE',
+        'LABELS_EDIT',
+        'LABELS_ASSOCIATION',
+        'CALL'
+      ]
     }),
   });
 };
