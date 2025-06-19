@@ -11,35 +11,43 @@ export const useEvolutionInstance = (phoneNumber: string) => {
   const { user } = useAuth();
   const [qrCode, setQrCode] = useState<string | null>(null);
 
-  // Generate instance name from phone number (only numbers)
-  const instanceName = phoneNumber.replace(/\D/g, '');
+  // Generate friendly instance name: whatsapp_ + clean phone number
+  const generateInstanceName = (phone: string) => {
+    const cleanPhone = phone.replace(/\D/g, ''); // Remove all non-digits
+    return `whatsapp_${cleanPhone}`;
+  };
+
+  const instanceName = generateInstanceName(phoneNumber);
 
   // Create instance mutation
   const createInstanceMutation = useMutation({
     mutationFn: async (options?: Partial<evolutionApi.CreateInstanceRequest>) => {
       console.log('Creating instance for phone:', phoneNumber, 'instance name:', instanceName);
       
+      if (!user) {
+        throw new Error('Usuário não autenticado');
+      }
+
       // Create instance in Evolution API
       const response = await evolutionApi.createInstance(instanceName, options);
+      console.log('Evolution API response:', response);
       
-      // Save instance in database if user is available
-      if (user && instanceName) {
-        const { error: instanceError } = await supabase
-          .from('instances')
-          .upsert({
-            instance_name: instanceName,
-            phone: phoneNumber,
-            admin_id: user.id,
-            status: 'connecting',
-          });
+      // Save instance in database
+      const { error: instanceError } = await supabase
+        .from('instances')
+        .upsert({
+          instance_name: instanceName,
+          phone: phoneNumber,
+          admin_id: user.id,
+          status: 'connecting',
+        });
 
-        if (instanceError) {
-          console.error('Error saving instance to database:', instanceError);
-          throw instanceError;
-        }
-        
-        console.log('Instance saved to database successfully');
+      if (instanceError) {
+        console.error('Error saving instance to database:', instanceError);
+        throw instanceError;
       }
+      
+      console.log('Instance saved to database successfully');
       
       return response;
     },
@@ -108,7 +116,7 @@ export const useEvolutionInstance = (phoneNumber: string) => {
     },
     refetchInterval: 5000, // Check every 5 seconds
     retry: false,
-    enabled: !!instanceName,
+    enabled: !!instanceName && !!user,
   });
 
   // Find chats query

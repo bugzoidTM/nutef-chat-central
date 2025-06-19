@@ -102,7 +102,7 @@ const QRCodeSetup = () => {
       return;
     }
     
-    console.log('Creating instance for phone:', phoneNumber);
+    console.log('Creating instance for phone:', phoneNumber, 'instance name:', instanceName);
     setInstanceCreated(true);
     createInstance({});
   };
@@ -112,6 +112,32 @@ const QRCodeSetup = () => {
     setWebhookConfigured(false);
     clearQrCode();
     setPhoneNumber('');
+  };
+
+  const handleGenerateQRCode = () => {
+    clearQrCode();
+    getQRCode();
+  };
+
+  const formatPhoneNumber = (value: string) => {
+    // Remove tudo que não for número
+    const numbers = value.replace(/\D/g, '');
+    
+    // Formatar como (XX) XXXXX-XXXX
+    if (numbers.length <= 2) {
+      return numbers;
+    } else if (numbers.length <= 7) {
+      return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
+    } else if (numbers.length <= 11) {
+      return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
+    } else {
+      return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
+    }
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneNumber(e.target.value);
+    setPhoneNumber(formatted);
   };
 
   const getStatusColor = (state?: string) => {
@@ -153,32 +179,6 @@ const QRCodeSetup = () => {
     }
   };
 
-  const handleGenerateQRCode = () => {
-    clearQrCode();
-    getQRCode();
-  };
-
-  const formatPhoneNumber = (value: string) => {
-    // Remove tudo que não for número
-    const numbers = value.replace(/\D/g, '');
-    
-    // Formatar como (XX) XXXXX-XXXX
-    if (numbers.length <= 2) {
-      return numbers;
-    } else if (numbers.length <= 7) {
-      return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
-    } else if (numbers.length <= 11) {
-      return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
-    } else {
-      return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
-    }
-  };
-
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatPhoneNumber(e.target.value);
-    setPhoneNumber(formatted);
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -213,6 +213,11 @@ const QRCodeSetup = () => {
                 <p className="text-sm text-gray-500">
                   Digite o número que será usado para conectar o WhatsApp
                 </p>
+                {phoneNumber && (
+                  <p className="text-xs text-blue-600">
+                    Nome da instância: {instanceName}
+                  </p>
+                )}
               </div>
               
               <Button
@@ -238,7 +243,10 @@ const QRCodeSetup = () => {
               <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center space-x-3">
                   <Phone className="h-4 w-4 text-gray-600" />
-                  <span className="font-medium">{phoneNumber}</span>
+                  <div>
+                    <span className="font-medium">{phoneNumber}</span>
+                    <p className="text-xs text-gray-500">{instanceName}</p>
+                  </div>
                 </div>
                 <Button
                   variant="outline"

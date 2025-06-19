@@ -7,215 +7,184 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-interface EvolutionWebhookPayload {
-  event: string;
-  instance: string;
-  data: {
-    key: {
-      remoteJid: string;
-      fromMe: boolean;
-      id: string;
-    };
-    message: {
-      conversation?: string;
-      extendedTextMessage?: {
-        text: string;
-      };
-    };
-    messageTimestamp: number;
-    pushName?: string;
-    status?: string;
-  };
-}
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    return new Response(null, { headers: corsHeaders });
   }
+
+  console.log('🚀 Evolution webhook received request:', req.method, req.url);
 
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    )
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Parse the webhook payload
-    const payload: EvolutionWebhookPayload = await req.json()
-    
-    console.log('=== EVOLUTION WEBHOOK RECEIVED ===');
-    console.log('Event:', payload.event);
-    console.log('Instance:', payload.instance);
-    console.log('Full payload:', JSON.stringify(payload, null, 2));
+    // Parse the request body
+    const body = await req.json();
+    console.log('📨 Webhook body received:', JSON.stringify(body, null, 2));
 
-    // Only process message events
-    if (payload.event !== 'messages.upsert') {
-      console.log('Event not processed, only processing messages.upsert, got:', payload.event);
-      return new Response(
-        JSON.stringify({ message: 'Event not processed', event: payload.event }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200 
-        }
-      )
-    }
-
-    // Extract message data
-    const { data } = payload
-    const messageText = data.message.conversation || data.message.extendedTextMessage?.text || ''
-    const fromPhone = data.key.remoteJid.replace('@s.whatsapp.net', '')
-    const senderName = data.pushName || 'Usuário'
-    const isFromMe = data.key.fromMe
-
-    console.log('=== MESSAGE DETAILS ===');
-    console.log('Message text:', messageText);
-    console.log('From phone:', fromPhone);
-    console.log('Sender name:', senderName);
-    console.log('Is from me:', isFromMe);
-
-    // Don't process messages sent by us
-    if (isFromMe) {
-      console.log('Message from us, ignoring');
-      return new Response(
-        JSON.stringify({ message: 'Message from us, ignored' }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200 
-        }
-      )
-    }
-
-    // Find the instance by instance_name
-    console.log('Looking for instance with name:', payload.instance);
-    const { data: instance, error: instanceError } = await supabaseClient
-      .from('instances')
-      .select('*')
-      .eq('instance_name', payload.instance)
-      .single()
-
-    if (instanceError) {
-      console.error('Error finding instance:', instanceError);
-      console.log('Available instances query result:', instanceError);
-      
-      // Try to list all instances for debugging
-      const { data: allInstances } = await supabaseClient
-        .from('instances')
-        .select('*');
-      
-      console.log('All instances in database:', allInstances);
-    }
+    // Extract data from webhook
+    const { event, instance, data } = body;
+    console.log('📋 Event:', event, 'Instance:', instance);
 
     if (!instance) {
-      console.error('Instance not found with name:', payload.instance);
-      return new Response(
-        JSON.stringify({ error: 'Instance not found', searched_name: payload.instance }),
-        { 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 404 
-        }
-      )
-    }
-
-    console.log('Found instance:', instance);
-
-    // Check if conversation already exists
-    console.log('Looking for existing conversation with phone:', fromPhone, 'and instance_id:', instance.id);
-    let { data: conversation, error: conversationError } = await supabaseClient
-      .from('conversations')
-      .select('*')
-      .eq('client_phone', fromPhone)
-      .eq('instance_id', instance.id)
-      .single()
-
-    if (conversationError && conversationError.code !== 'PGRST116') {
-      console.error('Error finding conversation (not "not found"):', conversationError);
-    }
-
-    // Create conversation if it doesn't exist
-    if (!conversation) {
-      console.log('Creating new conversation for phone:', fromPhone);
-      const { data: newConversation, error: createError } = await supabaseClient
-        .from('conversations')
-        .insert({
-          client_phone: fromPhone,
-          client_name: senderName,
-          instance_id: instance.id,
-          sector: 'support',
-          status: 'new',
-          last_message_at: new Date().toISOString()
-        })
-        .select()
-        .single()
-
-      if (createError) {
-        console.error('Error creating conversation:', createError);
-        throw createError
-      }
-
-      conversation = newConversation
-      console.log('New conversation created:', conversation);
-    } else {
-      console.log('Found existing conversation:', conversation);
-      // Update existing conversation
-      const { error: updateError } = await supabaseClient
-        .from('conversations')
-        .update({
-          client_name: senderName,
-          last_message_at: new Date().toISOString()
-        })
-        .eq('id', conversation.id)
-
-      if (updateError) {
-        console.error('Error updating conversation:', updateError);
-      } else {
-        console.log('Conversation updated successfully');
-      }
-    }
-
-    // Insert the message
-    console.log('Inserting message for conversation:', conversation.id);
-    const { error: messageError } = await supabaseClient
-      .from('messages')
-      .insert({
-        conversation_id: conversation.id,
-        from_phone: fromPhone,
-        to_phone: instance.phone,
-        content: messageText,
-        direction: 'incoming',
-        message_type: 'text',
-        timestamp: new Date(data.messageTimestamp * 1000).toISOString()
-      })
-
-    if (messageError) {
-      console.error('Error inserting message:', messageError);
-      throw messageError
-    }
-
-    console.log('=== WEBHOOK PROCESSED SUCCESSFULLY ===');
-    console.log('Message saved for conversation:', conversation.id);
-
-    return new Response(
-      JSON.stringify({ 
-        message: 'Webhook processed successfully',
-        conversation_id: conversation.id,
-        message_content: messageText 
-      }),
-      { 
+      console.log('❌ No instance found in webhook data');
+      return new Response(JSON.stringify({ error: 'No instance found' }), {
+        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200 
+      });
+    }
+
+    // Find the instance in our database using the new naming format
+    console.log('🔍 Looking for instance with name:', instance);
+    
+    const { data: instanceData, error: instanceError } = await supabase
+      .from('instances')
+      .select('*')
+      .eq('instance_name', instance)
+      .single();
+
+    if (instanceError) {
+      console.log('❌ Error finding instance:', instanceError);
+      return new Response(JSON.stringify({ error: 'Instance not found', details: instanceError }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('✅ Instance found:', instanceData);
+
+    // Handle different event types
+    if (event === 'messages.upsert' && data?.message) {
+      console.log('📩 Processing message:', data.message);
+
+      // Extract message data
+      const message = data.message;
+      const isFromMe = message.key?.fromMe || false;
+      const remoteJid = message.key?.remoteJid || '';
+      const messageContent = message.message?.conversation || 
+                           message.message?.extendedTextMessage?.text || 
+                           'Mensagem sem texto';
+
+      console.log('📝 Message details:', {
+        isFromMe,
+        remoteJid,
+        messageContent,
+        messageType: typeof message.message
+      });
+
+      // Only process incoming messages (not sent by us)
+      if (!isFromMe && remoteJid) {
+        // Extract phone number from remoteJid (remove @s.whatsapp.net)
+        const clientPhone = remoteJid.replace('@s.whatsapp.net', '');
+        console.log('📞 Client phone extracted:', clientPhone);
+
+        // Check if conversation already exists
+        let conversationId;
+        const { data: existingConversation, error: convError } = await supabase
+          .from('conversations')
+          .select('id')
+          .eq('client_phone', clientPhone)
+          .eq('instance_id', instanceData.id)
+          .single();
+
+        if (convError && convError.code !== 'PGRST116') {
+          console.log('❌ Error checking conversation:', convError);
+          throw convError;
+        }
+
+        if (existingConversation) {
+          conversationId = existingConversation.id;
+          console.log('🔄 Using existing conversation:', conversationId);
+
+          // Update last_message_at
+          await supabase
+            .from('conversations')
+            .update({ last_message_at: new Date().toISOString() })
+            .eq('id', conversationId);
+        } else {
+          console.log('🆕 Creating new conversation for:', clientPhone);
+          
+          // Create new conversation
+          const { data: newConversation, error: newConvError } = await supabase
+            .from('conversations')
+            .insert({
+              client_phone: clientPhone,
+              client_name: clientPhone, // Use phone as default name
+              instance_id: instanceData.id,
+              sector: 'support', // Default sector
+              status: 'new',
+              last_message_at: new Date().toISOString(),
+            })
+            .select('id')
+            .single();
+
+          if (newConvError) {
+            console.log('❌ Error creating conversation:', newConvError);
+            throw newConvError;
+          }
+
+          conversationId = newConversation.id;
+          console.log('✅ New conversation created:', conversationId);
+        }
+
+        // Insert the message
+        console.log('💬 Inserting message into conversation:', conversationId);
+        const { error: messageError } = await supabase
+          .from('messages')
+          .insert({
+            conversation_id: conversationId,
+            content: messageContent,
+            direction: 'incoming',
+            from_phone: clientPhone,
+            to_phone: instanceData.phone,
+            message_type: 'text',
+            timestamp: new Date().toISOString(),
+          });
+
+        if (messageError) {
+          console.log('❌ Error inserting message:', messageError);
+          throw messageError;
+        }
+
+        console.log('✅ Message inserted successfully');
+      } else {
+        console.log('⏭️ Skipping message (sent by us or invalid)');
       }
-    )
+    } else if (event === 'connection.update') {
+      console.log('🔄 Connection update:', data);
+      
+      // Update instance status based on connection state
+      if (data?.state) {
+        const status = data.state === 'open' ? 'connected' : 
+                      data.state === 'connecting' ? 'connecting' : 'disconnected';
+        
+        await supabase
+          .from('instances')
+          .update({ status })
+          .eq('instance_name', instance);
+          
+        console.log('✅ Instance status updated to:', status);
+      }
+    } else {
+      console.log('ℹ️ Unhandled event type:', event);
+    }
+
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
 
   } catch (error) {
-    console.error('=== ERROR PROCESSING WEBHOOK ===');
-    console.error('Error details:', error);
+    console.error('❌ Webhook error:', error);
     
-    return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
-      { 
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500 
-      }
-    )
+    return new Response(JSON.stringify({ 
+      error: 'Internal server error', 
+      details: error.message 
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
-})
+});
