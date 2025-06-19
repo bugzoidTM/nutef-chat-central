@@ -213,12 +213,14 @@ export const debugHelper = {
       
       const expectedWebhookUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
       
-      if (webhookConfig?.webhook?.url === expectedWebhookUrl) {
+      if (webhookConfig?.url === expectedWebhookUrl) {
         console.log('✅ Webhook URL is correctly configured');
+        console.log('✅ Webhook is enabled:', webhookConfig.enabled);
+        console.log('✅ Configured events:', webhookConfig.events);
       } else {
         console.error('❌ Webhook URL mismatch!');
         console.log('Expected:', expectedWebhookUrl);
-        console.log('Current:', webhookConfig?.webhook?.url || 'Not set');
+        console.log('Current:', webhookConfig?.url || 'Not set');
       }
       
       return { webhookConfig, expectedWebhookUrl };
@@ -249,30 +251,31 @@ export const debugHelper = {
           'apikey': '5be0fd0304550ebb6027dcce02ae4ab1',
         },
         body: JSON.stringify({
-          url: webhookUrl,
-          webhook_by_events: false,
-          webhook_base64: false,
-          events: [
-            'APPLICATION_STARTUP',
-            'QRCODE_UPDATED', 
-            'CONNECTION_UPDATE',
-            'MESSAGES_UPSERT',
-            'MESSAGES_UPDATE',
-            'MESSAGES_DELETE',
-            'SEND_MESSAGE',
-            'CONTACTS_SET',
-            'CONTACTS_UPSERT',
-            'CONTACTS_UPDATE',
-            'PRESENCE_UPDATE',
-            'CHATS_SET',
-            'CHATS_UPSERT',
-            'CHATS_UPDATE',
-            'CHATS_DELETE',
-            'GROUPS_UPSERT',
-            'GROUP_UPDATE',
-            'GROUP_PARTICIPANTS_UPDATE',
-            'NEW_JWT_TOKEN'
-          ]
+          webhook: {
+            url: webhookUrl,
+            enabled: true,
+            events: [
+              'APPLICATION_STARTUP',
+              'QRCODE_UPDATED', 
+              'CONNECTION_UPDATE',
+              'MESSAGES_UPSERT',
+              'MESSAGES_UPDATE',
+              'MESSAGES_DELETE',
+              'SEND_MESSAGE',
+              'CONTACTS_SET',
+              'CONTACTS_UPSERT',
+              'CONTACTS_UPDATE',
+              'PRESENCE_UPDATE',
+              'CHATS_SET',
+              'CHATS_UPSERT',
+              'CHATS_UPDATE',
+              'CHATS_DELETE',
+              'GROUPS_UPSERT',
+              'GROUP_UPDATE',
+              'GROUP_PARTICIPANTS_UPDATE',
+              'NEW_JWT_TOKEN'
+            ]
+          }
         }),
       });
       
@@ -302,10 +305,10 @@ export const debugHelper = {
         key: {
           remoteJid: '5511999999999@s.whatsapp.net',
           fromMe: false,
-          id: 'test-message-id'
+          id: 'test-message-id-' + Date.now()
         },
         message: {
-          conversation: 'Esta é uma mensagem de teste do debugHelper'
+          conversation: 'Esta é uma mensagem de teste do debugHelper - ' + new Date().toLocaleString()
         },
         pushName: 'Teste Debugger',
         messageTimestamp: Date.now()
@@ -334,12 +337,59 @@ export const debugHelper = {
       
       // Aguardar um pouco e verificar se a conversa foi criada
       setTimeout(async () => {
+        console.log('🔄 Checking conversations after webhook test...');
         await this.checkConversations();
-      }, 2000);
+      }, 3000);
       
       return result;
     } catch (error) {
       console.error('❌ Error testing webhook:', error);
+    }
+  },
+
+  // Verificar se o webhook está recebendo dados
+  async checkWebhookLogs() {
+    console.log('📊 Para verificar os logs do webhook:');
+    console.log('1. Acesse: https://supabase.com/dashboard/project/ojfdzfgcysxoxzszhbzr/functions/evolution-webhook/logs');
+    console.log('2. Ou execute: debugHelper.testWebhook() para testar manualmente');
+    console.log('3. Envie uma mensagem para o WhatsApp e verifique se aparecem logs');
+  },
+
+  // Forçar restart da instância para recarregar webhook
+  async restartInstance() {
+    const { instances } = await this.checkInstances();
+    if (!instances || instances.length === 0) {
+      console.error('❌ No instances found');
+      return;
+    }
+
+    const instance = instances[0];
+    const instanceName = instance.instance_name;
+    
+    console.log(`🔄 Restarting instance: ${instanceName}`);
+    
+    try {
+      const response = await fetch(`https://evolution.nutef.com/instance/restart/${instanceName}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': '5be0fd0304550ebb6027dcce02ae4ab1',
+        },
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Error restarting instance:', response.status, response.statusText, errorText);
+        return;
+      }
+      
+      const result = await response.json();
+      console.log('✅ Instance restart initiated:', result);
+      console.log('⏳ Wait a few seconds for the instance to reconnect...');
+      
+      return result;
+    } catch (error) {
+      console.error('❌ Error restarting instance:', error);
     }
   }
 };

@@ -38,8 +38,17 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Parse the request body
-    const body = await req.json();
-    console.log('📨 Webhook body received:', JSON.stringify(body, null, 2));
+    let body;
+    try {
+      body = await req.json();
+      console.log('📨 Webhook body received:', JSON.stringify(body, null, 2));
+    } catch (parseError) {
+      console.error('❌ Error parsing request body:', parseError);
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON in request body' }), 
+        { status: 400, headers: corsHeaders }
+      );
+    }
 
     // Handle different webhook formats from Evolution API
     let events = [];
