@@ -178,6 +178,169 @@ export const debugHelper = {
     await supabase.from('instances').delete().eq('instance_name', 'test_instance');
     
     console.log('✅ Test data cleaned');
+  },
+
+  // Verificar configuração do webhook no Evolution API
+  async checkEvolutionWebhook() {
+    const { instances } = await this.checkInstances();
+    if (!instances || instances.length === 0) {
+      console.error('❌ No instances found');
+      return;
+    }
+
+    const instance = instances[0];
+    const instanceName = instance.instance_name;
+    
+    console.log(`🔗 Checking webhook config for instance: ${instanceName}`);
+    
+    try {
+      // Verificar configuração do webhook
+      const response = await fetch(`https://evolution.nutef.com/webhook/find/${instanceName}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': '5be0fd0304550ebb6027dcce02ae4ab1',
+        },
+      });
+      
+      if (!response.ok) {
+        console.error('❌ Error fetching webhook config:', response.status, response.statusText);
+        return;
+      }
+      
+      const webhookConfig = await response.json();
+      console.log('🔗 Webhook Configuration:', webhookConfig);
+      
+      const expectedWebhookUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
+      
+      if (webhookConfig?.webhook?.url === expectedWebhookUrl) {
+        console.log('✅ Webhook URL is correctly configured');
+      } else {
+        console.error('❌ Webhook URL mismatch!');
+        console.log('Expected:', expectedWebhookUrl);
+        console.log('Current:', webhookConfig?.webhook?.url || 'Not set');
+      }
+      
+      return { webhookConfig, expectedWebhookUrl };
+    } catch (error) {
+      console.error('❌ Error checking webhook:', error);
+    }
+  },
+
+  // Configurar webhook no Evolution API
+  async configureEvolutionWebhook() {
+    const { instances } = await this.checkInstances();
+    if (!instances || instances.length === 0) {
+      console.error('❌ No instances found');
+      return;
+    }
+
+    const instance = instances[0];
+    const instanceName = instance.instance_name;
+    const webhookUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
+    
+    console.log(`🔧 Configuring webhook for instance: ${instanceName}`);
+    
+    try {
+      const response = await fetch(`https://evolution.nutef.com/webhook/set/${instanceName}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': '5be0fd0304550ebb6027dcce02ae4ab1',
+        },
+        body: JSON.stringify({
+          url: webhookUrl,
+          webhook_by_events: false,
+          webhook_base64: false,
+          events: [
+            'APPLICATION_STARTUP',
+            'QRCODE_UPDATED', 
+            'CONNECTION_UPDATE',
+            'MESSAGES_UPSERT',
+            'MESSAGES_UPDATE',
+            'MESSAGES_DELETE',
+            'SEND_MESSAGE',
+            'CONTACTS_SET',
+            'CONTACTS_UPSERT',
+            'CONTACTS_UPDATE',
+            'PRESENCE_UPDATE',
+            'CHATS_SET',
+            'CHATS_UPSERT',
+            'CHATS_UPDATE',
+            'CHATS_DELETE',
+            'GROUPS_UPSERT',
+            'GROUP_UPDATE',
+            'GROUP_PARTICIPANTS_UPDATE',
+            'NEW_JWT_TOKEN'
+          ]
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Error configuring webhook:', response.status, response.statusText, errorText);
+        return;
+      }
+      
+      const result = await response.json();
+      console.log('✅ Webhook configured successfully:', result);
+      
+      return result;
+    } catch (error) {
+      console.error('❌ Error configuring webhook:', error);
+    }
+  },
+
+  // Testar webhook manualmente
+  async testWebhook() {
+    const webhookUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
+    
+    const testData = {
+      event: 'MESSAGES_UPSERT',
+      instance: 'whatsapp_73999921633',
+      data: {
+        key: {
+          remoteJid: '5511999999999@s.whatsapp.net',
+          fromMe: false,
+          id: 'test-message-id'
+        },
+        message: {
+          conversation: 'Esta é uma mensagem de teste do debugHelper'
+        },
+        pushName: 'Teste Debugger',
+        messageTimestamp: Date.now()
+      }
+    };
+    
+    console.log('🧪 Testing webhook with test data...');
+    
+    try {
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(testData),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Webhook test failed:', response.status, response.statusText, errorText);
+        return;
+      }
+      
+      const result = await response.text();
+      console.log('✅ Webhook test successful:', result);
+      
+      // Aguardar um pouco e verificar se a conversa foi criada
+      setTimeout(async () => {
+        await this.checkConversations();
+      }, 2000);
+      
+      return result;
+    } catch (error) {
+      console.error('❌ Error testing webhook:', error);
+    }
   }
 };
 
