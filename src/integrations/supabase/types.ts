@@ -9,7 +9,216 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      attendant_sectors: {
+        Row: {
+          attendant_id: string
+          created_at: string
+          id: string
+          sector: Database["public"]["Enums"]["sector_type"]
+        }
+        Insert: {
+          attendant_id: string
+          created_at?: string
+          id?: string
+          sector: Database["public"]["Enums"]["sector_type"]
+        }
+        Update: {
+          attendant_id?: string
+          created_at?: string
+          id?: string
+          sector?: Database["public"]["Enums"]["sector_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendant_sectors_attendant_id_fkey"
+            columns: ["attendant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversations: {
+        Row: {
+          assigned_to: string | null
+          client_name: string | null
+          client_phone: string
+          created_at: string
+          id: string
+          instance_id: string
+          last_message_at: string
+          sector: Database["public"]["Enums"]["sector_type"]
+          status: Database["public"]["Enums"]["conversation_status"]
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          client_name?: string | null
+          client_phone: string
+          created_at?: string
+          id?: string
+          instance_id: string
+          last_message_at?: string
+          sector: Database["public"]["Enums"]["sector_type"]
+          status?: Database["public"]["Enums"]["conversation_status"]
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          client_name?: string | null
+          client_phone?: string
+          created_at?: string
+          id?: string
+          instance_id?: string
+          last_message_at?: string
+          sector?: Database["public"]["Enums"]["sector_type"]
+          status?: Database["public"]["Enums"]["conversation_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversations_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_instance_id_fkey"
+            columns: ["instance_id"]
+            isOneToOne: false
+            referencedRelation: "instances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      instances: {
+        Row: {
+          admin_id: string
+          created_at: string
+          id: string
+          instance_name: string
+          phone: string
+          qr_code: string | null
+          status: string
+          updated_at: string
+          webhook_url: string | null
+        }
+        Insert: {
+          admin_id: string
+          created_at?: string
+          id?: string
+          instance_name: string
+          phone: string
+          qr_code?: string | null
+          status?: string
+          updated_at?: string
+          webhook_url?: string | null
+        }
+        Update: {
+          admin_id?: string
+          created_at?: string
+          id?: string
+          instance_name?: string
+          phone?: string
+          qr_code?: string | null
+          status?: string
+          updated_at?: string
+          webhook_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "instances_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          direction: Database["public"]["Enums"]["message_direction"]
+          from_phone: string
+          id: string
+          message_type: Database["public"]["Enums"]["message_type"]
+          timestamp: string
+          to_phone: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          direction: Database["public"]["Enums"]["message_direction"]
+          from_phone: string
+          id?: string
+          message_type?: Database["public"]["Enums"]["message_type"]
+          timestamp?: string
+          to_phone: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          direction?: Database["public"]["Enums"]["message_direction"]
+          from_phone?: string
+          id?: string
+          message_type?: Database["public"]["Enums"]["message_type"]
+          timestamp?: string
+          to_phone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          is_active: boolean
+          name: string
+          phone: string
+          role: Database["public"]["Enums"]["user_role"]
+          sector: Database["public"]["Enums"]["sector_type"] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          is_active?: boolean
+          name: string
+          phone: string
+          role?: Database["public"]["Enums"]["user_role"]
+          sector?: Database["public"]["Enums"]["sector_type"] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          phone?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          sector?: Database["public"]["Enums"]["sector_type"] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -18,7 +227,11 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      conversation_status: "new" | "in_progress" | "finished"
+      message_direction: "incoming" | "outgoing"
+      message_type: "text" | "image" | "audio" | "document"
+      sector_type: "support" | "financial" | "sales"
+      user_role: "admin" | "attendant"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -133,6 +346,12 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      conversation_status: ["new", "in_progress", "finished"],
+      message_direction: ["incoming", "outgoing"],
+      message_type: ["text", "image", "audio", "document"],
+      sector_type: ["support", "financial", "sales"],
+      user_role: ["admin", "attendant"],
+    },
   },
 } as const
