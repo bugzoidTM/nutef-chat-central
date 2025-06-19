@@ -228,6 +228,36 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_configs: {
+        Row: {
+          created_at: string
+          id: string
+          instance_name: string
+          is_active: boolean
+          updated_at: string
+          webhook_secret: string | null
+          webhook_url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          instance_name: string
+          is_active?: boolean
+          updated_at?: string
+          webhook_secret?: string | null
+          webhook_url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          instance_name?: string
+          is_active?: boolean
+          updated_at?: string
+          webhook_secret?: string | null
+          webhook_url?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

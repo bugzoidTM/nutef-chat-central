@@ -2,16 +2,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import type { Tables } from '@/integrations/supabase/types';
 
-interface WebhookConfig {
-  id: string;
-  instance_name: string;
-  webhook_url: string;
-  webhook_secret: string | null;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
+type WebhookConfig = Tables<'webhook_configs'>;
 
 export const useWebhookConfig = () => {
   const { toast } = useToast();
@@ -27,7 +20,7 @@ export const useWebhookConfig = () => {
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return (data || []) as WebhookConfig[];
+      return data || [];
     },
   });
 
