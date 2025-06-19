@@ -7,11 +7,10 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Smartphone, User, Mail } from 'lucide-react';
+import { Smartphone, User } from 'lucide-react';
 
 const InitialSetup = () => {
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { user, profile } = useAuth();
@@ -22,7 +21,7 @@ const InitialSetup = () => {
     e.preventDefault();
     if (!user) return;
 
-    console.log('InitialSetup - Starting setup with data:', { name, email });
+    console.log('InitialSetup - Starting setup with data:', { name });
 
     setLoading(true);
 
@@ -39,7 +38,7 @@ const InitialSetup = () => {
           .from('profiles')
           .insert({
             user_id: user.id,
-            email: user.email || email,
+            email: user.email, // Usar o email do usuário já cadastrado
             role: 'admin',
             phone: '', // Será preenchido na próxima tela
             ...profileData,
@@ -111,21 +110,6 @@ const InitialSetup = () => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Seu nome completo"
-                required
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="email" className="flex items-center space-x-2">
-                <Mail className="h-4 w-4" />
-                <span>E-mail</span>
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="seu@email.com"
                 required
               />
             </div>
