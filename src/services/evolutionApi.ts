@@ -70,7 +70,7 @@ const makeRequest = async <T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> => {
-  const url = `${EVOLUTION_CONFIG.apiUrl}${endpoint}`;
+  const url = `${EVOLUTION_CONFIG.baseUrl}${endpoint}`;
   
   const response = await fetch(url, {
     ...options,

@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -108,6 +107,10 @@ const QRCodeSetup = () => {
     }
   };
 
+  const handleGenerateQRCode = () => {
+    getQRCode();
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -159,7 +162,7 @@ const QRCodeSetup = () => {
             <div className="space-y-4">
               {!qrCode && connectionState?.state !== 'open' && (
                 <Button
-                  onClick={getQRCode}
+                  onClick={handleGenerateQRCode}
                   disabled={isGettingQRCode || isCreatingInstance}
                   className="w-full"
                 >
