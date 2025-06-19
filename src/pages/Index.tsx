@@ -5,7 +5,7 @@ import AuthPage from '@/components/auth/AuthPage';
 import Dashboard from '@/components/dashboard/Dashboard';
 
 const Index = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, profile } = useAuth();
 
   if (loading) {
     return (

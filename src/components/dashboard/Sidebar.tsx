@@ -3,6 +3,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Label } from '@/components/ui/label';
 import { MessageSquare, Users, Settings, LogOut, Filter } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import Logo from '@/components/Logo';
@@ -139,10 +140,5 @@ const Sidebar = ({
     </div>
   );
 };
-
-// Add Label component if not already imported
-const Label = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <div className={className}>{children}</div>
-);
 
 export default Sidebar;
