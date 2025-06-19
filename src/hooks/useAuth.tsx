@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -46,9 +45,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { data: profile, error: profileError, isLoading: profileLoading, refetch: refetchProfile } = useQuery({
     queryKey: ['profile', user?.id],
     queryFn: async () => {
-      if (!user?.id) return null;
+      if (!user?.id) {
+        console.log('👤 useAuth - No user ID, skipping profile fetch');
+        return null;
+      }
       
-      console.log('useAuth - Fetching profile for user:', user.id);
+      console.log('👤 useAuth - Fetching profile for user:', user.id);
+      console.log('👤 useAuth - User email:', user.email);
       
       const { data, error } = await supabase
         .from('profiles')
@@ -57,15 +60,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .maybeSingle(); // Use maybeSingle instead of single to avoid errors when no profile exists
       
       if (error) {
-        console.error('useAuth - Profile fetch error:', error);
+        console.error('❌ useAuth - Profile fetch error:', error);
+        console.error('❌ useAuth - Error details:', { code: error.code, message: error.message, details: error.details });
         throw error;
       }
       
-      console.log('useAuth - Profile fetched:', data);
+      if (!data) {
+        console.warn('⚠️ useAuth - No profile found for user:', user.id);
+        console.log('📝 useAuth - Available user data:', { 
+          id: user.id, 
+          email: user.email, 
+          created_at: user.created_at 
+        });
+      } else {
+        console.log('✅ useAuth - Profile fetched successfully:', { 
+          id: data.id, 
+          name: data.name, 
+          role: data.role, 
+          email: data.email 
+        });
+      }
+      
       return data;
     },
     enabled: !!user?.id,
     retry: (failureCount, error: any) => {
+      console.log(`🔄 useAuth - Profile fetch retry ${failureCount}:`, error?.message);
       // Não tentar novamente se for erro de recursão
       if (error?.code === '42P17') {
         return false;

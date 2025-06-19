@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,9 +10,17 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: conversations = [], isLoading: conversationsLoading } = useQuery({
+  console.log('🔍 useConversations - Initialized with:', { 
+    selectedSector, 
+    selectedStatus, 
+    profile: profile ? { id: profile.id, role: profile.role } : null 
+  });
+
+  const { data: conversations = [], isLoading: conversationsLoading, error: conversationsError } = useQuery({
     queryKey: ['conversations', selectedSector, selectedStatus],
     queryFn: async () => {
+      console.log('📊 useConversations - Fetching conversations...');
+      
       let query = supabase
         .from('conversations')
         .select('*')
@@ -21,17 +28,38 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
 
       if (selectedSector !== 'all') {
         query = query.eq('sector', selectedSector);
+        console.log('🔽 Filtering by sector:', selectedSector);
       }
 
       if (selectedStatus !== 'all') {
         query = query.eq('status', selectedStatus);
+        console.log('🔽 Filtering by status:', selectedStatus);
       }
 
       const { data, error } = await query;
-      if (error) throw error;
+      
+      console.log('📊 useConversations - Query result:', { 
+        data: data ? `${data.length} conversations` : 'null', 
+        error: error?.message || 'none' 
+      });
+      
+      if (error) {
+        console.error('❌ useConversations - Error fetching conversations:', error);
+        throw error;
+      }
+      
       return data || [];
     },
+    retry: (failureCount, error: any) => {
+      console.log(`🔄 useConversations - Retry attempt ${failureCount}:`, error?.message);
+      return failureCount < 2;
+    },
   });
+
+  // Log conversations error if exists
+  if (conversationsError) {
+    console.error('❌ useConversations - Conversations error:', conversationsError);
+  }
 
   // Get conversation counts
   const conversationCounts = {
@@ -39,6 +67,8 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
     in_progress: conversations.filter(c => c.status === 'in_progress').length,
     finished: conversations.filter(c => c.status === 'finished').length,
   };
+
+  console.log('📈 useConversations - Conversation counts:', conversationCounts);
 
   // Send message mutation
   const sendMessageMutation = useMutation({

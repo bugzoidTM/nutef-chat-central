@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -14,11 +13,28 @@ serve(async (req) => {
   }
 
   console.log('🚀 Evolution webhook received request:', req.method, req.url);
+  console.log('📋 Request headers:', Object.fromEntries(req.headers.entries()));
 
   try {
     // Initialize Supabase client
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    console.log('🔧 Environment check:', {
+      hasSupabaseUrl: !!supabaseUrl,
+      hasSupabaseKey: !!supabaseKey,
+      supabaseUrlLength: supabaseUrl?.length || 0,
+      supabaseKeyLength: supabaseKey?.length || 0
+    });
+
+    if (!supabaseUrl || !supabaseKey) {
+      console.error('❌ Missing required environment variables');
+      return new Response(
+        JSON.stringify({ error: 'Missing environment variables' }), 
+        { status: 500, headers: corsHeaders }
+      );
+    }
+
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Parse the request body
@@ -31,22 +47,27 @@ serve(async (req) => {
     // Check if it's a single event with 'event' property
     if (body.event) {
       events = [body];
+      console.log('📌 Single event detected');
     }
     // Check if it's an array of events
     else if (Array.isArray(body)) {
       events = body;
+      console.log('📌 Array of events detected');
     }
     // Check if it's wrapped in a 'data' property
     else if (body.data) {
       if (Array.isArray(body.data)) {
         events = body.data;
+        console.log('📌 Events in data array detected');
       } else {
         events = [body.data];
+        console.log('📌 Single event in data property detected');
       }
     }
     // Fallback: treat entire body as single event
     else {
       events = [body];
+      console.log('📌 Treating entire body as single event');
     }
 
     console.log('📋 Processing events:', events.length);
@@ -61,7 +82,7 @@ serve(async (req) => {
       const instanceKey = instanceName || instance;
       
       if (!instanceKey) {
-        console.log('❌ No instance key found in event data');
+        console.log('❌ No instance key found in event data, available keys:', Object.keys(eventData));
         continue;
       }
 
@@ -77,10 +98,25 @@ serve(async (req) => {
       if (instanceError) {
         console.log('❌ Error finding instance:', instanceError);
         console.log('⚠️ Skipping event for unknown instance:', instanceKey);
+        
+        // Log available instances for debugging
+        const { data: allInstances, error: listError } = await supabase
+          .from('instances')
+          .select('instance_name, phone')
+          .limit(10);
+          
+        if (!listError && allInstances) {
+          console.log('📝 Available instances in database:', allInstances.map(i => i.instance_name));
+        }
+        
         continue;
       }
 
-      console.log('✅ Instance found:', instanceData);
+      console.log('✅ Instance found:', { 
+        id: instanceData.id, 
+        name: instanceData.instance_name, 
+        phone: instanceData.phone 
+      });
 
       // Handle different event types
       if (event === 'messages.upsert' || event === 'MESSAGES_UPSERT') {
