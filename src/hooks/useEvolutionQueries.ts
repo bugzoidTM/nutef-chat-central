@@ -40,9 +40,9 @@ export const useEvolutionQueries = (instanceName: string, phoneNumber: string) =
         throw error;
       }
     },
-    refetchInterval: (data) => {
+    refetchInterval: (query) => {
       // Only refetch if we have data and instance is connecting
-      if (data?.data?.instance?.state === 'connecting') {
+      if (query.data?.data?.instance?.state === 'connecting') {
         return 5000; // Check every 5 seconds when connecting
       }
       return false; // Don't refetch if no data or if connected/disconnected
