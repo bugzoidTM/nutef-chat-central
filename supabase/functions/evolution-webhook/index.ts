@@ -147,8 +147,8 @@ serve(async (req) => {
       });
 
       // Handle different event types
-      if (event === 'messages.upsert' || event === 'MESSAGES_UPSERT') {
-        console.log('📩 Processing message event');
+      if (event === 'messages.upsert' || event === 'MESSAGES_UPSERT' || event === 'messages.set' || event === 'MESSAGES_SET') {
+        console.log('📩 Processing message event:', event);
         
         // Handle both single message and array of messages
         let messages = [];

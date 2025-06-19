@@ -238,8 +238,8 @@ export const debugHelper = {
     }
   },
 
-  // Configurar webhook no Evolution API
-  async configureEvolutionWebhook() {
+  // Reconfigurar webhook com eventos válidos
+  async configureWebhookWithValidEvents() {
     const { instances } = await this.checkInstances();
     if (!instances || instances.length === 0) {
       console.error('❌ No instances found');
@@ -250,7 +250,38 @@ export const debugHelper = {
     const instanceName = instance.instance_name;
     const webhookUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
     
-    console.log(`🔧 Configuring webhook for instance: ${instanceName}`);
+    console.log(`🔧 Configuring webhook with VALID events for: ${instanceName}`);
+    
+    // Eventos válidos do Evolution API (baseado no erro retornado)
+    const validEvents = [
+      'APPLICATION_STARTUP',
+      'QRCODE_UPDATED',
+      'MESSAGES_SET',        // Este pode ser o evento de mensagens recebidas!
+      'MESSAGES_UPSERT',
+      'MESSAGES_EDITED',
+      'MESSAGES_UPDATE',
+      'MESSAGES_DELETE',
+      'SEND_MESSAGE',
+      'CONTACTS_SET',
+      'CONTACTS_UPSERT',
+      'CONTACTS_UPDATE',
+      'PRESENCE_UPDATE',
+      'CHATS_SET',
+      'CHATS_UPSERT',
+      'CHATS_UPDATE',
+      'CHATS_DELETE',
+      'GROUPS_UPSERT',
+      'GROUP_UPDATE',
+      'GROUP_PARTICIPANTS_UPDATE',
+      'CONNECTION_UPDATE',
+      'LABELS_EDIT',
+      'LABELS_ASSOCIATION',
+      'CALL',
+      'TYPEBOT_START',
+      'TYPEBOT_CHANGE_STATUS',
+      'REMOVE_INSTANCE',
+      'LOGOUT_INSTANCE'
+    ];
     
     try {
       const response = await fetch(`https://evolution.nutef.com/webhook/set/${instanceName}`, {
@@ -263,27 +294,7 @@ export const debugHelper = {
           webhook: {
             url: webhookUrl,
             enabled: true,
-            events: [
-              'APPLICATION_STARTUP',
-              'QRCODE_UPDATED', 
-              'CONNECTION_UPDATE',
-              'MESSAGES_UPSERT',
-              'MESSAGES_UPDATE',
-              'MESSAGES_DELETE',
-              'SEND_MESSAGE',
-              'CONTACTS_SET',
-              'CONTACTS_UPSERT',
-              'CONTACTS_UPDATE',
-              'PRESENCE_UPDATE',
-              'CHATS_SET',
-              'CHATS_UPSERT',
-              'CHATS_UPDATE',
-              'CHATS_DELETE',
-              'GROUPS_UPSERT',
-              'GROUP_UPDATE',
-              'GROUP_PARTICIPANTS_UPDATE',
-              'NEW_JWT_TOKEN'
-            ]
+            events: validEvents
           }
         }),
       });
@@ -295,7 +306,12 @@ export const debugHelper = {
       }
       
       const result = await response.json();
-      console.log('✅ Webhook configured successfully:', result);
+      console.log('✅ Webhook configured with all valid events:', result);
+      console.log('🎯 Key events configured:');
+      console.log('  - MESSAGES_SET (may be for received messages)');
+      console.log('  - MESSAGES_UPSERT (standard message event)');
+      console.log('  - MESSAGES_UPDATE');
+      console.log('  - SEND_MESSAGE');
       
       return result;
     } catch (error) {
@@ -303,58 +319,25 @@ export const debugHelper = {
     }
   },
 
-  // Testar webhook manualmente
-  async testWebhook() {
-    const webhookUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
+  // Teste completo após configuração
+  async testAfterConfiguration() {
+    console.log('🎯 === TESTE APÓS CONFIGURAÇÃO ===');
     
-    const testData = {
-      event: 'MESSAGES_UPSERT',
-      instance: 'whatsapp_73999921633',
-      data: {
-        key: {
-          remoteJid: '5511999999999@s.whatsapp.net',
-          fromMe: false,
-          id: 'test-message-id-' + Date.now()
-        },
-        message: {
-          conversation: 'Esta é uma mensagem de teste do debugHelper - ' + new Date().toLocaleString()
-        },
-        pushName: 'Teste Debugger',
-        messageTimestamp: Date.now()
-      }
-    };
+    console.log('\n1️⃣ Configurando webhook com eventos válidos...');
+    await this.configureWebhookWithValidEvents();
     
-    console.log('🧪 Testing webhook with test data...');
+    console.log('\n2️⃣ Verificando configuração...');
+    await this.checkEvolutionWebhook();
     
-    try {
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qZmR6ZmdjeXN4b3h6c3poYnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAyOTc2MDcsImV4cCI6MjA2NTg3MzYwN30.Y3BEkfR24jKAdARwBc8UE-4b2_uwy7B2Sd3RYDsaTQ4'
-        },
-        body: JSON.stringify(testData),
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Webhook test failed:', response.status, response.statusText, errorText);
-        return;
-      }
-      
-      const result = await response.text();
-      console.log('✅ Webhook test successful:', result);
-      
-      // Aguardar um pouco e verificar se a conversa foi criada
-      setTimeout(async () => {
-        console.log('🔄 Checking conversations after webhook test...');
-        await this.checkConversations();
-      }, 3000);
-      
-      return result;
-    } catch (error) {
-      console.error('❌ Error testing webhook:', error);
-    }
+    console.log('\n3️⃣ Enviando mensagem de teste...');
+    await this.testSendMessage();
+    
+    console.log('\n🎯 === PRÓXIMOS PASSOS ===');
+    console.log('1. ✅ Aguarde a mensagem chegar no WhatsApp');
+    console.log('2. 📱 RESPONDA a mensagem de teste');
+    console.log('3. 🔍 Verifique os logs: https://supabase.com/dashboard/project/ojfdzfgcysxoxzszhbzr/functions/evolution-webhook/logs');
+    console.log('4. 💻 Execute: debugHelper.checkConversations()');
+    console.log('5. ⚡ Se funcionar, o problema era o evento MESSAGES_SET!');
   },
 
   // Verificar se o webhook está recebendo dados
