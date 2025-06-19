@@ -15,9 +15,9 @@ const InitialSetup = () => {
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
-  console.log('InitialSetup - Rendered for user:', user?.id);
+  console.log('InitialSetup - Rendered for user:', user?.id, 'profile:', profile);
 
   const handleSetup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,30 +33,51 @@ const InitialSetup = () => {
       
       console.log('InitialSetup - Generated instance name:', instanceName);
 
-      // Atualizar o perfil do usuário com os dados coletados
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({
-          name,
-          phone,
-          setup_completed: true,
-          instance_name: instanceName,
-        })
-        .eq('user_id', user.id);
+      let profileData = {
+        name,
+        phone,
+        setup_completed: true,
+        instance_name: instanceName,
+      };
 
-      if (updateError) {
-        console.error('InitialSetup - Update error:', updateError);
-        throw updateError;
+      // Se não existe perfil, criar um novo
+      if (!profile) {
+        console.log('InitialSetup - Creating new profile');
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: user.id,
+            email: user.email || email,
+            role: 'admin',
+            ...profileData,
+          });
+
+        if (insertError) {
+          console.error('InitialSetup - Insert error:', insertError);
+          throw insertError;
+        }
+      } else {
+        // Se existe perfil, atualizar
+        console.log('InitialSetup - Updating existing profile');
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update(profileData)
+          .eq('user_id', user.id);
+
+        if (updateError) {
+          console.error('InitialSetup - Update error:', updateError);
+          throw updateError;
+        }
       }
 
-      console.log('InitialSetup - Profile updated successfully');
+      console.log('InitialSetup - Profile operation completed successfully');
 
       toast({
         title: "Configuração inicial concluída",
         description: "Agora vamos configurar sua instância WhatsApp.",
       });
 
-      // Forçar recarregamento do perfil
+      // Forçar recarregamento da página para atualizar o estado
       setTimeout(() => {
         window.location.reload();
       }, 1500);

@@ -28,17 +28,11 @@ const Index = () => {
     return <AuthPage />;
   }
 
-  // Se não tem perfil, mostrar loading
+  // Se não tem perfil, pode ser que ainda não foi criado ou não foi carregado
   if (!profile) {
-    console.log('Index.tsx - No profile, showing loading');
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Carregando perfil...</p>
-        </div>
-      </div>
-    );
+    console.log('Index.tsx - No profile found');
+    // Se é um usuário logado mas sem perfil, mostrar setup inicial
+    return <InitialSetup />;
   }
 
   console.log('Index.tsx - Profile loaded:', {
