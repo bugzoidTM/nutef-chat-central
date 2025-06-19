@@ -68,4 +68,16 @@ CREATE POLICY "Users can insert messages in accessible conversations" ON public.
 
 -- Permitir inserção de mensagens via webhook (sistema)
 CREATE POLICY "Allow webhook to insert messages" ON public.messages
-  FOR INSERT WITH CHECK (true); 
+  FOR INSERT WITH CHECK (true);
+
+-- Permitir visualização de mensagens para usuários autorizados
+CREATE POLICY "Users can view messages from accessible conversations" ON public.messages
+  FOR SELECT USING (
+    EXISTS (
+      SELECT 1 FROM public.conversations c
+      JOIN public.profiles p ON p.user_id = auth.uid()
+      LEFT JOIN public.attendant_sectors as_table ON p.id = as_table.attendant_id
+      WHERE c.id = conversation_id 
+      AND (p.role = 'admin' OR as_table.sector = c.sector)
+    )
+  ); 
