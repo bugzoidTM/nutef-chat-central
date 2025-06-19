@@ -156,14 +156,45 @@ serve(async (req) => {
         
         // Handle both single message and array of messages
         let messages = [];
+        
+        console.log('🔍 Debugging data structure:', {
+          hasData: !!data,
+          hasDataMessages: !!data?.messages,
+          hasDataKey: !!data?.key,
+          hasDataMessage: !!data?.message,
+          dataKeys: data ? Object.keys(data) : [],
+          keyType: typeof data?.key,
+          messageType: typeof data?.message
+        });
+        
         if (data?.messages) {
           messages = Array.isArray(data.messages) ? data.messages : [data.messages];
-        } else if (data && data.key && data.message) {
+          console.log('📨 PATH 1: Using data.messages array');
+        } else if (data?.key && data?.message) {
           // Evolution API sends data with key and message properties
           messages = [data];
+          console.log('📨 PATH 2: Using complete data object (has key and message)');
+          console.log('🔍 Selected data structure:', {
+            hasKey: !!data.key,
+            hasMessage: !!data.message,
+            remoteJid: data.key?.remoteJid,
+            pushName: data.pushName
+          });
         } else if (data?.message) {
-          // Fallback for other formats
-          messages = [data.message];
+          // ESTE CAMINHO NÃO DEVE SER USADO PARA EVOLUTION API!
+          console.log('⚠️ PATH 3 (BLOCKED): data.message only - CONVERTING to full data structure');
+          console.log('🔍 Original data keys:', Object.keys(data || {}));
+          
+          // Tentar reconstruir estrutura correta se temos os dados separados
+          if (data.key) {
+            messages = [data]; // usar data completo mesmo que key esteja separado
+            console.log('✅ PATH 3 CONVERTED: Found separate key, using full data');
+          } else {
+            console.log('❌ PATH 3 FAILED: No key found, skipping this message');
+            messages = []; // não processar para evitar erro
+          }
+        } else {
+          console.log('❌ PATH 4: No valid message structure found in data:', Object.keys(data || {}));
         }
 
         console.log('📝 Found messages to process:', messages.length);
