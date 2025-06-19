@@ -146,8 +146,12 @@ serve(async (req) => {
         phone: instanceData.phone 
       });
 
-      // Handle different event types
-      if (event === 'messages.upsert' || event === 'MESSAGES_UPSERT' || event === 'messages.set' || event === 'MESSAGES_SET') {
+      // Handle different event types - normalizar para minúsculo para comparação
+      const eventLower = event?.toLowerCase() || '';
+      console.log('🔍 Event received:', event, '-> normalized:', eventLower);
+      
+      if (eventLower === 'messages.upsert' || eventLower === 'messages_upsert' || 
+          eventLower === 'messages.set' || eventLower === 'messages_set') {
         console.log('📩 Processing message event:', event);
         
         // Handle both single message and array of messages
@@ -295,7 +299,7 @@ serve(async (req) => {
 
           console.log('✅ Message inserted successfully');
         }
-      } else if (event === 'connection.update' || event === 'CONNECTION_UPDATE') {
+      } else if (eventLower === 'connection.update' || eventLower === 'connection_update') {
         console.log('🔄 Connection update:', data);
         
         // Update instance status based on connection state
@@ -310,7 +314,7 @@ serve(async (req) => {
             
           console.log('✅ Instance status updated to:', status);
         }
-      } else if (event === 'send.message' || event === 'SEND_MESSAGE') {
+      } else if (eventLower === 'send.message' || eventLower === 'send_message') {
         console.log('📤 Message sent event:', data);
         // Could be used to update message status to 'sent'
       } else {

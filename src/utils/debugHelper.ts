@@ -590,6 +590,104 @@ export const debugHelper = {
     console.log('2. Responda a mensagem de teste');
     console.log('3. Execute: debugHelper.checkConversations()');
     console.log('4. Verifique os logs: https://supabase.com/dashboard/project/ojfdzfgcysxoxzszhbzr/functions/evolution-webhook/logs');
+  },
+
+  // Testar webhook com payload real do Evolution API
+  async testWebhookWithRealPayload() {
+    const webhookUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
+    
+    // Payload exato capturado do Evolution API
+    const realPayload = {
+      "event": "messages.upsert",
+      "instance": "whatsapp_73999921633",
+      "data": {
+        "key": {
+          "remoteJid": "5511932473951@s.whatsapp.net",
+          "fromMe": false,
+          "id": "TEST_MESSAGE_" + Date.now()
+        },
+        "pushName": "Teste Debug",
+        "status": "DELIVERY_ACK",
+        "message": {
+          "conversation": "Mensagem de teste com payload real - " + new Date().toLocaleString(),
+          "messageContextInfo": {
+            "deviceListMetadata": {
+              "senderKeyHash": "test==",
+              "senderTimestamp": "1749394460",
+              "recipientKeyHash": "test==",
+              "recipientTimestamp": "1750350225"
+            },
+            "deviceListMetadataVersion": 2,
+            "messageSecret": "test"
+          }
+        },
+        "messageType": "conversation",
+        "messageTimestamp": Date.now(),
+        "instanceId": "79fe5b11-8137-4bc0-ab38-342dd871853e",
+        "source": "android"
+      },
+      "destination": webhookUrl,
+      "date_time": new Date().toISOString(),
+      "sender": "557399921633@s.whatsapp.net",
+      "server_url": "https://evolution.nutef.com",
+      "apikey": "5497DCC5-BB88-495B-8F21-A9B88D365C15"
+    };
+    
+    console.log('🧪 Testing webhook with REAL Evolution API payload...');
+    console.log('📋 Payload structure matches captured data from webhook.site');
+    
+    try {
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qZmR6ZmdjeXN4b3h6c3poYnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAyOTc2MDcsImV4cCI6MjA2NTg3MzYwN30.Y3BEkfR24jKAdARwBc8UE-4b2_uwy7B2Sd3RYDsaTQ4',
+          'User-Agent': 'Evolution-API/1.0'
+        },
+        body: JSON.stringify(realPayload),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Webhook test failed:', response.status, response.statusText, errorText);
+        return;
+      }
+      
+      const result = await response.text();
+      console.log('✅ Webhook test with real payload successful:', result);
+      
+      // Aguardar e verificar se a conversa foi criada
+      setTimeout(async () => {
+        console.log('🔄 Checking conversations after real payload test...');
+        await this.checkConversations();
+      }, 3000);
+      
+      return result;
+    } catch (error) {
+      console.error('❌ Error testing webhook with real payload:', error);
+    }
+  },
+
+  // Teste final com payload real
+  async finalTest() {
+    console.log('🎯 === TESTE FINAL COM PAYLOAD REAL ===');
+    
+    console.log('\n1️⃣ Testando webhook com payload real do Evolution API...');
+    await this.testWebhookWithRealPayload();
+    
+    console.log('\n2️⃣ Aguardando processamento...');
+    console.log('⏳ Verificando logs em 5 segundos...');
+    
+    setTimeout(async () => {
+      console.log('\n3️⃣ Verificando resultados...');
+      await this.checkConversations();
+      await this.checkMessages();
+      
+      console.log('\n🎯 === PRÓXIMOS PASSOS ===');
+      console.log('1. ✅ Se funcionou: o problema era o formato do evento!');
+      console.log('2. ❌ Se não funcionou: verificar logs do Supabase');
+      console.log('3. 📋 Logs: https://supabase.com/dashboard/project/ojfdzfgcysxoxzszhbzr/functions/evolution-webhook/logs');
+    }, 5000);
   }
 };
 
