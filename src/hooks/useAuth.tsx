@@ -21,25 +21,43 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const { data: profile } = useQuery({
+  const { data: profile, error: profileError, isLoading: profileLoading } = useQuery({
     queryKey: ['profile', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
+      
+      console.log('useAuth - Fetching profile for user:', user.id);
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('user_id', user.id)
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('useAuth - Profile fetch error:', error);
+        throw error;
+      }
+      
+      console.log('useAuth - Profile fetched:', data);
       return data;
     },
     enabled: !!user?.id,
+    retry: 3,
   });
+
+  useEffect(() => {
+    console.log('useAuth - Profile query state:', { 
+      data: profile, 
+      error: profileError, 
+      isLoading: profileLoading 
+    });
+  }, [profile, profileError, profileLoading]);
 
   useEffect(() => {
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('useAuth - Initial session:', !!session);
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
@@ -48,6 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log('useAuth - Auth state change:', event, !!session);
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -106,7 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signIn,
     signUp,
     signOut,
-    loading,
+    loading: loading || profileLoading,
   };
 
   return (

@@ -9,6 +9,8 @@ import QRCodeSetup from '@/components/setup/QRCodeSetup';
 const Index = () => {
   const { user, loading, profile } = useAuth();
 
+  console.log('Index.tsx - Auth state:', { user: !!user, loading, profile });
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -22,11 +24,13 @@ const Index = () => {
 
   // Se não estiver logado, mostrar página de autenticação
   if (!user) {
+    console.log('Index.tsx - No user, showing AuthPage');
     return <AuthPage />;
   }
 
-  // Se não tem perfil ou perfil ainda não foi carregado, mostrar loading
+  // Se não tem perfil, mostrar loading
   if (!profile) {
+    console.log('Index.tsx - No profile, showing loading');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -37,17 +41,26 @@ const Index = () => {
     );
   }
 
+  console.log('Index.tsx - Profile loaded:', {
+    role: profile.role,
+    setup_completed: profile.setup_completed,
+    whatsapp_connected: profile.whatsapp_connected
+  });
+
   // Se é admin e ainda não completou o setup inicial
   if (profile.role === 'admin' && !profile.setup_completed) {
+    console.log('Index.tsx - Admin needs initial setup');
     return <InitialSetup />;
   }
 
   // Se é admin, completou o setup mas ainda não conectou o WhatsApp
   if (profile.role === 'admin' && profile.setup_completed && !profile.whatsapp_connected) {
+    console.log('Index.tsx - Admin needs QR code setup');
     return <QRCodeSetup />;
   }
 
   // Se chegou até aqui, mostrar o dashboard
+  console.log('Index.tsx - Showing dashboard');
   return <Dashboard />;
 };
 

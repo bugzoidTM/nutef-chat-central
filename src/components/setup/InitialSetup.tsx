@@ -17,13 +17,22 @@ const InitialSetup = () => {
   const { toast } = useToast();
   const { user } = useAuth();
 
+  console.log('InitialSetup - Rendered for user:', user?.id);
+
   const handleSetup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
 
+    console.log('InitialSetup - Starting setup with data:', { name, email, phone });
+
     setLoading(true);
 
     try {
+      // Gerar instance_name baseado no telefone (apenas números)
+      const instanceName = phone.replace(/\D/g, '');
+      
+      console.log('InitialSetup - Generated instance name:', instanceName);
+
       // Atualizar o perfil do usuário com os dados coletados
       const { error: updateError } = await supabase
         .from('profiles')
@@ -31,13 +40,16 @@ const InitialSetup = () => {
           name,
           phone,
           setup_completed: true,
-          instance_name: phone.replace(/\D/g, ''), // Remove caracteres não numéricos para usar como nome da instância
+          instance_name: instanceName,
         })
         .eq('user_id', user.id);
 
       if (updateError) {
+        console.error('InitialSetup - Update error:', updateError);
         throw updateError;
       }
+
+      console.log('InitialSetup - Profile updated successfully');
 
       toast({
         title: "Configuração inicial concluída",
@@ -45,8 +57,11 @@ const InitialSetup = () => {
       });
 
       // Forçar recarregamento do perfil
-      window.location.reload();
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
     } catch (error: any) {
+      console.error('InitialSetup - Error:', error);
       toast({
         title: "Erro na configuração",
         description: error.message,
