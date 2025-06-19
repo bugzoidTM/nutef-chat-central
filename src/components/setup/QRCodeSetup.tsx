@@ -68,7 +68,7 @@ const QRCodeSetup = () => {
     }
   };
 
-  const handleCreateInstance = () => {
+  const handleCreateInstance = async () => {
     if (!phoneNumber.trim()) {
       toast({
         title: "Número obrigatório",
@@ -87,8 +87,21 @@ const QRCodeSetup = () => {
       return;
     }
     
-    setInstanceCreated(true);
-    createInstance({});
+    try {
+      setInstanceCreated(true);
+      await createInstance({});
+      
+      // Wait a moment for instance to be created, then try to get QR code
+      setTimeout(() => {
+        getQRCode().catch(error => {
+          console.error('Error getting QR code after instance creation:', error);
+        });
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Error creating instance:', error);
+      setInstanceCreated(false);
+    }
   };
 
   const handleChangeNumber = () => {
@@ -207,11 +220,18 @@ const QRCodeSetup = () => {
                     />
                   )}
 
-                  {!qrCode && connectionState?.state === 'connecting' && (
+                  {!qrCode && (connectionState?.state === 'connecting' || isCreatingInstance) && (
                     <div className="text-center space-y-3 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
                       <AlertCircle className="h-8 w-8 text-yellow-600 mx-auto" />
-                      <p className="text-yellow-800 font-medium">Instância conectando...</p>
-                      <p className="text-yellow-700 text-sm">Aguarde um momento para gerar o QR Code</p>
+                      <p className="text-yellow-800 font-medium">
+                        {isCreatingInstance ? 'Criando instância...' : 'Instância conectando...'}
+                      </p>
+                      <p className="text-yellow-700 text-sm">
+                        {isCreatingInstance 
+                          ? 'Configurando a instância WhatsApp...' 
+                          : 'Aguarde um momento para gerar o QR Code'
+                        }
+                      </p>
                     </div>
                   )}
                 </div>
