@@ -6,12 +6,16 @@ import { Separator } from '@/components/ui/separator';
 import { MessageSquare, Users, Settings, LogOut, Filter } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import Logo from '@/components/Logo';
+import type { Database } from '@/integrations/supabase/types';
+
+type SectorType = Database['public']['Enums']['sector_type'] | 'all';
+type StatusType = Database['public']['Enums']['conversation_status'] | 'all';
 
 interface SidebarProps {
-  selectedSector: string;
-  selectedStatus: string;
-  onSectorChange: (sector: string) => void;
-  onStatusChange: (status: string) => void;
+  selectedSector: SectorType;
+  selectedStatus: StatusType;
+  onSectorChange: (sector: SectorType) => void;
+  onStatusChange: (status: StatusType) => void;
   conversationCounts: {
     new: number;
     in_progress: number;
@@ -29,17 +33,17 @@ const Sidebar = ({
   const { profile, signOut } = useAuth();
 
   const sectors = [
-    { value: 'all', label: 'Todos os Setores' },
-    { value: 'support', label: 'Suporte' },
-    { value: 'financial', label: 'Financeiro' },
-    { value: 'sales', label: 'Vendas' },
+    { value: 'all' as const, label: 'Todos os Setores' },
+    { value: 'support' as const, label: 'Suporte' },
+    { value: 'financial' as const, label: 'Financeiro' },
+    { value: 'sales' as const, label: 'Vendas' },
   ];
 
   const statuses = [
-    { value: 'all', label: 'Todas', count: conversationCounts.new + conversationCounts.in_progress + conversationCounts.finished },
-    { value: 'new', label: 'Novas', count: conversationCounts.new },
-    { value: 'in_progress', label: 'Em Andamento', count: conversationCounts.in_progress },
-    { value: 'finished', label: 'Finalizadas', count: conversationCounts.finished },
+    { value: 'all' as const, label: 'Todas', count: conversationCounts.new + conversationCounts.in_progress + conversationCounts.finished },
+    { value: 'new' as const, label: 'Novas', count: conversationCounts.new },
+    { value: 'in_progress' as const, label: 'Em Andamento', count: conversationCounts.in_progress },
+    { value: 'finished' as const, label: 'Finalizadas', count: conversationCounts.finished },
   ];
 
   return (

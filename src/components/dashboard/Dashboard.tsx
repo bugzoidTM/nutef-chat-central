@@ -7,14 +7,18 @@ import { useToast } from '@/hooks/use-toast';
 import Sidebar from './Sidebar';
 import ConversationList from './ConversationList';
 import ChatArea from './ChatArea';
+import type { Database } from '@/integrations/supabase/types';
+
+type SectorType = Database['public']['Enums']['sector_type'] | 'all';
+type StatusType = Database['public']['Enums']['conversation_status'] | 'all';
 
 const Dashboard = () => {
   const { profile } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const [selectedSector, setSelectedSector] = useState('all');
-  const [selectedStatus, setSelectedStatus] = useState('all');
+  const [selectedSector, setSelectedSector] = useState<SectorType>('all');
+  const [selectedStatus, setSelectedStatus] = useState<StatusType>('all');
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
