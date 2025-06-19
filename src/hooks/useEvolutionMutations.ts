@@ -6,7 +6,7 @@ import * as evolutionApi from '@/services/evolutionApi';
 export const useEvolutionMutations = (instanceName: string, refetchChats: () => void) => {
   const { toast } = useToast();
 
-  // Create instance mutation with webhook included from the start
+  // Create instance mutation
   const createInstanceMutation = useMutation({
     mutationFn: async (options?: Partial<evolutionApi.CreateInstanceRequest>) => {
       console.log('Creating instance mutation for:', instanceName);
@@ -19,13 +19,39 @@ export const useEvolutionMutations = (instanceName: string, refetchChats: () => 
         let response;
         if (!instanceExists) {
           console.log('Instance does not exist, creating new one...');
-          // Create instance in Evolution API with webhook included
+          // Create instance in Evolution API
           response = await evolutionApi.createInstance(instanceName, options);
           console.log('Evolution API instance creation response:', response);
+          
+          // Wait a bit for instance to be ready, then setup webhook
+          setTimeout(async () => {
+            try {
+              console.log('Setting up webhook for instance:', instanceName);
+              await evolutionApi.setupWebhookAutomatically(instanceName);
+              console.log('Webhook configured successfully');
+            } catch (webhookError) {
+              console.error('Failed to configure webhook:', webhookError);
+              toast({
+                title: "Aviso",
+                description: "Instância criada, mas houve erro ao configurar webhook. Tente reconectar.",
+                variant: "destructive",
+              });
+            }
+          }, 3000); // Wait 3 seconds for instance to be ready
+          
         } else {
           console.log('Instance already exists, getting connection state...');
-          // If instance exists, just get connection state
+          // If instance exists, just get connection state and ensure webhook is set
           const connectionState = await evolutionApi.getConnectionState(instanceName);
+          
+          // Try to setup webhook anyway
+          try {
+            await evolutionApi.setupWebhookAutomatically(instanceName);
+            console.log('Webhook verified/updated successfully');
+          } catch (webhookError) {
+            console.warn('Could not verify webhook, but continuing:', webhookError);
+          }
+          
           response = {
             instance: {
               instanceName,
@@ -44,7 +70,7 @@ export const useEvolutionMutations = (instanceName: string, refetchChats: () => 
       console.log('Instance mutation success:', data);
       toast({
         title: "Instância configurada",
-        description: `Instância ${instanceName} configurada com sucesso com webhook habilitado.`,
+        description: `Instância ${instanceName} configurada com sucesso.`,
       });
     },
     onError: (error: any) => {
