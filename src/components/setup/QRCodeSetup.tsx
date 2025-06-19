@@ -1,8 +1,9 @@
+
 import React, { useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { QrCode, Smartphone, Wifi, WifiOff, RefreshCw, CheckCircle } from 'lucide-react';
+import { QrCode, Smartphone, Wifi, WifiOff, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
 import { useEvolutionInstance } from '@/hooks/useEvolutionInstance';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -108,6 +109,7 @@ const QRCodeSetup = () => {
   };
 
   const handleGenerateQRCode = () => {
+    clearQrCode();
     getQRCode();
   };
 
@@ -160,7 +162,7 @@ const QRCodeSetup = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {!qrCode && connectionState?.state !== 'open' && (
+              {(!qrCode || !qrCode.trim()) && connectionState?.state !== 'open' && (
                 <Button
                   onClick={handleGenerateQRCode}
                   disabled={isGettingQRCode || isCreatingInstance}
@@ -171,32 +173,62 @@ const QRCodeSetup = () => {
                 </Button>
               )}
 
-              {qrCode && (
+              {qrCode && qrCode.trim() && (
                 <div className="text-center space-y-4">
-                  <div className="bg-white p-4 rounded-lg border inline-block">
+                  <div className="bg-white p-6 rounded-lg border-2 border-gray-200 shadow-sm">
                     <img
-                      src={`data:image/png;base64,${qrCode}`}
-                      alt="QR Code"
-                      className="w-48 h-48 mx-auto"
+                      src={qrCode.startsWith('data:') ? qrCode : `data:image/png;base64,${qrCode}`}
+                      alt="QR Code para conectar WhatsApp"
+                      className="w-56 h-56 mx-auto block"
+                      onError={(e) => {
+                        console.error('Erro ao carregar QR Code:', e);
+                        toast({
+                          title: "Erro no QR Code",
+                          description: "Erro ao carregar QR Code. Tente gerar novamente.",
+                          variant: "destructive",
+                        });
+                      }}
+                      onLoad={() => {
+                        console.log('QR Code carregado com sucesso');
+                      }}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <p className="text-sm text-gray-600">
-                      1. Abra o WhatsApp no seu celular
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      2. Toque em Mais opções &gt; Dispositivos conectados
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      3. Toque em Conectar um dispositivo
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      4. Aponte seu celular para esta tela
-                    </p>
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <div className="flex items-center justify-center space-x-2 mb-3">
+                      <Smartphone className="h-4 w-4" />
+                      <span className="font-medium">Como conectar:</span>
+                    </div>
+                    <p>1. Abra o WhatsApp no seu celular</p>
+                    <p>2. Toque em <strong>Mais opções</strong> &gt; <strong>Dispositivos conectados</strong></p>
+                    <p>3. Toque em <strong>Conectar um dispositivo</strong></p>
+                    <p>4. Aponte seu celular para este QR Code</p>
                   </div>
-                  <Button variant="outline" onClick={clearQrCode}>
-                    Gerar Novo QR Code
+                  <Button 
+                    variant="outline" 
+                    onClick={handleGenerateQRCode}
+                    disabled={isGettingQRCode}
+                    className="w-full"
+                  >
+                    {isGettingQRCode ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Gerando...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Gerar Novo QR Code
+                      </>
+                    )}
                   </Button>
+                </div>
+              )}
+
+              {!qrCode && connectionState?.state === 'connecting' && (
+                <div className="text-center space-y-3 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <AlertCircle className="h-8 w-8 text-yellow-600 mx-auto" />
+                  <p className="text-yellow-800 font-medium">Instância conectando...</p>
+                  <p className="text-yellow-700 text-sm">Aguarde um momento para gerar o QR Code</p>
                 </div>
               )}
             </div>
