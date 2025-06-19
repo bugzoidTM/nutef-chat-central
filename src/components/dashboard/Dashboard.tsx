@@ -7,8 +7,6 @@ import { useRealtimeSubscriptions } from '@/hooks/useRealtimeSubscriptions';
 import Sidebar from './Sidebar';
 import ConversationList from './ConversationList';
 import ChatArea from './ChatArea';
-import EvolutionInstanceManager from './EvolutionInstanceManager';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { SectorType, StatusType } from '@/types/dashboard';
 
 const Dashboard = () => {
@@ -56,40 +54,21 @@ const Dashboard = () => {
         conversationCounts={conversationCounts}
       />
       
-      <div className="flex-1 flex flex-col">
-        <Tabs defaultValue="conversations" className="flex-1 flex flex-col">
-          <div className="border-b border-gray-200 bg-white px-4">
-            <TabsList className="h-12">
-              <TabsTrigger value="conversations">Conversas</TabsTrigger>
-              {profile.role === 'admin' && (
-                <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
-              )}
-            </TabsList>
-          </div>
-          
-          <TabsContent value="conversations" className="flex-1 flex m-0 p-0">
-            <ConversationList
-              conversations={conversations}
-              selectedConversation={selectedConversation}
-              onSelectConversation={setSelectedConversation}
-              searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
-            />
-            
-            <ChatArea
-              conversation={selectedConversationData || null}
-              messages={messages}
-              onSendMessage={handleSendMessage}
-              isLoading={sendMessageMutation.isPending}
-            />
-          </TabsContent>
-          
-          {profile.role === 'admin' && (
-            <TabsContent value="whatsapp" className="flex-1 m-0 p-6">
-              <EvolutionInstanceManager />
-            </TabsContent>
-          )}
-        </Tabs>
+      <div className="flex-1 flex">
+        <ConversationList
+          conversations={conversations}
+          selectedConversation={selectedConversation}
+          onSelectConversation={setSelectedConversation}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+        />
+        
+        <ChatArea
+          conversation={selectedConversationData || null}
+          messages={messages}
+          onSendMessage={handleSendMessage}
+          isLoading={sendMessageMutation.isPending}
+        />
       </div>
     </div>
   );

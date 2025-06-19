@@ -72,6 +72,13 @@ const makeRequest = async <T>(
 ): Promise<T> => {
   const url = `${EVOLUTION_CONFIG.baseUrl}${endpoint}`;
   
+  console.log('Evolution API Request:', {
+    url,
+    method: options.method || 'GET',
+    hasApiKey: !!EVOLUTION_CONFIG.apiKey,
+    endpoint
+  });
+  
   const response = await fetch(url, {
     ...options,
     headers: {
@@ -83,10 +90,18 @@ const makeRequest = async <T>(
 
   if (!response.ok) {
     const errorText = await response.text();
+    console.error('Evolution API Error:', {
+      status: response.status,
+      statusText: response.statusText,
+      errorText,
+      url
+    });
     throw new Error(`Evolution API Error: ${response.status} - ${errorText}`);
   }
 
-  return response.json();
+  const data = await response.json();
+  console.log('Evolution API Response:', data);
+  return data;
 };
 
 // Create instance
@@ -121,20 +136,29 @@ export const getConnectionState = async (instanceName: string): Promise<Connecti
   return makeRequest<ConnectionStateResponse>(`/instance/connectionState/${instanceName}`);
 };
 
-// Find chats
+// Find chats - GET /chat/findChats/{instanceName}
 export const findChats = async (instanceName: string): Promise<FindChatsResponse> => {
-  console.log('Finding chats for instance:', instanceName);
+  console.log('Finding chats for instance:', instanceName, 'using Evolution API config:', {
+    baseUrl: EVOLUTION_CONFIG.baseUrl,
+    hasApiKey: !!EVOLUTION_CONFIG.apiKey
+  });
   
   return makeRequest<FindChatsResponse>(`/chat/findChats/${instanceName}`);
 };
 
-// Send text message
+// Send text message - POST /message/sendText/{instanceName}
 export const sendTextMessage = async (
   instanceName: string,
   number: string,
   text: string
 ): Promise<SendTextMessageResponse> => {
-  console.log('Sending message via Evolution API:', { instanceName, number, text });
+  console.log('Sending message via Evolution API:', { 
+    instanceName, 
+    number, 
+    text,
+    baseUrl: EVOLUTION_CONFIG.baseUrl,
+    hasApiKey: !!EVOLUTION_CONFIG.apiKey
+  });
   
   return makeRequest<SendTextMessageResponse>(`/message/sendText/${instanceName}`, {
     method: 'POST',
