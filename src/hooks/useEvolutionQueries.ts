@@ -16,6 +16,7 @@ export const useEvolutionQueries = (instanceName: string, phoneNumber: string) =
     queryKey: ['connectionState', instanceName],
     queryFn: async () => {
       try {
+        console.log('Checking connection state for instance:', instanceName);
         const response = await evolutionApi.getConnectionState(instanceName);
         
         // Update instance status in database when connection state changes
@@ -23,6 +24,7 @@ export const useEvolutionQueries = (instanceName: string, phoneNumber: string) =
           const status = response.instance.state === 'open' ? 'connected' : 
                         response.instance.state === 'connecting' ? 'connecting' : 'disconnected';
           
+          console.log('Updating instance status in database:', status);
           await supabase
             .from('instances')
             .update({ status })
@@ -32,17 +34,25 @@ export const useEvolutionQueries = (instanceName: string, phoneNumber: string) =
         
         return response;
       } catch (error: any) {
-        // If instance doesn't exist, return null instead of throwing
+        console.error('Connection state error:', error);
+        
+        // If instance doesn't exist, return a default state instead of throwing
         if (error.message.includes('404') || error.message.includes('does not exist')) {
-          console.log('Instance does not exist yet:', instanceName);
-          return null;
+          console.log('Instance does not exist yet, returning default state:', instanceName);
+          return {
+            instance: {
+              instanceName,
+              state: 'close'
+            }
+          };
         }
         throw error;
       }
     },
     refetchInterval: (query) => {
       // Only refetch if we have data and instance is connecting
-      if (query.state.data?.instance?.state === 'connecting') {
+      const connectionData = query.state.data;
+      if (connectionData?.instance?.state === 'connecting') {
         return 5000; // Check every 5 seconds when connecting
       }
       return false; // Don't refetch if no data or if connected/disconnected

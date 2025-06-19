@@ -33,17 +33,19 @@ export const useEvolutionInstance = (phoneNumber: string) => {
     }
 
     try {
-      const response = await createInstance(options);
+      console.log('Creating instance:', instanceName);
       
-      // Save instance in database using profile.id
+      // First, save instance in database
       const { error: instanceError } = await supabase
         .from('instances')
         .upsert({
           instance_name: instanceName,
           phone: phoneNumber,
           admin_id: profile.id,
-          status: 'connecting',
+          status: 'creating',
           webhook_url: 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook',
+        }, {
+          onConflict: 'instance_name',
         });
 
       if (instanceError) {
@@ -51,15 +53,34 @@ export const useEvolutionInstance = (phoneNumber: string) => {
         throw instanceError;
       }
       
-      console.log('Instance saved to database successfully');
+      console.log('Instance saved to database, creating in Evolution API...');
+      
+      // Then create in Evolution API
+      const response = await createInstance(options);
+      
+      // Update database status
+      await supabase
+        .from('instances')
+        .update({ status: 'connecting' })
+        .eq('instance_name', instanceName);
       
       if (response?.qrcode?.base64) {
         setQrCode(response.qrcode.base64);
       }
       
+      console.log('Instance creation completed successfully');
       return response;
     } catch (error) {
       console.error('Error in handleCreateInstance:', error);
+      
+      // Update database status to error
+      if (profile) {
+        await supabase
+          .from('instances')
+          .update({ status: 'error' })
+          .eq('instance_name', instanceName);
+      }
+      
       throw error;
     }
   };

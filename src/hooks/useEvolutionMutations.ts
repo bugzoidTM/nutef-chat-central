@@ -9,19 +9,21 @@ export const useEvolutionMutations = (instanceName: string, refetchChats: () => 
   // Create instance mutation with webhook included from the start
   const createInstanceMutation = useMutation({
     mutationFn: async (options?: Partial<evolutionApi.CreateInstanceRequest>) => {
-      console.log('Creating instance for phone:', instanceName);
+      console.log('Creating instance mutation for:', instanceName);
       
       try {
         // Check if instance already exists
+        console.log('Checking if instance exists...');
         const instanceExists = await evolutionApi.checkInstanceExists(instanceName);
         
         let response;
         if (!instanceExists) {
+          console.log('Instance does not exist, creating new one...');
           // Create instance in Evolution API with webhook included
           response = await evolutionApi.createInstance(instanceName, options);
-          console.log('Evolution API response:', response);
+          console.log('Evolution API instance creation response:', response);
         } else {
-          console.log('Instance already exists, skipping creation');
+          console.log('Instance already exists, getting connection state...');
           // If instance exists, just get connection state
           const connectionState = await evolutionApi.getConnectionState(instanceName);
           response = {
@@ -39,6 +41,7 @@ export const useEvolutionMutations = (instanceName: string, refetchChats: () => 
       }
     },
     onSuccess: (data) => {
+      console.log('Instance mutation success:', data);
       toast({
         title: "Instância configurada",
         description: `Instância ${instanceName} configurada com sucesso com webhook habilitado.`,
@@ -67,14 +70,19 @@ export const useEvolutionMutations = (instanceName: string, refetchChats: () => 
 
   // Get QR code mutation
   const getQRCodeMutation = useMutation({
-    mutationFn: () => evolutionApi.getQRCode(instanceName),
-    onSuccess: () => {
+    mutationFn: () => {
+      console.log('Getting QR code for instance:', instanceName);
+      return evolutionApi.getQRCode(instanceName);
+    },
+    onSuccess: (data) => {
+      console.log('QR code generation success:', data);
       toast({
         title: "QR Code gerado",
         description: "Escaneie o QR Code com seu WhatsApp.",
       });
     },
     onError: (error: any) => {
+      console.error('Error getting QR code:', error);
       let errorMessage = error.message;
       
       if (error.message.includes('404')) {
@@ -91,9 +99,12 @@ export const useEvolutionMutations = (instanceName: string, refetchChats: () => 
 
   // Send message mutation
   const sendMessageMutation = useMutation({
-    mutationFn: ({ number, text }: { number: string; text: string }) =>
-      evolutionApi.sendTextMessage(instanceName, number, text),
+    mutationFn: ({ number, text }: { number: string; text: string }) => {
+      console.log('Sending message via Evolution API:', { instanceName, number, text });
+      return evolutionApi.sendTextMessage(instanceName, number, text);
+    },
     onSuccess: () => {
+      console.log('Message sent successfully');
       toast({
         title: "Mensagem enviada",
         description: "Mensagem enviada com sucesso via WhatsApp.",
@@ -101,6 +112,7 @@ export const useEvolutionMutations = (instanceName: string, refetchChats: () => 
       refetchChats();
     },
     onError: (error: any) => {
+      console.error('Error sending message:', error);
       toast({
         title: "Erro ao enviar mensagem",
         description: error.message,

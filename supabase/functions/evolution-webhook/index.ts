@@ -25,154 +25,187 @@ serve(async (req) => {
     const body = await req.json();
     console.log('📨 Webhook body received:', JSON.stringify(body, null, 2));
 
-    // Extract data from webhook
-    const { event, instance, data } = body;
-    console.log('📋 Event:', event, 'Instance:', instance);
-
-    if (!instance) {
-      console.log('❌ No instance found in webhook data');
-      return new Response(JSON.stringify({ error: 'No instance found' }), {
+    // Extract data from webhook - handle both single events and arrays
+    let events = [];
+    if (Array.isArray(body)) {
+      events = body;
+    } else if (body.event || body.data) {
+      events = [body];
+    } else {
+      console.log('⚠️ Unknown webhook format:', body);
+      return new Response(JSON.stringify({ error: 'Unknown webhook format' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Find the instance in our database using the new naming format
-    console.log('🔍 Looking for instance with name:', instance);
-    
-    const { data: instanceData, error: instanceError } = await supabase
-      .from('instances')
-      .select('*')
-      .eq('instance_name', instance)
-      .single();
+    // Process each event
+    for (const eventData of events) {
+      const { event, instance, data } = eventData;
+      console.log('📋 Processing event:', event, 'Instance:', instance);
 
-    if (instanceError) {
-      console.log('❌ Error finding instance:', instanceError);
-      return new Response(JSON.stringify({ error: 'Instance not found', details: instanceError }), {
-        status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+      if (!instance) {
+        console.log('❌ No instance found in event data');
+        continue;
+      }
 
-    console.log('✅ Instance found:', instanceData);
+      // Find the instance in our database using the instance name
+      console.log('🔍 Looking for instance with name:', instance);
+      
+      const { data: instanceData, error: instanceError } = await supabase
+        .from('instances')
+        .select('*')
+        .eq('instance_name', instance)
+        .single();
 
-    // Handle different event types
-    if (event === 'messages.upsert' && data?.message) {
-      console.log('📩 Processing message:', data.message);
+      if (instanceError) {
+        console.log('❌ Error finding instance:', instanceError);
+        console.log('⚠️ Skipping event for unknown instance:', instance);
+        continue;
+      }
 
-      // Extract message data
-      const message = data.message;
-      const isFromMe = message.key?.fromMe || false;
-      const remoteJid = message.key?.remoteJid || '';
-      const messageContent = message.message?.conversation || 
-                           message.message?.extendedTextMessage?.text || 
-                           'Mensagem sem texto';
+      console.log('✅ Instance found:', instanceData);
 
-      console.log('📝 Message details:', {
-        isFromMe,
-        remoteJid,
-        messageContent,
-        messageType: typeof message.message
-      });
+      // Handle different event types
+      if ((event === 'messages.upsert' || event === 'MESSAGES_UPSERT') && data?.message) {
+        console.log('📩 Processing message event:', data.message);
 
-      // Only process incoming messages (not sent by us)
-      if (!isFromMe && remoteJid) {
-        // Extract phone number from remoteJid (remove @s.whatsapp.net)
-        const clientPhone = remoteJid.replace('@s.whatsapp.net', '');
-        console.log('📞 Client phone extracted:', clientPhone);
-
-        // Check if conversation already exists
-        let conversationId;
-        const { data: existingConversation, error: convError } = await supabase
-          .from('conversations')
-          .select('id')
-          .eq('client_phone', clientPhone)
-          .eq('instance_id', instanceData.id)
-          .single();
-
-        if (convError && convError.code !== 'PGRST116') {
-          console.log('❌ Error checking conversation:', convError);
-          throw convError;
+        // Extract message data
+        const message = data.message;
+        const isFromMe = message.key?.fromMe || false;
+        const remoteJid = message.key?.remoteJid || '';
+        
+        // Get message content from different possible locations
+        let messageContent = '';
+        if (message.message?.conversation) {
+          messageContent = message.message.conversation;
+        } else if (message.message?.extendedTextMessage?.text) {
+          messageContent = message.message.extendedTextMessage.text;
+        } else if (message.message?.imageMessage?.caption) {
+          messageContent = message.message.imageMessage.caption || '[Imagem]';
+        } else if (message.message?.videoMessage?.caption) {
+          messageContent = message.message.videoMessage.caption || '[Vídeo]';
+        } else if (message.message?.documentMessage?.title) {
+          messageContent = `[Documento: ${message.message.documentMessage.title}]`;
+        } else if (message.message?.audioMessage) {
+          messageContent = '[Áudio]';
+        } else {
+          messageContent = '[Mensagem sem texto]';
         }
 
-        if (existingConversation) {
-          conversationId = existingConversation.id;
-          console.log('🔄 Using existing conversation:', conversationId);
+        console.log('📝 Message details:', {
+          isFromMe,
+          remoteJid,
+          messageContent,
+          messageType: typeof message.message,
+          messageKeys: Object.keys(message.message || {})
+        });
 
-          // Update last_message_at
-          await supabase
+        // Only process incoming messages (not sent by us)
+        if (!isFromMe && remoteJid) {
+          // Extract phone number from remoteJid (remove @s.whatsapp.net or @c.us)
+          const clientPhone = remoteJid.replace(/@s\.whatsapp\.net|@c\.us/g, '');
+          console.log('📞 Client phone extracted:', clientPhone);
+
+          // Check if conversation already exists
+          let conversationId;
+          const { data: existingConversation, error: convError } = await supabase
             .from('conversations')
-            .update({ last_message_at: new Date().toISOString() })
-            .eq('id', conversationId);
-        } else {
-          console.log('🆕 Creating new conversation for:', clientPhone);
-          
-          // Create new conversation
-          const { data: newConversation, error: newConvError } = await supabase
-            .from('conversations')
-            .insert({
-              client_phone: clientPhone,
-              client_name: clientPhone, // Use phone as default name
-              instance_id: instanceData.id,
-              sector: 'support', // Default sector
-              status: 'new',
-              last_message_at: new Date().toISOString(),
-            })
             .select('id')
+            .eq('client_phone', clientPhone)
+            .eq('instance_id', instanceData.id)
             .single();
 
-          if (newConvError) {
-            console.log('❌ Error creating conversation:', newConvError);
-            throw newConvError;
+          if (convError && convError.code !== 'PGRST116') {
+            console.log('❌ Error checking conversation:', convError);
+            throw convError;
           }
 
-          conversationId = newConversation.id;
-          console.log('✅ New conversation created:', conversationId);
+          if (existingConversation) {
+            conversationId = existingConversation.id;
+            console.log('🔄 Using existing conversation:', conversationId);
+
+            // Update last_message_at
+            await supabase
+              .from('conversations')
+              .update({ 
+                last_message_at: new Date().toISOString(),
+                status: 'new' // Mark as new when receiving a message
+              })
+              .eq('id', conversationId);
+          } else {
+            console.log('🆕 Creating new conversation for:', clientPhone);
+            
+            // Create new conversation
+            const { data: newConversation, error: newConvError } = await supabase
+              .from('conversations')
+              .insert({
+                client_phone: clientPhone,
+                client_name: clientPhone, // Use phone as default name
+                instance_id: instanceData.id,
+                sector: 'support', // Default sector
+                status: 'new',
+                last_message_at: new Date().toISOString(),
+              })
+              .select('id')
+              .single();
+
+            if (newConvError) {
+              console.log('❌ Error creating conversation:', newConvError);
+              throw newConvError;
+            }
+
+            conversationId = newConversation.id;
+            console.log('✅ New conversation created:', conversationId);
+          }
+
+          // Insert the message
+          console.log('💬 Inserting message into conversation:', conversationId);
+          const { error: messageError } = await supabase
+            .from('messages')
+            .insert({
+              conversation_id: conversationId,
+              content: messageContent,
+              direction: 'incoming',
+              from_phone: clientPhone,
+              to_phone: instanceData.phone,
+              message_type: 'text',
+              timestamp: new Date().toISOString(),
+            });
+
+          if (messageError) {
+            console.log('❌ Error inserting message:', messageError);
+            throw messageError;
+          }
+
+          console.log('✅ Message inserted successfully');
+        } else {
+          console.log('⏭️ Skipping message (sent by us or invalid remoteJid)');
         }
-
-        // Insert the message
-        console.log('💬 Inserting message into conversation:', conversationId);
-        const { error: messageError } = await supabase
-          .from('messages')
-          .insert({
-            conversation_id: conversationId,
-            content: messageContent,
-            direction: 'incoming',
-            from_phone: clientPhone,
-            to_phone: instanceData.phone,
-            message_type: 'text',
-            timestamp: new Date().toISOString(),
-          });
-
-        if (messageError) {
-          console.log('❌ Error inserting message:', messageError);
-          throw messageError;
-        }
-
-        console.log('✅ Message inserted successfully');
-      } else {
-        console.log('⏭️ Skipping message (sent by us or invalid)');
-      }
-    } else if (event === 'connection.update') {
-      console.log('🔄 Connection update:', data);
-      
-      // Update instance status based on connection state
-      if (data?.state) {
-        const status = data.state === 'open' ? 'connected' : 
-                      data.state === 'connecting' ? 'connecting' : 'disconnected';
+      } else if (event === 'connection.update' || event === 'CONNECTION_UPDATE') {
+        console.log('🔄 Connection update:', data);
         
-        await supabase
-          .from('instances')
-          .update({ status })
-          .eq('instance_name', instance);
+        // Update instance status based on connection state
+        if (data?.state) {
+          const status = data.state === 'open' ? 'connected' : 
+                        data.state === 'connecting' ? 'connecting' : 'disconnected';
           
-        console.log('✅ Instance status updated to:', status);
+          await supabase
+            .from('instances')
+            .update({ status })
+            .eq('instance_name', instance);
+            
+          console.log('✅ Instance status updated to:', status);
+        }
+      } else if (event === 'send.message' || event === 'SEND_MESSAGE') {
+        console.log('📤 Message sent event:', data);
+        // Could be used to update message status to 'sent'
+      } else {
+        console.log('ℹ️ Unhandled event type:', event);
       }
-    } else {
-      console.log('ℹ️ Unhandled event type:', event);
     }
 
-    return new Response(JSON.stringify({ success: true }), {
+    return new Response(JSON.stringify({ success: true, processed: events.length }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
