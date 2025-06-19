@@ -32,8 +32,19 @@ export const useEvolutionInstance = (phoneNumber: string) => {
         throw new Error('Perfil do usuário não encontrado');
       }
 
-      // Create instance in Evolution API
-      const response = await evolutionApi.createInstance(instanceName, options);
+      // Create instance in Evolution API with webhook configuration
+      const webhookUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
+      const response = await evolutionApi.createInstance(instanceName, {
+        ...options,
+        webhook: webhookUrl,
+        webhook_by_events: false,
+        webhook_base64: false,
+        events: [
+          'MESSAGES_UPSERT',
+          'MESSAGES_UPDATE', 
+          'CONNECTION_UPDATE'
+        ]
+      });
       console.log('Evolution API response:', response);
       
       // Save instance in database using profile.id instead of user.id
@@ -44,6 +55,7 @@ export const useEvolutionInstance = (phoneNumber: string) => {
           phone: phoneNumber,
           admin_id: profile.id, // Use profile.id instead of user.id
           status: 'connecting',
+          webhook_url: webhookUrl,
         });
 
       if (instanceError) {

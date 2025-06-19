@@ -7,6 +7,10 @@ export interface CreateInstanceRequest {
   token?: string;
   qrcode?: boolean;
   integration?: string;
+  webhook?: string;
+  webhook_by_events?: boolean;
+  webhook_base64?: boolean;
+  events?: string[];
 }
 
 export interface CreateInstanceResponse {
@@ -109,7 +113,7 @@ export const createInstance = async (
   instanceName: string,
   options: Partial<CreateInstanceRequest> = {}
 ): Promise<CreateInstanceResponse> => {
-  console.log('Creating Evolution API instance:', instanceName);
+  console.log('Creating Evolution API instance:', instanceName, 'with options:', options);
   
   return makeRequest<CreateInstanceResponse>('/instance/create', {
     method: 'POST',
