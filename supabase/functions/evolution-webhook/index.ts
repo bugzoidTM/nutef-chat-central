@@ -158,11 +158,12 @@ serve(async (req) => {
         let messages = [];
         if (data?.messages) {
           messages = Array.isArray(data.messages) ? data.messages : [data.messages];
-        } else if (data?.message) {
-          messages = [data.message];
-        } else if (data && data.key) {
-          // Direct message object from Evolution API
+        } else if (data && data.key && data.message) {
+          // Evolution API sends data with key and message properties
           messages = [data];
+        } else if (data?.message) {
+          // Fallback for other formats
+          messages = [data.message];
         }
 
         console.log('📝 Found messages to process:', messages.length);
