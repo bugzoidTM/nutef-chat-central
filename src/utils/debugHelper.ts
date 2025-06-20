@@ -746,7 +746,7 @@ export const debugHelper = {
     
     const instanceName = 'whatsapp_73999921633';
     const apiKey = 'MjM4NzY5NzItMTUyMy00YjZkLWE3YzAtNzJjZWQ4MzM5YjUx';
-    const baseUrl = 'https://evolution.nutef.com.br';
+    const baseUrl = 'https://evolution.nutef.com';
     
     try {
       const response = await fetch(`${baseUrl}/webhook/find/${instanceName}`, {
@@ -791,7 +791,36 @@ export const debugHelper = {
     await this.verifyWebhookConfiguration();
     
     console.log('\n2️⃣ Testando com payload direto (funciona)...');
-    await this.testWebhookWithSpecificPayload();
+    // Usar o teste que já funciona
+    const webhookUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
+    const directPayload = {
+      "event": "messages.upsert",
+      "instance": "whatsapp_73999921633",
+      "key": {
+        "remoteJid": "5511999999999@s.whatsapp.net",
+        "fromMe": false,
+        "id": "DIRECT_TEST_" + Date.now()
+      },
+      "message": {
+        "conversation": "Teste direto que funciona - " + new Date().toLocaleString('pt-BR')
+      },
+      "pushName": "Teste Direto"
+    };
+    
+    try {
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qZmR6ZmdjeXN4b3h6c3poYnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAyOTc2MDcsImV4cCI6MjA2NTg3MzYwN30.Y3BEkfR24jKAdARwBc8UE-4b2_uwy7B2Sd3RYDsaTQ4'
+        },
+        body: JSON.stringify(directPayload)
+      });
+      const result = await response.json();
+      console.log('✅ Teste direto resultado:', result);
+    } catch (error) {
+      console.error('❌ Erro no teste direto:', error);
+    }
     
     console.log('\n3️⃣ Testando com payload real do Evolution (problema)...');
     await this.testRealEvolutionPayload();
@@ -810,6 +839,78 @@ export const debugHelper = {
     console.log('2. Envie uma mensagem real do WhatsApp');
     console.log('3. Verifique os logs do webhook');
     console.log('4. Compare os logs dos testes com os logs reais');
+  },
+
+  // Análise específica do problema identificado
+  async analyzeWebhookIssue() {
+    console.log('🔍 === ANÁLISE DO PROBLEMA IDENTIFICADO ===');
+    
+    console.log('\n🎯 PROBLEMA IDENTIFICADO:');
+    console.log('✅ Webhook recebe o payload e retorna sucesso');
+    console.log('❌ Mas não cria a conversa no banco de dados');
+    console.log('💡 Isso indica erro silencioso no processamento');
+    
+    console.log('\n📋 DIFERENÇAS ENTRE PAYLOADS:');
+    console.log('🟢 Teste que FUNCIONA (direto):');
+    console.log('   { event: "messages.upsert", message: {...}, key: {...} }');
+    console.log('🔴 Teste que NÃO FUNCIONA (Evolution real):');
+    console.log('   { event: "messages.upsert", data: { message: {...}, key: {...} } }');
+    
+    console.log('\n🔧 TESTE PARA CONFIRMAR:');
+    console.log('Vou testar se o problema é realmente a estrutura "data"...');
+    
+    // Teste com estrutura data
+    const webhookUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
+    const dataPayload = {
+      "event": "messages.upsert",
+      "instance": "whatsapp_73999921633",
+      "data": {
+        "key": {
+          "remoteJid": "5511888888888@s.whatsapp.net",
+          "fromMe": false,
+          "id": "DATA_TEST_" + Date.now()
+        },
+        "message": {
+          "conversation": "TESTE COM DATA WRAPPER - " + new Date().toLocaleString('pt-BR')
+        },
+        "pushName": "Teste Data Wrapper"
+      }
+    };
+    
+    try {
+      console.log('📤 Enviando teste com estrutura "data"...');
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qZmR6ZmdjeXN4b3h6c3poYnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAyOTc2MDcsImV4cCI6MjA2NTg3MzYwN30.Y3BEkfR24jKAdARwBc8UE-4b2_uwy7B2Sd3RYDsaTQ4'
+        },
+        body: JSON.stringify(dataPayload)
+      });
+      
+      const result = await response.json();
+      console.log('📊 Resultado do teste com data:', result);
+      
+      // Aguardar e verificar se criou conversa
+      setTimeout(async () => {
+        console.log('\n🔍 Verificando se a conversa foi criada...');
+        await this.checkConversations();
+        
+        console.log('\n🎯 CONCLUSÃO:');
+        console.log('Se ainda não criou conversa, o problema é no processamento interno do webhook');
+        console.log('Precisamos verificar os logs detalhados do Supabase');
+        console.log('📋 Logs: https://supabase.com/dashboard/project/ojfdzfgcysxoxzszhbzr/functions/evolution-webhook/logs');
+        
+        console.log('\n💡 POSSÍVEIS CAUSAS:');
+        console.log('1. Erro ao buscar a instância no banco');
+        console.log('2. Erro ao extrair dados da mensagem');
+        console.log('3. Erro ao inserir no banco (RLS ou permissões)');
+        console.log('4. Erro silencioso que não é retornado na resposta');
+      }, 3000);
+      
+    } catch (error) {
+      console.error('❌ Erro no teste com data:', error);
+    }
   }
 };
 
