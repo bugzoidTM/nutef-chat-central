@@ -13,18 +13,7 @@ serve(async (req) => {
   }
 
   console.log('🚀 Evolution webhook received request:', req.method, req.url);
-  console.log('📋 Request headers:', Object.fromEntries(req.headers.entries()));
-  console.log('🔄 WEBHOOK VERSION: v2.2.0 - FIXED AUTH ISSUE');
-  
-  // Check if request has authorization header - Evolution doesn't send it
-  const authHeader = req.headers.get('authorization');
-  const apiKeyHeader = req.headers.get('apikey');
-  
-  console.log('🔐 Auth header present:', !!authHeader);
-  console.log('🔐 API key header present:', !!apiKeyHeader);
-  
-  // Evolution API doesn't send auth headers, so we bypass Supabase auth for webhooks
-  // We'll validate the request structure instead
+  console.log('🔄 WEBHOOK VERSION: v3.1.0 - EVOLUTION API COMPLIANT');
 
   try {
     // Initialize Supabase client with service role key
@@ -59,72 +48,27 @@ serve(async (req) => {
       );
     }
 
-    // Add debug logging to understand the structure
-    console.log('🔍 Raw body type:', typeof body);
-    console.log('🔍 Body keys:', Object.keys(body));
-    console.log('🔍 Has body.data?', !!body.data);
-    console.log('🔍 Has body.event?', !!body.event);
-    console.log('🔍 Has body.instance?', !!body.instance);
-    console.log('🔍 body.event value:', body.event);
-    console.log('🔍 body.instance value:', body.instance);
+    // Evolution API sends webhooks in the format:
+    // { event: "MESSAGES_UPSERT", instance: "instanceName", data: [...] }
+    const event = body.event;
+    const instanceName = body.instance;
+    const eventData = body.data;
 
-    // Extract event data - Evolution sends different formats
-    let eventData;
-    let messageData;
-    
-    if (body.data) {
-      // Evolution API sends: { event: "...", instance: "...", data: {...} }
-      // We need to preserve the event and instance from the root level
-      console.log('📦 Using wrapped data structure');
-      messageData = body.data;
-      eventData = {
-        event: body.event,
-        instance: body.instance,
-        data: body.data
-      };
-      console.log('🔧 eventData created:', JSON.stringify(eventData, null, 2));
-      console.log('🔧 messageData created:', JSON.stringify(messageData, null, 2));
-      console.log('🔧 Verification - eventData.event:', eventData.event);
-      console.log('🔧 Verification - eventData.instance:', eventData.instance);
-    } else {
-      console.log('📦 Using direct structure (no data wrapper)');
-      eventData = body;
-      messageData = body;
+    console.log('📋 Processing event:', event, 'for instance:', instanceName);
+
+    if (!event || !instanceName) {
+      console.log('❌ Missing required fields: event or instance');
+      return new Response(JSON.stringify({ 
+        error: 'Missing event or instance',
+        received: { event, instanceName }
+      }), {
+        status: 400, headers: corsHeaders
+      });
     }
 
-    console.log('🔄 Final eventData:', JSON.stringify(eventData, null, 2));
-    console.log('🔄 Final messageData:', JSON.stringify(messageData, null, 2));
-    
-    // Debug the specific event value
-    console.log('🔍 eventData.event value:', eventData.event);
-    console.log('🔍 eventData.instance value:', eventData.instance);
-    
-    // FORCED DEBUG TO IDENTIFY THE ISSUE
-    console.log('🚨 DEBUGGING - typeof eventData:', typeof eventData);
-    console.log('🚨 DEBUGGING - eventData keys:', Object.keys(eventData || {}));
-    console.log('🚨 DEBUGGING - eventData === messageData?', eventData === messageData);
-
-    // Handle message events
-    if (eventData.event === 'messages.upsert' || eventData.event === 'MESSAGES_UPSERT') {
-      console.log('📩 Processing message event');
-      
-      const messages = Array.isArray(messageData) ? messageData : [messageData];
-      const instanceName = eventData.instance || body.instance;
-      
-      console.log('🔍 Instance name from eventData.instance:', eventData.instance);
-      console.log('🔍 Instance name from body.instance:', body.instance);
-      console.log('🔍 Final instance name:', instanceName);
-      
-      if (!instanceName) {
-        console.log('❌ No instance name found in event data');
-        console.log('❌ eventData:', JSON.stringify(eventData, null, 2));
-        console.log('❌ body:', JSON.stringify(body, null, 2));
-        return new Response(JSON.stringify({ error: 'No instance name' }), {
-          status: 400, headers: corsHeaders
-        });
-      }
-
-      console.log('🔍 Looking for instance with name:', instanceName);
+    // Handle MESSAGES_UPSERT event - incoming messages
+    if (event === 'MESSAGES_UPSERT') {
+      console.log('📩 Processing MESSAGES_UPSERT event');
       
       // Find the instance in our database
       const { data: instanceData, error: instanceError } = await supabase
@@ -134,196 +78,262 @@ serve(async (req) => {
         .single();
 
       if (instanceError || !instanceData) {
-        console.log('❌ Error finding instance:', instanceError);
-        console.log('❌ Searched for instance_name:', instanceName);
-        // Let's also check what instances exist
+        console.log('❌ Instance not found:', instanceName);
+        
+        // Log available instances for debugging
         const { data: allInstances } = await supabase
           .from('instances')
           .select('instance_name')
           .limit(10);
-        console.log('❌ Available instances:', allInstances);
-        return new Response(JSON.stringify({ error: 'Instance not found' }), {
+        console.log('📋 Available instances:', allInstances?.map(i => i.instance_name) || []);
+        
+        return new Response(JSON.stringify({ 
+          error: 'Instance not found', 
+          instance: instanceName,
+          available: allInstances?.map(i => i.instance_name) || []
+        }), {
           status: 404, headers: corsHeaders
         });
       }
 
       console.log('✅ Instance found:', instanceData.instance_name);
-      console.log('🔍 Processing messages array length:', messages.length);
 
-      // Process messages
+      // Process messages array
+      const messages = Array.isArray(eventData) ? eventData : [eventData];
+      console.log('🔍 Processing', messages.length, 'messages');
+
+      let processedCount = 0;
+      
       for (const message of messages) {
-        console.log('💬 Processing message:', JSON.stringify(message, null, 2));
-        
-        // Debug message structure
-        console.log('🔍 Message keys:', Object.keys(message));
-        console.log('🔍 Has message.key?', !!message.key);
-        console.log('🔍 Has message.message?', !!message.message);
-        console.log('🔍 message.key:', JSON.stringify(message.key, null, 2));
-        
-        // Skip messages sent by us
-        if (message.key?.fromMe) {
-          console.log('⏭️ Skipping message sent by us');
-          continue;
-        }
-
-        const remoteJid = message.key?.remoteJid;
-        console.log('🔍 remoteJid:', remoteJid);
-        
-        if (!remoteJid) {
-          console.log('⏭️ Skipping message without remoteJid');
-          continue;
-        }
-
-        // Extract phone number from remoteJid
-        const clientPhone = remoteJid.replace(/@s\.whatsapp\.net|@c\.us/g, '');
-        console.log('📞 Client phone extracted:', clientPhone);
-
-        // Extract message content
-        let messageContent = '';
-        console.log('🔍 message.message:', JSON.stringify(message.message, null, 2));
-        
-        if (message.message?.conversation) {
-          messageContent = message.message.conversation;
-          console.log('📝 Content from conversation:', messageContent);
-        } else if (message.message?.extendedTextMessage?.text) {
-          messageContent = message.message.extendedTextMessage.text;
-          console.log('📝 Content from extendedTextMessage:', messageContent);
-        } else if (message.message?.imageMessage?.caption) {
-          messageContent = message.message.imageMessage.caption || '[Imagem]';
-          console.log('📝 Content from imageMessage:', messageContent);
-        } else if (message.message?.videoMessage?.caption) {
-          messageContent = message.message.videoMessage.caption || '[Vídeo]';
-          console.log('📝 Content from videoMessage:', messageContent);
-        } else if (message.message?.audioMessage) {
-          messageContent = '[Áudio]';
-          console.log('📝 Content from audioMessage:', messageContent);
-        } else if (message.message?.documentMessage?.title) {
-          messageContent = `[Documento: ${message.message.documentMessage.title}]`;
-          console.log('📝 Content from documentMessage:', messageContent);
-        } else {
-          messageContent = '[Mensagem sem texto]';
-          console.log('📝 Content fallback:', messageContent);
-        }
-
-        console.log('📝 Final extracted message content:', messageContent);
-
-        if (!messageContent) {
-          console.log('❌ Skipping message without content');
-          continue;
-        }
-
-        // Check if conversation already exists
-        let conversationId;
-        console.log('🔍 Checking for existing conversation:', { clientPhone, instanceId: instanceData.id });
-        
-        const { data: existingConversation, error: convError } = await supabase
-          .from('conversations')
-          .select('id')
-          .eq('client_phone', clientPhone)
-          .eq('instance_id', instanceData.id)
-          .maybeSingle();
-
-        if (convError) {
-          console.log('❌ Error checking conversation:', convError);
-          continue;
-        }
-
-        if (existingConversation) {
-          conversationId = existingConversation.id;
-          console.log('🔄 Using existing conversation:', conversationId);
-
-          // Update last_message_at and set status to new if finished
-          const { error: updateError } = await supabase
-            .from('conversations')
-            .update({ 
-              last_message_at: new Date().toISOString(),
-              status: 'new'
-            })
-            .eq('id', conversationId);
-
-          if (updateError) {
-            console.log('❌ Error updating conversation:', updateError);
-          } else {
-            console.log('✅ Conversation updated successfully');
-          }
-        } else {
-          console.log('🆕 Creating new conversation for:', clientPhone);
+        try {
+          console.log('💬 Processing message:', message.key?.id);
           
-          // Create new conversation
-          const { data: newConversation, error: newConvError } = await supabase
-            .from('conversations')
-            .insert({
-              client_phone: clientPhone,
-              client_name: message.pushName || clientPhone,
-              instance_id: instanceData.id,
-              sector: 'support',
-              status: 'new',
-              last_message_at: new Date().toISOString(),
-            })
-            .select('id')
-            .single();
-
-          if (newConvError) {
-            console.log('❌ Error creating conversation:', newConvError);
+          // Skip messages sent by us
+          if (message.key?.fromMe) {
+            console.log('⏭️ Skipping outgoing message');
             continue;
           }
 
-          conversationId = newConversation.id;
-          console.log('✅ New conversation created:', conversationId);
+          const remoteJid = message.key?.remoteJid;
+          if (!remoteJid) {
+            console.log('⏭️ Skipping message without remoteJid');
+            continue;
+          }
+
+          // Extract phone number from remoteJid
+          const clientPhone = remoteJid.replace(/@s\.whatsapp\.net|@c\.us/g, '');
+          console.log('📞 Client phone:', clientPhone);
+
+          // Extract message content
+          let messageContent = '';
+          let messageType = 'text';
+          
+          const msgObj = message.message;
+          if (!msgObj) {
+            console.log('⏭️ Skipping message without message content');
+            continue;
+          }
+
+          // Check different message types according to WhatsApp structure
+          if (msgObj.conversation) {
+            messageContent = msgObj.conversation;
+          } else if (msgObj.extendedTextMessage?.text) {
+            messageContent = msgObj.extendedTextMessage.text;
+          } else if (msgObj.imageMessage) {
+            messageContent = msgObj.imageMessage.caption || '[Imagem]';
+            messageType = 'image';
+          } else if (msgObj.videoMessage) {
+            messageContent = msgObj.videoMessage.caption || '[Vídeo]';
+            messageType = 'video';
+          } else if (msgObj.audioMessage) {
+            messageContent = '[Áudio]';
+            messageType = 'audio';
+          } else if (msgObj.documentMessage) {
+            messageContent = `[Documento: ${msgObj.documentMessage.title || 'Arquivo'}]`;
+            messageType = 'document';
+          } else if (msgObj.stickerMessage) {
+            messageContent = '[Figurinha]';
+            messageType = 'sticker';
+          } else if (msgObj.locationMessage) {
+            messageContent = '[Localização]';
+            messageType = 'location';
+          } else if (msgObj.contactMessage) {
+            messageContent = '[Contato]';
+            messageType = 'contact';
+          } else {
+            console.log('🔍 Unknown message type, available keys:', Object.keys(msgObj));
+            messageContent = '[Mensagem não suportada]';
+            messageType = 'unknown';
+          }
+
+          console.log('📝 Message content:', messageContent, 'type:', messageType);
+
+          if (!messageContent || messageContent.trim() === '') {
+            console.log('⏭️ Skipping empty message');
+            continue;
+          }
+
+          // Find or create conversation
+          let conversationId;
+          
+          const { data: existingConversation, error: convError } = await supabase
+            .from('conversations')
+            .select('id')
+            .eq('client_phone', clientPhone)
+            .eq('instance_id', instanceData.id)
+            .maybeSingle();
+
+          if (convError) {
+            console.log('❌ Error checking conversation:', convError);
+            continue;
+          }
+
+          if (existingConversation) {
+            conversationId = existingConversation.id;
+            console.log('🔄 Using existing conversation:', conversationId);
+
+            // Update conversation
+            await supabase
+              .from('conversations')
+              .update({ 
+                last_message_at: new Date().toISOString(),
+                status: 'new'
+              })
+              .eq('id', conversationId);
+          } else {
+            console.log('🆕 Creating new conversation for:', clientPhone);
+            
+            const { data: newConversation, error: newConvError } = await supabase
+              .from('conversations')
+              .insert({
+                client_phone: clientPhone,
+                client_name: message.pushName || clientPhone,
+                instance_id: instanceData.id,
+                sector: 'support',
+                status: 'new',
+                last_message_at: new Date().toISOString(),
+              })
+              .select('id')
+              .single();
+
+            if (newConvError) {
+              console.log('❌ Error creating conversation:', newConvError);
+              continue;
+            }
+
+            conversationId = newConversation.id;
+            console.log('✅ New conversation created:', conversationId);
+          }
+
+          // Insert the message
+          const messageToInsert = {
+            conversation_id: conversationId,
+            content: messageContent,
+            direction: 'incoming',
+            from_phone: clientPhone,
+            to_phone: instanceData.phone,
+            message_type: messageType,
+            timestamp: new Date().toISOString(),
+            whatsapp_message_id: message.key?.id || null,
+          };
+          
+          const { error: messageError } = await supabase
+            .from('messages')
+            .insert(messageToInsert);
+
+          if (messageError) {
+            console.log('❌ Error inserting message:', messageError);
+          } else {
+            console.log('✅ Message inserted successfully');
+            processedCount++;
+          }
+        } catch (messageProcessError) {
+          console.log('❌ Error processing individual message:', messageProcessError);
         }
-
-        // Insert the message
-        console.log('💬 Inserting message into conversation:', conversationId);
-        const messageToInsert = {
-          conversation_id: conversationId,
-          content: messageContent,
-          direction: 'incoming',
-          from_phone: clientPhone,
-          to_phone: instanceData.phone,
-          message_type: 'text',
-          timestamp: new Date().toISOString(),
-        };
-        
-        console.log('💬 Message to insert:', JSON.stringify(messageToInsert, null, 2));
-        
-        const { error: messageError } = await supabase
-          .from('messages')
-          .insert(messageToInsert);
-
-        if (messageError) {
-          console.log('❌ Error inserting message:', messageError);
-          continue;
-        }
-
-        console.log('✅ Message inserted successfully');
       }
-    } else if (eventData.event === 'connection.update' || eventData.event === 'CONNECTION_UPDATE') {
-      console.log('🔄 Connection update:', eventData.data);
       
-      const instanceName = eventData.instance || eventData.instanceName;
-      const connectionData = eventData.data || eventData;
+      console.log('✅ Processed', processedCount, 'messages successfully');
+    } 
+    // Handle CONNECTION_UPDATE event
+    else if (event === 'CONNECTION_UPDATE') {
+      console.log('🔄 Processing CONNECTION_UPDATE event');
       
-      if (instanceName && connectionData?.state) {
-        const status = connectionData.state === 'open' ? 'connected' : 
-                      connectionData.state === 'connecting' ? 'connecting' : 'disconnected';
+      const connectionData = eventData;
+      console.log('🔌 Connection data:', connectionData);
+      
+      if (connectionData?.state) {
+        let status = 'disconnected';
         
-        await supabase
+        switch (connectionData.state) {
+          case 'open':
+            status = 'connected';
+            break;
+          case 'connecting':
+            status = 'connecting';
+            break;
+          case 'close':
+          case 'closed':
+            status = 'disconnected';
+            break;
+          default:
+            status = 'disconnected';
+        }
+        
+        const { error: updateError } = await supabase
           .from('instances')
           .update({ status })
           .eq('instance_name', instanceName);
           
-        console.log('✅ Instance status updated to:', status);
+        if (updateError) {
+          console.log('❌ Error updating instance status:', updateError);
+        } else {
+          console.log('✅ Instance status updated to:', status);
+        }
       }
-    } else {
-      console.log('ℹ️ Unhandled event type:', eventData.event);
-      console.log('ℹ️ Available events to handle: messages.upsert, MESSAGES_UPSERT, connection.update, CONNECTION_UPDATE');
+    }
+    // Handle QRCODE_UPDATED event
+    else if (event === 'QRCODE_UPDATED') {
+      console.log('📱 Processing QRCODE_UPDATED event');
+      
+      const qrData = eventData;
+      if (qrData?.qrcode) {
+        const { error: qrError } = await supabase
+          .from('instances')
+          .update({ 
+            qr_code: qrData.qrcode,
+            status: 'qr_code'
+          })
+          .eq('instance_name', instanceName);
+          
+        if (qrError) {
+          console.log('❌ Error updating QR code:', qrError);
+        } else {
+          console.log('✅ QR code updated for instance:', instanceName);
+        }
+      }
+    }
+    // Handle other events
+    else if (event === 'SEND_MESSAGE') {
+      console.log('📤 SEND_MESSAGE event received (ignoring)');
+    }
+    else if (event === 'MESSAGES_UPDATE') {
+      console.log('🔄 MESSAGES_UPDATE event received (ignoring for now)');
+    }
+    else if (event === 'MESSAGES_DELETE') {
+      console.log('🗑️ MESSAGES_DELETE event received (ignoring for now)');
+    }
+    else {
+      console.log('ℹ️ Unhandled event type:', event);
+      console.log('ℹ️ Supported events: MESSAGES_UPSERT, CONNECTION_UPDATE, QRCODE_UPDATED');
     }
 
     console.log('✅ Webhook processing completed successfully');
     
     return new Response(JSON.stringify({ 
       success: true, 
-      message: 'Webhook processed successfully'
+      message: 'Webhook processed successfully',
+      event: event,
+      instance: instanceName
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
