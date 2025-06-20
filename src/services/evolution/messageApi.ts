@@ -34,3 +34,19 @@ export const sendTextMessage = async (
 export const sendMessage = async (to: string, content: string, instanceName: string = 'default') => {
   return sendTextMessage(instanceName, to, content);
 };
+
+// Fetch messages for a specific chat
+export const fetchChatMessages = async (
+  instanceName: string,
+  jid: string,
+  limit = 50
+): Promise<{ messages: any[] }> => {
+  console.log('Fetching chat messages via Evolution API:', {
+    instanceName,
+    jid,
+    limit,
+  });
+
+  const endpoint = `/chat/findMessages/${instanceName}?jid=${encodeURIComponent(jid)}&limit=${limit}`;
+  return makeRequest<{ messages: any[] }>(endpoint);
+};
