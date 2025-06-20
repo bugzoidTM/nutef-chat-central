@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -17,7 +16,8 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
     profile: profile ? { id: profile.id, role: profile.role } : null 
   });
 
-  const { data: conversations = [], isLoading: conversationsLoading, error: conversationsError } = useQuery({
+  // ⭐ Query principal: buscar conversas
+  const { data: rawConversations = [], isLoading: conversationsLoading, error: conversationsError } = useQuery({
     queryKey: ['conversations', selectedSector, selectedStatus],
     queryFn: async () => {
       console.log('📊 useConversations - Fetching conversations from Supabase...');
@@ -65,6 +65,83 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
     },
   });
 
+  // ⭐ Query para buscar última mensagem de cada conversa
+  const { data: lastMessages = [] } = useQuery({
+    queryKey: ['last-messages', rawConversations.map(c => c.id)],
+    queryFn: async () => {
+      if (rawConversations.length === 0) return [];
+      
+      console.log('📝 Fetching last messages for conversations...');
+      const conversationIds = rawConversations.map(c => c.id);
+      
+      const { data, error } = await supabase
+        .from('messages')
+        .select('conversation_id, content, timestamp, direction')
+        .in('conversation_id', conversationIds)
+        .order('timestamp', { ascending: false });
+
+      if (error) {
+        console.error('❌ Error fetching last messages:', error);
+        return [];
+      }
+
+      // ⭐ Agrupar por conversation_id e pegar só a primeira (mais recente) de cada
+      const lastMessagesMap = new Map();
+      data?.forEach(msg => {
+        if (!lastMessagesMap.has(msg.conversation_id)) {
+          lastMessagesMap.set(msg.conversation_id, msg);
+        }
+      });
+
+      return Array.from(lastMessagesMap.values());
+    },
+    enabled: rawConversations.length > 0,
+    refetchInterval: 3000,
+  });
+
+  // ⭐ Query para contar mensagens por conversa
+  const { data: messageCounts = [] } = useQuery({
+    queryKey: ['message-counts', rawConversations.map(c => c.id)],
+    queryFn: async () => {
+      if (rawConversations.length === 0) return [];
+      
+      console.log('🔢 Counting messages for conversations...');
+      const conversationIds = rawConversations.map(c => c.id);
+      
+      const { data, error } = await supabase
+        .from('messages')
+        .select('conversation_id')
+        .in('conversation_id', conversationIds);
+
+      if (error) {
+        console.error('❌ Error counting messages:', error);
+        return [];
+      }
+
+      // ⭐ Contar mensagens por conversa
+      const counts = conversationIds.map(id => ({
+        conversation_id: id,
+        count: data?.filter(msg => msg.conversation_id === id).length || 0
+      }));
+
+      return counts;
+    },
+    enabled: rawConversations.length > 0,
+    refetchInterval: 5000,
+  });
+
+  // ⭐ Combinar dados das conversas com última mensagem e contador
+  const conversations = rawConversations.map(conversation => {
+    const lastMessage = lastMessages.find(msg => msg.conversation_id === conversation.id);
+    const messageCount = messageCounts.find(count => count.conversation_id === conversation.id);
+    
+    return {
+      ...conversation,
+      last_message_content: lastMessage?.content || null,
+      total_messages: messageCount?.count || 0,
+    };
+  });
+
   if (conversationsError) {
     console.error('❌ useConversations - Conversations error:', conversationsError);
   }
@@ -79,7 +156,7 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
   console.log('📈 useConversations - Conversation counts:', conversationCounts);
   console.log('📋 useConversations - All conversations:', conversations);
 
-  // Send message mutation
+  // Send message mutation (mantém igual)
   const sendMessageMutation = useMutation({
     mutationFn: async ({ conversationId, content }: { conversationId: string; content: string }) => {
       console.log('📤 Sending message for conversation:', conversationId, 'content:', content);

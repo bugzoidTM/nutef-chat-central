@@ -1,4 +1,3 @@
-
 import type { Database } from '@/integrations/supabase/types';
 
 export type SectorType = Database['public']['Enums']['sector_type'] | 'all';
@@ -18,6 +17,9 @@ export interface Conversation {
   status: string;
   last_message_at: string;
   assigned_to: string | null;
+  // ⭐ NOVOS CAMPOS ADICIONADOS
+  last_message_content?: string;
+  total_messages?: number;
 }
 
 export interface Message {

@@ -1,10 +1,9 @@
-
 import React from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Search } from 'lucide-react';
+import { Search, MessageCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 interface Conversation {
@@ -15,6 +14,9 @@ interface Conversation {
   status: string;
   last_message_at: string;
   assigned_to: string | null;
+  // ⭐ NOVOS CAMPOS
+  last_message_content?: string;
+  total_messages?: number;
 }
 
 interface ConversationListProps {
@@ -84,6 +86,13 @@ const ConversationList = ({
     }
   };
 
+  // ⭐ FUNÇÃO PARA TRUNCAR MENSAGEM (IGUAL WHATSAPP)
+  const truncateMessage = (message: string | null | undefined, maxLength: number = 35) => {
+    if (!message) return 'Nenhuma mensagem';
+    if (message.length <= maxLength) return message;
+    return message.substring(0, maxLength) + '...';
+  };
+
   const filteredConversations = conversations.filter(conversation =>
     conversation.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     conversation.client_phone.includes(searchTerm)
@@ -143,15 +152,26 @@ const ConversationList = ({
                     {conversation.client_phone}
                   </p>
                   
-                  <div className="flex items-center space-x-2 mt-2">
+                  {/* ⭐ NOVA SEÇÃO: ÚLTIMA MENSAGEM + CONTADOR */}
+                  <div className="flex items-center justify-between mt-1 mb-2">
+                    <p className="text-xs text-gray-600 truncate flex-1 pr-2">
+                      {truncateMessage(conversation.last_message_content)}
+                    </p>
+                    {conversation.total_messages && conversation.total_messages > 0 && (
+                      <div className="flex items-center space-x-1 text-xs text-gray-500 flex-shrink-0">
+                        <MessageCircle className="h-3 w-3" />
+                        <span>{conversation.total_messages}</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
                     <Badge 
-                      variant="secondary" 
                       className={`text-xs ${getSectorColor(conversation.sector)}`}
                     >
                       {getSectorLabel(conversation.sector)}
                     </Badge>
                     <Badge 
-                      variant="secondary" 
                       className={`text-xs ${getStatusColor(conversation.status)}`}
                     >
                       {getStatusLabel(conversation.status)}
