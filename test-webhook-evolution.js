@@ -1,12 +1,12 @@
 // Teste do webhook Evolution API
 // Este script simula dados reais enviados pela Evolution API
 
-const WEBHOOK_URL = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
+const WEBHOOK_URL = 'https://webhook.nutef.com/webhook/c2785fe6-f5bc-4233-8e92-d0f47f9d7b80';
 
 // Simula uma mensagem de texto recebida
 const testMessageUpsert = {
   "event": "MESSAGES_UPSERT",
-  "instance": "sua-instancia", // Substitua pelo nome da sua instância
+  "instance": "whatsapp_73999921633", // Substitua pelo nome da sua instância
   "data": [
     {
       "key": {
@@ -26,7 +26,7 @@ const testMessageUpsert = {
 // Simula atualização de conexão
 const testConnectionUpdate = {
   "event": "CONNECTION_UPDATE",
-  "instance": "sua-instancia", // Substitua pelo nome da sua instância
+  "instance": "whatsapp_73999921633", // Substitua pelo nome da sua instância
   "data": {
     "state": "open",
     "connection": "open"

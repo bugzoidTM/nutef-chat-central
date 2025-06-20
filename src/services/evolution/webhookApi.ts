@@ -37,7 +37,7 @@ export const getWebhook = async (instanceName: string): Promise<any> => {
 
 // Setup webhook automatically with the correct Evolution API format
 export const setupWebhookAutomatically = async (instanceName: string): Promise<any> => {
-  const webhookUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
+  const webhookUrl = 'https://webhook.nutef.com/webhook/c2785fe6-f5bc-4233-8e92-d0f47f9d7b80';
   
   console.log('Setting up webhook automatically for instance:', instanceName);
   

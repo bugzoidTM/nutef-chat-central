@@ -9,7 +9,7 @@ export const createInstance = async (
 ): Promise<CreateInstanceResponse> => {
   console.log('Creating Evolution API instance:', instanceName, 'with options:', options);
   
-  const webhookUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
+  const webhookUrl = 'https://webhook.nutef.com/webhook/c2785fe6-f5bc-4233-8e92-d0f47f9d7b80';
   
   const requestBody = {
     instanceName,

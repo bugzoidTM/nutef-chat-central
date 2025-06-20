@@ -28,7 +28,7 @@ export const useWebhookConfig = () => {
   // Setup webhook automatically
   const setupWebhookMutation = useMutation({
     mutationFn: async ({ instanceName }: { instanceName: string }) => {
-      const webhookUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
+      const webhookUrl = 'https://webhook.nutef.com/webhook/c2785fe6-f5bc-4233-8e92-d0f47f9d7b80';
       
       // Configure webhook in Evolution API
       await setupWebhookAutomatically(instanceName);
