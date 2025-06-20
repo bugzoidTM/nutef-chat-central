@@ -1409,6 +1409,173 @@ export const debugHelper = {
     }, 5000);
   },
 
+  // Teste enviar mensagem via Evolution API (para testar se dispara webhook)
+  async testSendMessageToWebhook() {
+    console.log('📤 === TESTE ENVIAR MENSAGEM VIA EVOLUTION API ===');
+    
+    const { instances } = await this.checkInstances();
+    if (!instances || instances.length === 0) {
+      console.error('❌ No instances found');
+      return;
+    }
+
+    const instance = instances[0];
+    const instanceName = instance.instance_name;
+    
+    // Enviar mensagem para um número de teste
+    const testNumber = '5511987654321'; // Número fictício para teste
+    const testMessage = `Teste automático - ${new Date().toLocaleString('pt-BR')}`;
+    
+    console.log(`📤 Enviando mensagem de teste para ${testNumber}...`);
+    console.log(`📝 Mensagem: ${testMessage}`);
+    
+    try {
+      const response = await fetch(`https://evolution.nutef.com/message/sendText/${instanceName}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': '5be0fd0304550ebb6027dcce02ae4ab1'
+        },
+        body: JSON.stringify({
+          number: testNumber,
+          text: testMessage
+        })
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Mensagem enviada com sucesso:', result);
+        console.log('🔍 Isso deve ter disparado o webhook com event: SEND_MESSAGE');
+        
+        // Aguardar e verificar se apareceu no webhook
+        setTimeout(() => {
+          console.log('📋 Verifique os logs do webhook em:');
+          console.log('https://supabase.com/dashboard/project/ojfdzfgcysxoxzszhbzr/functions/evolution-webhook/logs');
+          console.log('Procure por logs com "SEND_MESSAGE" ou texto:', testMessage);
+        }, 2000);
+        
+      } else {
+        console.error('❌ Erro ao enviar mensagem:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.error('❌ Detalhes:', errorText);
+      }
+    } catch (error) {
+      console.error('❌ Erro na requisição:', error);
+    }
+  },
+
+  // Verificar se o número da instância está correto
+  async verifyInstancePhoneNumber() {
+    console.log('📞 === VERIFICAÇÃO DO NÚMERO DA INSTÂNCIA ===');
+    
+    const { instances } = await this.checkInstances();
+    if (!instances || instances.length === 0) {
+      console.error('❌ No instances found');
+      return;
+    }
+
+    const instance = instances[0];
+    const instanceName = instance.instance_name;
+    
+    console.log(`📞 Número no banco: ${instance.phone}`);
+    console.log(`🏷️ Nome da instância: ${instanceName}`);
+    
+    try {
+      // Buscar informações da instância no Evolution API
+      const response = await fetch(`https://evolution.nutef.com/instance/fetchInstances`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': '5be0fd0304550ebb6027dcce02ae4ab1'
+        }
+      });
+      
+      if (response.ok) {
+        const instances = await response.json();
+        console.log('✅ Todas as instâncias no Evolution:', instances);
+        
+        const ourInstance = instances.find(i => i.instanceName === instanceName);
+        if (ourInstance) {
+          console.log('✅ Nossa instância encontrada:', ourInstance);
+          console.log('📞 Número real:', ourInstance.owner || 'Não informado');
+          console.log('📡 Status real:', ourInstance.connectionStatus || 'Não informado');
+        } else {
+          console.error('❌ Nossa instância não encontrada na lista!');
+        }
+      } else {
+        console.error('❌ Erro ao buscar instâncias:', response.status, response.statusText);
+      }
+    } catch (error) {
+      console.error('❌ Erro na requisição:', error);
+    }
+  },
+
+  // Teste de stress: monitorar webhook intensivamente
+  async intensiveWebhookMonitor() {
+    console.log('🔄 === MONITOR INTENSIVO DO WEBHOOK ===');
+    console.log('📱 ENVIE UMA MENSAGEM REAL AGORA para o número (73) 99992-1633');
+    console.log('⏰ Monitorando por 60 segundos...');
+    
+    const startTime = new Date();
+    let messageFound = false;
+    
+    const checkMessages = async () => {
+      try {
+        const { data: newMessages, error } = await supabase
+          .from('messages')
+          .select(`
+            *,
+            conversations!inner (
+              client_phone,
+              client_name
+            )
+          `)
+          .gte('created_at', startTime.toISOString())
+          .order('created_at', { ascending: false });
+          
+        if (!error && newMessages && newMessages.length > 0) {
+          const realMessages = newMessages.filter(msg => 
+            !msg.content.includes('Teste') && 
+            !msg.content.includes('VERSION_TEST') && 
+            !msg.content.includes('MULTI_TEST')
+          );
+          
+          if (realMessages.length > 0) {
+            console.log('🎉 MENSAGEM REAL DETECTADA!');
+            realMessages.forEach(msg => {
+              console.log('💬 Mensagem:', {
+                content: msg.content,
+                from_phone: msg.from_phone,
+                direction: msg.direction,
+                created_at: msg.created_at,
+                conversation_phone: msg.conversations?.client_phone
+              });
+            });
+            messageFound = true;
+          }
+        }
+      } catch (error) {
+        console.error('❌ Erro verificando mensagens:', error);
+      }
+    };
+    
+    // Verificar a cada 2 segundos por 60 segundos
+    const interval = setInterval(checkMessages, 2000);
+    
+    setTimeout(() => {
+      clearInterval(interval);
+      if (messageFound) {
+        console.log('✅ SUCESSO! Mensagens reais estão chegando!');
+      } else {
+        console.log('❌ PROBLEMA! Nenhuma mensagem real detectada em 60 segundos');
+        console.log('🔍 Próximas verificações:');
+        console.log('1. Confirme que enviou a mensagem para (73) 99992-1633');
+        console.log('2. Verifique se o WhatsApp está conectado');
+        console.log('3. Execute debugHelper.verifyInstancePhoneNumber()');
+      }
+    }, 60000);
+  },
+
   // Monitorar webhook em tempo real
   async monitorWebhookRealTime() {
     console.log('🔄 === MONITOR DE WEBHOOK EM TEMPO REAL ===');
