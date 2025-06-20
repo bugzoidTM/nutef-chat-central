@@ -1968,6 +1968,191 @@ export const debugHelper = {
     console.log('   - Verifique logs do Supabase manualmente');
   },
 
+  // SIMULAR EVOLUTION API: Testar webhook como se fosse o Evolution
+  async simulateEvolutionWebhook() {
+    console.log('🤖 === SIMULANDO EVOLUTION API REAL ===');
+    console.log('🔥 Vou simular exatamente como o Evolution chama o webhook!');
+    
+    const { instances } = await this.checkInstances();
+    if (!instances || instances.length === 0) {
+      console.error('❌ No instances found');
+      return;
+    }
+
+    const instance = instances[0];
+    const instanceName = instance.instance_name;
+    
+    // Simular payload EXATO do Evolution API para MESSAGES_UPSERT
+    const evolutionPayload = {
+      event: "MESSAGES_UPSERT",
+      instance: instanceName,
+      data: {
+        key: {
+          remoteJid: "5511999887766@s.whatsapp.net",
+          fromMe: false,
+          id: "3EB0C8F4E7E0C8F4E7E0",
+          participant: undefined
+        },
+        message: {
+          conversation: `🤖 SIMULAÇÃO EVOLUTION - ${new Date().toLocaleString('pt-BR')}`
+        },
+        messageTimestamp: Math.floor(Date.now() / 1000),
+        pushName: "TESTE EVOLUTION",
+        broadcast: false,
+        messageStubType: undefined,
+        messageStubParameters: []
+      }
+    };
+    
+    console.log('📤 Payload que será enviado:', JSON.stringify(evolutionPayload, null, 2));
+    console.log('🔍 Enviando para:', 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook');
+    
+    try {
+      const response = await fetch('https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // Sem apikey - Evolution não envia apikey para webhooks
+        },
+        body: JSON.stringify(evolutionPayload)
+      });
+      
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Webhook respondeu com sucesso:', result);
+        
+        console.log('⏰ Aguardando 3 segundos para verificar se apareceu no banco...');
+        
+        setTimeout(async () => {
+          const { data: messages, error } = await supabase
+            .from('messages')
+            .select(`
+              *,
+              conversations!inner (
+                client_phone,
+                client_name
+              )
+            `)
+            .ilike('content', '%SIMULAÇÃO EVOLUTION%')
+            .order('created_at', { ascending: false })
+            .limit(1);
+            
+          if (error) {
+            console.error('❌ Erro verificando mensagens:', error);
+            return;
+          }
+          
+          if (messages && messages.length > 0) {
+            console.log('🎉 SUCESSO! Mensagem da simulação encontrada:');
+            console.log(messages[0]);
+            console.log('');
+            console.log('🎯 CONCLUSÃO: O webhook funciona perfeitamente!');
+            console.log('❌ O problema é que o Evolution API não está enviando os eventos reais');
+            console.log('');
+            console.log('🔧 SOLUÇÕES POSSÍVEIS:');
+            console.log('1. Reconectar a instância (escanear QR Code novamente)');
+            console.log('2. Verificar se readMessages está false no Evolution');
+            console.log('3. Reiniciar a instância no Evolution');
+            console.log('4. Verificar se há filtros bloqueando no Evolution');
+          } else {
+            console.log('❌ Mensagem não encontrada no banco');
+            console.log('🔍 Verifique os logs do webhook no Supabase');
+          }
+        }, 3000);
+        
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Webhook falhou:', response.status, response.statusText);
+        console.error('❌ Detalhes:', errorText);
+        
+        if (response.status === 401) {
+          console.log('🔍 Erro 401 indica problema de autenticação no Supabase');
+          console.log('🔧 Verifique as variáveis de ambiente do webhook');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erro na requisição:', error);
+    }
+  },
+
+  // Verificar configurações da instância no Evolution
+  async checkEvolutionInstanceSettings() {
+    console.log('⚙️ === VERIFICANDO CONFIGURAÇÕES DA INSTÂNCIA ===');
+    
+    const { instances } = await this.checkInstances();
+    if (!instances || instances.length === 0) {
+      console.error('❌ No instances found');
+      return;
+    }
+
+    const instance = instances[0];
+    const instanceName = instance.instance_name;
+    
+    try {
+      // Buscar configurações detalhadas da instância
+      const settingsResponse = await fetch(`https://evolution.nutef.com/instance/fetchInstances?instanceName=${instanceName}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': '5be0fd0304550ebb6027dcce02ae4ab1'
+        }
+      });
+      
+      if (settingsResponse.ok) {
+        const settings = await settingsResponse.json();
+        console.log('✅ Configurações da instância:', settings);
+        
+        const ourInstance = settings.find(s => s.instanceName === instanceName || s.name === instanceName);
+        if (ourInstance) {
+          console.log('🔍 Configurações importantes:');
+          console.log('📱 Status de conexão:', ourInstance.connectionStatus);
+          console.log('📞 Número proprietário:', ourInstance.ownerJid);
+          console.log('👤 Nome do perfil:', ourInstance.profileName);
+          console.log('⚙️ Configurações:');
+          
+          if (ourInstance.settings) {
+            console.log('   - readMessages:', ourInstance.settings.readMessages);
+            console.log('   - rejectCall:', ourInstance.settings.rejectCall);
+            console.log('   - groupsIgnore:', ourInstance.settings.groupsIgnore);
+            console.log('   - alwaysOnline:', ourInstance.settings.alwaysOnline);
+          }
+          
+          if (ourInstance.connectionStatus !== 'open') {
+            console.log('❌ PROBLEMA: Instância não está conectada!');
+            console.log('🔧 Solução: Reconecte a instância escaneando o QR Code');
+          } else {
+            console.log('✅ Instância conectada corretamente');
+          }
+        }
+      } else {
+        console.error('❌ Erro buscando configurações:', settingsResponse.status);
+      }
+      
+      // Tentar forçar reconexão se necessário
+      console.log('🔄 Tentando forçar refresh da conexão...');
+      const refreshResponse = await fetch(`https://evolution.nutef.com/instance/restart/${instanceName}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': '5be0fd0304550ebb6027dcce02ae4ab1'
+        }
+      });
+      
+      if (refreshResponse.ok) {
+        console.log('✅ Instância reiniciada com sucesso');
+        console.log('⏰ Aguarde 30 segundos e teste novamente');
+      } else {
+        console.log('ℹ️ Não foi possível reiniciar automaticamente');
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro verificando configurações:', error);
+    }
+  },
+
   // TESTE FINAL: Interceptar webhook real
   async interceptWebhookTest() {
     console.log('🕵️ === INTERCEPTANDO WEBHOOK REAL ===');
