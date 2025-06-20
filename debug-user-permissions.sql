@@ -1,3 +1,4 @@
+
 -- Execute este SQL no Supabase SQL Editor para debugar permissões do usuário
 -- Substitua 'SEU_USER_ID_AQUI' pelo user_id do auth.users
 
@@ -61,4 +62,4 @@ LIMIT 10;
 SELECT * FROM pg_policies WHERE tablename = 'messages';
 
 -- 6. Verificar todas as políticas RLS para conversations
-SELECT * FROM pg_policies WHERE tablename = 'conversations'; 
+SELECT * FROM pg_policies WHERE tablename = 'conversations';
