@@ -16,63 +16,6 @@
       "disabled": true
     },
     {
-      "parameters": {},
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
-      "position": [
-        0,
-        0
-      ],
-      "id": "19f31a3b-7806-4842-9c73-6351b7760dda",
-      "name": "When clicking ‘Execute workflow’",
-      "disabled": true
-    },
-    {
-      "parameters": {
-        "operation": "fetch-instances",
-        "instanceName": "whatsapp_73999921633"
-      },
-      "type": "n8n-nodes-evolution-api.evolutionApi",
-      "typeVersion": 1,
-      "position": [
-        220,
-        0
-      ],
-      "id": "6ab80549-aede-4866-9674-c5b151daff1c",
-      "name": "Evolution API2",
-      "credentials": {
-        "evolutionApi": {
-          "id": "G75gP4mpV1aJSfIs",
-          "name": "Global"
-        }
-      },
-      "disabled": true
-    },
-    {
-      "parameters": {
-        "resource": "messages-api",
-        "instanceName": "=Ischolar",
-        "remoteJid": "5573999921633",
-        "messageText": "Teste do N8N",
-        "options_message": {}
-      },
-      "type": "n8n-nodes-evolution-api.evolutionApi",
-      "typeVersion": 1,
-      "position": [
-        440,
-        0
-      ],
-      "id": "e43870a5-da67-4282-b4f5-88794ebabda2",
-      "name": "Evolution API3",
-      "credentials": {
-        "evolutionApi": {
-          "id": "G75gP4mpV1aJSfIs",
-          "name": "Global"
-        }
-      },
-      "disabled": true
-    },
-    {
       "parameters": {
         "httpMethod": "POST",
         "path": "c2785fe6-f5bc-4233-8e92-d0f47f9d7b80",
@@ -101,35 +44,284 @@
       ],
       "id": "80d9884b-806c-428f-ad99-5cf31639e5f5",
       "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{ $json.body.event }}",
+              "rightValue": "messages.upsert",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "2",
+              "leftValue": "={{ $json.body.data.key.fromMe }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "6840be4b-bbc2-4e47-b7e1-5066d48bc870",
+      "name": "Filtrar Mensagens Recebidas",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -20,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "event",
+              "value": "MESSAGES_UPSERT",
+              "type": "string"
+            },
+            {
+              "id": "2",
+              "name": "instance",
+              "value": "={{ $json.body.instance }}",
+              "type": "string"
+            },
+            {
+              "id": "3",
+              "name": "data",
+              "value": "={{ [$json.body.data] }}",
+              "type": "array"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "89d963ab-841c-4323-8e85-96a2f6ac850f",
+      "name": "Transformar Dados",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        200,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "tableId": "conversations",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "client_phone",
+              "fieldValue": "={{ $('Transformar Dados').item.json.data[0].key.remoteJid .replace(/@s\\.whatsapp\\.net|@c\\.us/g, '') }}"
+            },
+            {
+              "fieldId": "client_name",
+              "fieldValue": "={{ $('Transformar Dados').item.json.data[0].pushName || $('Transformar Dados').item.json.data[0].key.remoteJid.replace(/@s\\.whatsapp\\.net|@c\\.us/g, '') }}"
+            },
+            {
+              "fieldId": "instance_id",
+              "fieldValue": "={{ $json.id }}"
+            },
+            {
+              "fieldId": "sector",
+              "fieldValue": "support"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "new"
+            },
+            {
+              "fieldId": "last_message_at",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        640,
+        260
+      ],
+      "id": "3b4419e5-fc78-4405-bc10-1a44d24058a4",
+      "name": "Insert Conversation",
+      "credentials": {
+        "supabaseApi": {
+          "id": "2rHB4lh5lXJhg4w2",
+          "name": "Supabase NutefTalk"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "instances",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "instance_name",
+              "keyValue": "={{ $json.instance }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        420,
+        260
+      ],
+      "id": "5c317890-320d-4a15-a4fc-d624d8053073",
+      "name": "PegaIDInstancia",
+      "credentials": {
+        "supabaseApi": {
+          "id": "2rHB4lh5lXJhg4w2",
+          "name": "Supabase NutefTalk"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "tableId": "messages",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "conversation_id",
+              "fieldValue": "={{ $json.id }}"
+            },
+            {
+              "fieldId": "from_phone",
+              "fieldValue": "={{ $('Transformar Dados').item.json.data[0].key.remoteJid.replace(/@s\\.whatsapp\\.net|@c\\.us/g, '') }}"
+            },
+            {
+              "fieldId": "to_phone",
+              "fieldValue": "={{ $('Webhook').item.json.body.sender.replace(/@s\\.whatsapp\\.net|@c\\.us/g, '') }}"
+            },
+            {
+              "fieldId": "content",
+              "fieldValue": "={{ $('Transformar Dados').item.json.data[0].message.conversation }}"
+            },
+            {
+              "fieldId": "message_type",
+              "fieldValue": "text"
+            },
+            {
+              "fieldId": "direction",
+              "fieldValue": "incoming"
+            },
+            {
+              "fieldId": "timestamp",
+              "fieldValue": "={{ new Date().toISOString() }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        860,
+        260
+      ],
+      "id": "96751747-ea17-49b0-b8b4-537ce1c92d92",
+      "name": "Insert Message",
+      "credentials": {
+        "supabaseApi": {
+          "id": "2rHB4lh5lXJhg4w2",
+          "name": "Supabase NutefTalk"
+        }
+      }
     }
   ],
-  "pinData": {},
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "webhook.nutef.com",
+            "user-agent": "axios/1.7.9",
+            "content-length": "1092",
+            "accept-encoding": "gzip, compress, deflate, br",
+            "content-type": "application/json",
+            "x-forwarded-for": "172.18.0.1",
+            "x-forwarded-host": "webhook.nutef.com",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "f5f8206abb58",
+            "x-real-ip": "172.18.0.1"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "event": "messages.upsert",
+            "instance": "whatsapp_7391008217",
+            "data": {
+              "key": {
+                "remoteJid": "5511932473951@s.whatsapp.net",
+                "fromMe": false,
+                "id": "37C6044F71BC101B9A318C4BF4AE4756"
+              },
+              "pushName": "Nutef",
+              "status": "DELIVERY_ACK",
+              "message": {
+                "messageContextInfo": {
+                  "deviceListMetadata": {
+                    "senderKeyHash": "h7FIRSqSQFpoeA==",
+                    "senderTimestamp": "1749394460",
+                    "recipientKeyHash": "TnsELfK+X/dN2A==",
+                    "recipientTimestamp": "1750431428"
+                  },
+                  "deviceListMetadataVersion": 2,
+                  "messageSecret": "Tzuv0JURdnUogXuECQ6v8KJINDsvjcXmxqIZZfh5qo8="
+                },
+                "conversation": "Vai"
+              },
+              "contextInfo": {
+                "expiration": 7776000,
+                "ephemeralSettingTimestamp": "1750086360",
+                "disappearingMode": {
+                  "initiator": "INITIATED_BY_ME",
+                  "trigger": "ACCOUNT_SETTING",
+                  "initiatedByMe": true
+                }
+              },
+              "messageType": "conversation",
+              "messageTimestamp": 1750437878,
+              "instanceId": "bd7dd86b-8651-4b75-990b-ac970e486187",
+              "source": "android"
+            },
+            "destination": "https://webhook.nutef.com/webhook/c2785fe6-f5bc-4233-8e92-d0f47f9d7b80",
+            "date_time": "2025-06-20T13:44:39.231Z",
+            "sender": "557391008217@s.whatsapp.net",
+            "server_url": "https://evolution.nutef.com",
+            "apikey": "C4C63A47-3A5F-4F4A-922F-05589EF1ACA8"
+          },
+          "webhookUrl": "https://webhook.nutef.com/webhook/c2785fe6-f5bc-4233-8e92-d0f47f9d7b80",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
   "connections": {
     "HTML": {
       "main": [
         []
-      ]
-    },
-    "When clicking ‘Execute workflow’": {
-      "main": [
-        [
-          {
-            "node": "Evolution API2",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Evolution API2": {
-      "main": [
-        [
-          {
-            "node": "Evolution API3",
-            "type": "main",
-            "index": 0
-          }
-        ]
       ]
     },
     "Webhook": {
@@ -142,13 +334,68 @@
           }
         ]
       ]
+    },
+    "Filtrar Mensagens Recebidas": {
+      "main": [
+        [
+          {
+            "node": "Transformar Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transformar Dados": {
+      "main": [
+        [
+          {
+            "node": "PegaIDInstancia",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Mensagens Recebidas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Conversation": {
+      "main": [
+        [
+          {
+            "node": "Insert Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PegaIDInstancia": {
+      "main": [
+        [
+          {
+            "node": "Insert Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
   "settings": {
     "executionOrder": "v1"
   },
-  "versionId": "3df0fa3a-e074-4be3-abbe-4328a4d6cba8",
+  "versionId": "c5e07262-79d9-4b5d-81d1-91c05d36baf9",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "c97626f9add3e1c9da12fb07aa2d25f2db00e72b8089e1f0b5405e85dcdb85ba"
