@@ -204,7 +204,7 @@ export const debugHelper = {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': 'B6D711FCDE4D4FD5936544120E713976'
+          'apikey': '5be0fd0304550ebb6027dcce02ae4ab1'
         }
       });
       
@@ -225,7 +225,7 @@ export const debugHelper = {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': 'B6D711FCDE4D4FD5936544120E713976'
+          'apikey': '5be0fd0304550ebb6027dcce02ae4ab1'
         }
       });
       
@@ -261,7 +261,7 @@ export const debugHelper = {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': 'B6D711FCDE4D4FD5936544120E713976'
+          'apikey': '5be0fd0304550ebb6027dcce02ae4ab1'
         }
       });
       
@@ -332,7 +332,7 @@ export const debugHelper = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': 'B6D711FCDE4D4FD5936544120E713976'
+          'apikey': '5be0fd0304550ebb6027dcce02ae4ab1'
         },
         body: JSON.stringify(webhookConfig)
       });
