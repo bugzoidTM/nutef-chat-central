@@ -1695,26 +1695,53 @@ export const debugHelper = {
     
     console.log('🔥 1. Criando/atualizando conversa diretamente...');
     
-    // Forçar criação de conversa
-    const { data: conversation, error: convError } = await supabase
+    // Primeiro, verificar se já existe
+    let conversation;
+    const { data: existingConv } = await supabase
       .from('conversations')
-      .upsert({
-        client_phone: testPhone,
-        client_name: 'TESTE BRUTAL',
-        instance_id: instance.id,
-        sector: 'support',
-        status: 'new',
-        last_message_at: new Date().toISOString(),
-      }, {
-        onConflict: 'client_phone,instance_id'
-      })
-      .select()
+      .select('*')
+      .eq('client_phone', testPhone)
+      .eq('instance_id', instance.id)
       .single();
       
-    if (convError) {
-      console.error('❌ Erro criando conversa:', convError);
-      return;
-    }
+    if (existingConv) {
+      console.log('🔄 Conversa já existe, atualizando...');
+      const { data: updatedConv, error: updateError } = await supabase
+        .from('conversations')
+        .update({
+          status: 'new',
+          last_message_at: new Date().toISOString(),
+        })
+        .eq('id', existingConv.id)
+        .select()
+        .single();
+        
+      if (updateError) {
+        console.error('❌ Erro atualizando conversa:', updateError);
+        return;
+      }
+      conversation = updatedConv;
+    } else {
+      console.log('🆕 Criando nova conversa...');
+      const { data: newConv, error: createError } = await supabase
+        .from('conversations')
+        .insert({
+          client_phone: testPhone,
+          client_name: 'TESTE BRUTAL',
+          instance_id: instance.id,
+          sector: 'support',
+          status: 'new',
+          last_message_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+        
+      if (createError) {
+        console.error('❌ Erro criando conversa:', createError);
+        return;
+      }
+             conversation = newConv;
+     }
     
     console.log('✅ Conversa criada/atualizada:', conversation.id);
     
