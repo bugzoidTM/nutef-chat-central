@@ -1,60 +1,30 @@
+
 import { useQuery } from '@tanstack/react-query';
-import { findMessages, convertEvolutionMessageToUnified } from '@/services/evolution/messageApi';
-import { useEvolutionInstances } from '@/hooks/useEvolutionInstances';
-import type { UnifiedMessage } from '@/services/evolution/types';
+import { supabase } from '@/integrations/supabase/client';
 
 export const useMessages = (selectedConversation: string | null) => {
-  const { defaultInstance, hasConnectedInstances } = useEvolutionInstances();
-  
   const { data: messages = [], isLoading: messagesLoading, error: messagesError } = useQuery({
-    queryKey: ['evolution-messages', selectedConversation, defaultInstance?.instanceName],
-    queryFn: async (): Promise<UnifiedMessage[]> => {
-      if (!selectedConversation || !defaultInstance || !hasConnectedInstances) {
-        console.log('⚠️ useMessages - Missing requirements:', { 
-          selectedConversation: !!selectedConversation,
-          defaultInstance: !!defaultInstance,
-          hasConnectedInstances
-        });
-        return [];
-      }
+    queryKey: ['messages', selectedConversation],
+    queryFn: async () => {
+      if (!selectedConversation) return [];
       
       console.log('🔍 useMessages - Fetching messages for conversation:', selectedConversation);
-      console.log('📡 useMessages - Using instance:', defaultInstance.instanceName, defaultInstance.phoneNumber);
       
-      try {
-        // Buscar mensagens da Evolution API
-        const evolutionResponse = await findMessages(
-          defaultInstance.instanceName, 
-          selectedConversation, 
-          50, 
-          0
-        );
-        
-        console.log('📝 useMessages - Evolution API response:', { 
-          messagesCount: evolutionResponse.messages?.length || 0
-        });
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', selectedConversation)
+        .order('timestamp', { ascending: true });
 
-        // Converter mensagens da Evolution para formato unificado
-        const unifiedMessages = evolutionResponse.messages?.map(msg => 
-          convertEvolutionMessageToUnified(msg, defaultInstance.phoneNumber || '')
-        ) || [];
+      console.log('📝 useMessages - Query result:', { 
+        data: data ? `${data.length} messages` : 'null', 
+        error: error?.message || 'none' 
+      });
 
-        // Ordenar por timestamp (mais antigo primeiro)
-        unifiedMessages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-
-        console.log('✅ useMessages - Messages processed:', unifiedMessages.length);
-        return unifiedMessages;
-      } catch (error) {
-        console.error('❌ useMessages - Evolution API error:', error);
-        throw error;
-      }
+      if (error) throw error;
+      return data || [];
     },
-    enabled: !!selectedConversation && hasConnectedInstances && !!defaultInstance,
-    refetchInterval: 15000, // Atualizar a cada 15 segundos
-    retry: (failureCount, error: any) => {
-      console.log(`🔄 useMessages - Retry attempt ${failureCount}:`, error?.message);
-      return failureCount < 2;
-    },
+    enabled: !!selectedConversation,
   });
 
   // Log messages error if exists
@@ -65,8 +35,5 @@ export const useMessages = (selectedConversation: string | null) => {
   return {
     messages,
     messagesLoading,
-    messagesError,
-    defaultInstance,
-    hasConnectedInstances,
   };
 };
