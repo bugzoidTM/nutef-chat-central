@@ -1,0 +1,158 @@
+{
+  "name": "NutefTalk QrCode",
+  "nodes": [
+    {
+      "parameters": {
+        "html": "<!DOCTYPE html>\n<html lang=\"pt-BR\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>QR Code da Instância</title>\n    <link rel=\"stylesheet\" href=\"https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap\">\n    <style>\n        :root {\n            --primary: #6366f1;\n            --primary-light: #818cf8;\n            --primary-dark: #4f46e5;\n            --secondary: #f97316;\n            --background: #f8fafc;\n            --card: #ffffff;\n            --border: #e2e8f0;\n            --text: #0f172a;\n            --text-secondary: #64748b;\n            --success: #10b981;\n        }\n\n        * {\n            margin: 0;\n            padding: 0;\n            box-sizing: border-box;\n        }\n\n        body {\n            font-family: 'Inter', sans-serif;\n            background-color: var(--background);\n            color: var(--text);\n            min-height: 100vh;\n            display: flex;\n            flex-direction: column;\n            align-items: center;\n            justify-content: center;\n            padding: 1.5rem;\n        }\n\n        .container {\n            width: 100%;\n            max-width: 480px;\n            background: var(--card);\n            border-radius: 16px;\n            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05);\n            overflow: hidden;\n        }\n\n        .header {\n            background: linear-gradient(135deg, var(--primary), var(--primary-dark));\n            padding: 1.5rem;\n            color: white;\n            text-align: center;\n        }\n\n        .header h1 {\n            font-size: 1.5rem;\n            font-weight: 600;\n            margin-bottom: 0.5rem;\n        }\n\n        .header p {\n            font-size: 0.875rem;\n            opacity: 0.9;\n        }\n\n        .content {\n            padding: 2rem;\n            display: flex;\n            flex-direction: column;\n            align-items: center;\n        }\n\n        .instance-name {\n            background-color: rgba(99, 102, 241, 0.1);\n            color: var(--primary-dark);\n            padding: 0.5rem 1rem;\n            border-radius: 9999px;\n            font-weight: 500;\n            font-size: 0.875rem;\n            margin-bottom: 1.5rem;\n            display: inline-block;\n        }\n\n        .qr-container {\n            position: relative;\n            width: 240px;\n            height: 240px;\n            margin-bottom: 1.5rem;\n            border-radius: 12px;\n            overflow: hidden;\n            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);\n            background-color: white;\n            padding: 10px;\n        }\n\n        .qr-code {\n            width: 100%;\n            height: 100%;\n            object-fit: contain;\n            border-radius: 8px;\n        }\n\n        .timer-container {\n            display: flex;\n            align-items: center;\n            justify-content: center;\n            margin-top: 1rem;\n        }\n\n        .timer-icon {\n            width: 18px;\n            height: 18px;\n            margin-right: 0.5rem;\n            color: var(--text-secondary);\n        }\n\n        .timer {\n            font-size: 0.875rem;\n            color: var(--text-secondary);\n            display: flex;\n            align-items: center;\n        }\n\n        .timer-value {\n            font-weight: 600;\n            color: var(--secondary);\n            margin-left: 0.25rem;\n        }\n\n        .footer {\n            margin-top: 2rem;\n            text-align: center;\n            font-size: 0.75rem;\n            color: var(--text-secondary);\n        }\n\n        .pulse {\n            animation: pulse 2s infinite;\n        }\n\n        @keyframes pulse {\n            0% {\n                box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4);\n            }\n            70% {\n                box-shadow: 0 0 0 10px rgba(99, 102, 241, 0);\n            }\n            100% {\n                box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);\n            }\n        }\n\n        @media (max-width: 480px) {\n            .container {\n                border-radius: 12px;\n            }\n            \n            .qr-container {\n                width: 200px;\n                height: 200px;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <div class=\"header\">\n            <h1>QR Code da Instância</h1>\n            <p>Escaneie para conectar</p>\n        </div>\n        \n        <div class=\"content\">\n            <div class=\"instance-name\">Nome da Instância</div>\n            \n            <div class=\"qr-container\">\n                <!-- SUBSTITUA ESTA IMAGEM PELO SEU QR CODE -->\n                <img src=\"{{ $('Evolution API').item.json.data.base64 }}\" alt=\"QR Code\" class=\"qr-code\">\n              \n            </div>\n          \n            \n            <div class=\"timer-container\">\n                <svg class=\"timer-icon\" xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\">\n                    <circle cx=\"12\" cy=\"12\" r=\"10\"></circle>\n                    <polyline points=\"12 6 12 12 16 14\"></polyline>\n                </svg>\n                <div class=\"timer\">\n                    Novo QR Code em: <span class=\"timer-value\" id=\"timer\">30s</span>\n                </div>\n            </div>\n        </div>\n    </div>\n    \n    <div class=\"footer\">\n        &copy; 2025 Sistema de Instâncias • Todos os direitos reservados\n    </div>\n\n    <script>\n        document.addEventListener('DOMContentLoaded', function() {\n    let timeLeft = 30;\n    const timerElement = document.getElementById('timer');\n    const qrContainer = document.querySelector('.qr-container');\n    \n    // Função para iniciar o contador\n    function startCountdown() {\n        // Limpa qualquer intervalo existente para evitar múltiplos contadores\n        if (window.countdownInterval) {\n            clearInterval(window.countdownInterval);\n        }\n        \n        // Reseta o estado inicial\n        timeLeft = 30;\n        timerElement.textContent = timeLeft + 's';\n        qrContainer.classList.remove('pulse');\n        \n        // Inicia um novo contador\n        window.countdownInterval = setInterval(() => {\n            timeLeft--;\n            timerElement.textContent = timeLeft + 's';\n            \n            // Adiciona animação de pulso quando o tempo está acabando\n            if (timeLeft <= 10) {\n                qrContainer.classList.add('pulse');\n            }\n            \n            if (timeLeft <= 0) {\n                clearInterval(window.countdownInterval);\n                \n                // Recarrega a página automaticamente ao invés de mostrar um alerta\n                window.location.reload();\n            }\n        }, 1000);\n    }\n    \n    // Inicia o contador quando a página carrega\n    startCountdown();\n});\n    </script>\n</body>\n</html>"
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        340,
+        -360
+      ],
+      "id": "5a82a582-c682-40bb-bc1a-afe1132f5579",
+      "name": "HTML",
+      "disabled": true
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "19f31a3b-7806-4842-9c73-6351b7760dda",
+      "name": "When clicking ‘Execute workflow’",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "operation": "fetch-instances",
+        "instanceName": "whatsapp_73999921633"
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        220,
+        0
+      ],
+      "id": "6ab80549-aede-4866-9674-c5b151daff1c",
+      "name": "Evolution API2",
+      "credentials": {
+        "evolutionApi": {
+          "id": "G75gP4mpV1aJSfIs",
+          "name": "Global"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "resource": "messages-api",
+        "instanceName": "=Ischolar",
+        "remoteJid": "5573999921633",
+        "messageText": "Teste do N8N",
+        "options_message": {}
+      },
+      "type": "n8n-nodes-evolution-api.evolutionApi",
+      "typeVersion": 1,
+      "position": [
+        440,
+        0
+      ],
+      "id": "e43870a5-da67-4282-b4f5-88794ebabda2",
+      "name": "Evolution API3",
+      "credentials": {
+        "evolutionApi": {
+          "id": "G75gP4mpV1aJSfIs",
+          "name": "Global"
+        }
+      },
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "c2785fe6-f5bc-4233-8e92-d0f47f9d7b80",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -480,
+        140
+      ],
+      "id": "724eb14b-a9e0-4b5f-9007-f405f3add913",
+      "name": "Webhook",
+      "webhookId": "c2785fe6-f5bc-4233-8e92-d0f47f9d7b80"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        -260,
+        140
+      ],
+      "id": "80d9884b-806c-428f-ad99-5cf31639e5f5",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "HTML": {
+      "main": [
+        []
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Evolution API2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evolution API2": {
+      "main": [
+        [
+          {
+            "node": "Evolution API3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3df0fa3a-e074-4be3-abbe-4328a4d6cba8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c97626f9add3e1c9da12fb07aa2d25f2db00e72b8089e1f0b5405e85dcdb85ba"
+  },
+  "id": "0nTq0XnTO32IcsDQ",
+  "tags": []
+}

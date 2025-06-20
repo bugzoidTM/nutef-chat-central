@@ -67,7 +67,7 @@ serve(async (req) => {
     }
 
     // Handle MESSAGES_UPSERT event - incoming messages
-    if (event === 'MESSAGES_UPSERT') {
+    if (event === 'MESSAGES_UPSERT' || event === 'messages.upsert') {
       console.log('📩 Processing MESSAGES_UPSERT event');
       
       // Find the instance in our database

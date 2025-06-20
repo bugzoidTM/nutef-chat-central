@@ -1,0 +1,170 @@
+{
+  "name": "Processar Webhook Evolution",
+  "nodes": [
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "1",
+              "leftValue": "={{ $json.body.event }}",
+              "rightValue": "messages.upsert",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "2",
+              "leftValue": "={{ $json.body.data.key.fromMe }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-incoming-messages",
+      "name": "Filtrar Mensagens Recebidas",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [100, 200]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1",
+              "name": "event",
+              "value": "MESSAGES_UPSERT",
+              "type": "string"
+            },
+            {
+              "id": "2", 
+              "name": "instance",
+              "value": "={{ $json.body.instance }}",
+              "type": "string"
+            },
+            {
+              "id": "3",
+              "name": "data",
+              "value": "={{ [$json.body.data] }}",
+              "type": "object"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "transform-data",
+      "name": "Transformar Dados",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [300, 200]
+    },
+    {
+      "parameters": {
+        "url": "https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook",
+        "authentication": "none",
+        "httpMethod": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": []
+        },
+        "jsonBody": "={{ JSON.stringify({\n  \"event\": $json.event,\n  \"instance\": $json.instance,\n  \"data\": $json.data\n}) }}",
+        "options": {}
+      },
+      "id": "send-to-supabase",
+      "name": "Enviar para Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 200]
+    },
+    {
+      "parameters": {
+        "authentication": "none",
+        "url": "https://ojfdzfgcysxoxzszhbzr.supabase.co/rest/v1/conversations",
+        "httpMethod": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qZmR6ZmdjeXN4b3h6c3poYnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk0MDA0OTUsImV4cCI6MjA2NDk3NjQ5NX0.j8C4IWjDDfq6d4_rVqXBAWZ7qlIJkVdEzALKjVjFi6I"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qZmR6ZmdjeXN4b3h6c3poYnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk0MDA0OTUsImV4cCI6MjA2NDk3NjQ5NX0.j8C4IWjDDfq6d4_rVqXBAWZ7qlIJkVdEzALKjVjFi6I"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "jsonBody": "={{ JSON.stringify({\n  \"client_phone\": $json.body.data.key.remoteJid.replace(/@s\\.whatsapp\\.net|@c\\.us/g, ''),\n  \"client_name\": $json.body.data.pushName || $json.body.data.key.remoteJid.replace(/@s\\.whatsapp\\.net|@c\\.us/g, ''),\n  \"instance_id\": \"1\",\n  \"sector\": \"support\",\n  \"status\": \"new\",\n  \"last_message_at\": new Date().toISOString()\n}) }}",
+        "options": {}
+      },
+      "id": "direct-supabase-insert",
+      "name": "Inserir Direto no Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 400],
+      "disabled": true
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Mensagens Recebidas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Mensagens Recebidas": {
+      "main": [
+        [
+          {
+            "node": "Transformar Dados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transformar Dados": {
+      "main": [
+        [
+          {
+            "node": "Enviar para Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+} 
