@@ -1544,6 +1544,140 @@ export const debugHelper = {
     }
   },
 
+  // Corrigir número da instância no banco
+  async fixInstancePhoneNumber() {
+    console.log('🔧 === CORREÇÃO DO NÚMERO DA INSTÂNCIA ===');
+    
+    const { instances } = await this.checkInstances();
+    if (!instances || instances.length === 0) {
+      console.error('❌ No instances found');
+      return;
+    }
+
+    const instance = instances[0];
+    
+    // Buscar o número correto do Evolution API
+    try {
+      const response = await fetch(`https://evolution.nutef.com/instance/fetchInstances`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': '5be0fd0304550ebb6027dcce02ae4ab1'
+        }
+      });
+      
+      if (response.ok) {
+        const evolutionInstances = await response.json();
+        const ourInstance = evolutionInstances.find(i => i.name === instance.instance_name);
+        
+        if (ourInstance && ourInstance.ownerJid) {
+          const correctPhone = ourInstance.ownerJid.replace('@s.whatsapp.net', '').replace('55', '');
+          const formattedPhone = `(${correctPhone.substring(0, 2)}) ${correctPhone.substring(2, 7)}-${correctPhone.substring(7)}`;
+          
+          console.log('📞 Número atual no banco:', instance.phone);
+          console.log('📞 Número correto do Evolution:', formattedPhone);
+          console.log('📞 Número bruto:', correctPhone);
+          
+          if (instance.phone !== formattedPhone) {
+            console.log('🔧 Atualizando número da instância...');
+            
+            const { error } = await supabase
+              .from('instances')
+              .update({ phone: formattedPhone })
+              .eq('id', instance.id);
+              
+            if (error) {
+              console.error('❌ Erro ao atualizar:', error);
+            } else {
+              console.log('✅ Número da instância atualizado com sucesso!');
+              console.log('🔄 Agora teste enviar uma mensagem real...');
+            }
+          } else {
+            console.log('✅ Número já está correto!');
+          }
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erro na requisição:', error);
+    }
+  },
+
+  // Teste final: enviar mensagem real via Evolution
+  async testRealMessageFlow() {
+    console.log('📱 === TESTE COMPLETO DE FLUXO DE MENSAGEM ===');
+    
+    const { instances } = await this.checkInstances();
+    if (!instances || instances.length === 0) {
+      console.error('❌ No instances found');
+      return;
+    }
+
+    const instance = instances[0];
+    const instanceName = instance.instance_name;
+    
+    // Primeiro, vamos enviar uma mensagem de teste
+    const testNumber = '5511999887766'; // Número de teste
+    const testMessage = `🧪 TESTE REAL - ${new Date().toLocaleString('pt-BR')}`;
+    
+    console.log('📤 1. Enviando mensagem de teste...');
+    console.log(`📞 Para: ${testNumber}`);
+    console.log(`📝 Mensagem: ${testMessage}`);
+    
+    try {
+      const sendResponse = await fetch(`https://evolution.nutef.com/message/sendText/${instanceName}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': '5be0fd0304550ebb6027dcce02ae4ab1'
+        },
+        body: JSON.stringify({
+          number: testNumber,
+          text: testMessage
+        })
+      });
+      
+      if (sendResponse.ok) {
+        const result = await sendResponse.json();
+        console.log('✅ Mensagem enviada:', result);
+        
+        console.log('⏰ 2. Aguardando 5 segundos para verificar webhook...');
+        
+        setTimeout(async () => {
+          // Verificar se a mensagem apareceu no banco
+          const { data: messages, error } = await supabase
+            .from('messages')
+            .select('*')
+            .ilike('content', `%${testMessage}%`)
+            .order('created_at', { ascending: false })
+            .limit(1);
+            
+          if (error) {
+            console.error('❌ Erro ao verificar mensagens:', error);
+            return;
+          }
+          
+          if (messages && messages.length > 0) {
+            console.log('🎉 SUCESSO! Mensagem encontrada no banco:');
+            console.log(messages[0]);
+            console.log('✅ O fluxo está funcionando corretamente!');
+          } else {
+            console.log('❌ Mensagem não encontrada no banco');
+            console.log('🔍 Verificando logs do webhook...');
+            console.log('📋 Acesse: https://supabase.com/dashboard/project/ojfdzfgcysxoxzszhbzr/functions/evolution-webhook/logs');
+            console.log(`🔍 Procure por: "${testMessage}"`);
+          }
+        }, 5000);
+        
+      } else {
+        console.error('❌ Erro ao enviar mensagem:', sendResponse.status);
+        const errorText = await sendResponse.text();
+        console.error('❌ Detalhes:', errorText);
+      }
+    } catch (error) {
+      console.error('❌ Erro na requisição:', error);
+    }
+  },
+
   // Teste de stress: monitorar webhook intensivamente
   async intensiveWebhookMonitor() {
     console.log('🔄 === MONITOR INTENSIVO DO WEBHOOK ===');
