@@ -1494,13 +1494,47 @@ export const debugHelper = {
         const instances = await response.json();
         console.log('✅ Todas as instâncias no Evolution:', instances);
         
-        const ourInstance = instances.find(i => i.instanceName === instanceName);
+        const ourInstance = instances.find(i => i.name === instanceName);
         if (ourInstance) {
           console.log('✅ Nossa instância encontrada:', ourInstance);
-          console.log('📞 Número real:', ourInstance.owner || 'Não informado');
+          console.log('📞 Número real (ownerJid):', ourInstance.ownerJid || 'Não informado');
           console.log('📡 Status real:', ourInstance.connectionStatus || 'Não informado');
+          console.log('👤 Nome do perfil:', ourInstance.profileName || 'Não informado');
+          console.log('🆔 ID da instância:', ourInstance.id);
+          
+          if (ourInstance.connectionStatus === 'open') {
+            console.log('✅ INSTÂNCIA CONECTADA! O problema não é de conexão.');
+            console.log('🔍 Verificando se o ownerJid bate com nosso número...');
+            
+            const cleanOwnerJid = ourInstance.ownerJid?.replace('@s.whatsapp.net', '').replace('55', '');
+            const cleanOurPhone = instance.phone.replace(/\D/g, '');
+            
+            console.log('📞 Número limpo do Evolution:', cleanOwnerJid);
+            console.log('📞 Número limpo do banco:', cleanOurPhone);
+            
+            if (cleanOwnerJid === cleanOurPhone) {
+              console.log('✅ NÚMEROS BATEM! A configuração está correta.');
+              console.log('🔍 O problema deve estar em outro lugar...');
+            } else {
+              console.log('❌ NÚMEROS NÃO BATEM! Este pode ser o problema.');
+            }
+          } else {
+            console.log('❌ INSTÂNCIA DESCONECTADA! Este é o problema.');
+            console.log('📱 Você precisa escanear o QR Code novamente.');
+          }
         } else {
           console.error('❌ Nossa instância não encontrada na lista!');
+          console.log('🔍 Procurando por nome alternativo...');
+          
+          // Tentar encontrar por nome similar
+          const similarInstance = instances.find(i => 
+            i.name.includes('73999921633') || 
+            i.ownerJid?.includes('73999921633')
+          );
+          
+          if (similarInstance) {
+            console.log('✅ Instância similar encontrada:', similarInstance);
+          }
         }
       } else {
         console.error('❌ Erro ao buscar instâncias:', response.status, response.statusText);
