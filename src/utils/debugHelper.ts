@@ -688,6 +688,128 @@ export const debugHelper = {
       console.log('2. ❌ Se não funcionou: verificar logs do Supabase');
       console.log('3. 📋 Logs: https://supabase.com/dashboard/project/ojfdzfgcysxoxzszhbzr/functions/evolution-webhook/logs');
     }, 5000);
+  },
+
+  // Teste com payload real do Evolution API
+  async testRealEvolutionPayload() {
+    const webhookUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
+    
+    // Payload que simula exatamente o que o Evolution API envia
+    const payload = {
+      "event": "messages.upsert",
+      "instance": "whatsapp_73999921633",
+      "data": {
+        "key": {
+          "remoteJid": "5511999999999@s.whatsapp.net",
+          "fromMe": false,
+          "id": "REAL_TEST_" + Date.now()
+        },
+        "message": {
+          "conversation": "Teste simulando payload real do Evolution - " + new Date().toLocaleString('pt-BR')
+        },
+        "pushName": "Teste Real",
+        "messageTimestamp": Date.now()
+      }
+    };
+    
+    console.log('🧪 Testing with REAL Evolution API payload structure...');
+    console.log('📋 Payload:', JSON.stringify(payload, null, 2));
+    
+    const response = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qZmR6ZmdjeXN4b3h6c3poYnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAyOTc2MDcsImV4cCI6MjA2NTg3MzYwN30.Y3BEkfR24jKAdARwBc8UE-4b2_uwy7B2Sd3RYDsaTQ4'
+      },
+      body: JSON.stringify(payload)
+    });
+    
+    const result = await response.json();
+    console.log('📊 Result:', result);
+    
+    // Aguardar e verificar
+    setTimeout(() => this.checkConversations(), 3000);
+  },
+
+  // Teste para verificar se o webhook está recebendo as mensagens
+  showWebhookLogsInstructions() {
+    console.log('📋 Para verificar os logs do webhook:');
+    console.log('1. Acesse: https://supabase.com/dashboard/project/ojfdzfgcysxoxzszhbzr/functions/evolution-webhook/logs');
+    console.log('2. Procure por logs com "🚀 Evolution webhook received request"');
+    console.log('3. Verifique se as mensagens reais estão chegando');
+    console.log('4. Se não há logs, o problema pode estar na configuração do webhook no Evolution API');
+  },
+
+  // Teste para verificar a configuração do webhook
+  async verifyWebhookConfiguration() {
+    console.log('🔧 Verificando configuração do webhook...');
+    
+    const instanceName = 'whatsapp_73999921633';
+    const apiKey = 'MjM4NzY5NzItMTUyMy00YjZkLWE3YzAtNzJjZWQ4MzM5YjUx';
+    const baseUrl = 'https://evolution.nutef.com.br';
+    
+    try {
+      const response = await fetch(`${baseUrl}/webhook/find/${instanceName}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': apiKey
+        }
+      });
+      
+      const webhookConfig = await response.json();
+      console.log('📋 Configuração atual do webhook:', JSON.stringify(webhookConfig, null, 2));
+      
+      const expectedUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
+      
+      if (webhookConfig.url === expectedUrl) {
+        console.log('✅ URL do webhook está correta');
+      } else {
+        console.log('❌ URL do webhook está incorreta');
+        console.log('Expected:', expectedUrl);
+        console.log('Current:', webhookConfig.url);
+      }
+      
+      if (webhookConfig.enabled) {
+        console.log('✅ Webhook está habilitado');
+      } else {
+        console.log('❌ Webhook está desabilitado');
+      }
+      
+      console.log('📋 Eventos configurados:', webhookConfig.events);
+      
+    } catch (error) {
+      console.error('❌ Erro ao verificar configuração do webhook:', error);
+    }
+  },
+
+  // Teste diagnóstico para identificar o problema
+  async diagnoseWebhookProblem() {
+    console.log('🔍 === DIAGNÓSTICO DO PROBLEMA DO WEBHOOK ===');
+    
+    console.log('\n1️⃣ Verificando configuração do webhook...');
+    await this.verifyWebhookConfiguration();
+    
+    console.log('\n2️⃣ Testando com payload direto (funciona)...');
+    await this.testWebhookWithSpecificPayload();
+    
+    console.log('\n3️⃣ Testando com payload real do Evolution (problema)...');
+    await this.testRealEvolutionPayload();
+    
+    console.log('\n4️⃣ Instruções para teste manual:');
+    console.log('- Envie uma mensagem real do WhatsApp');
+    console.log('- Verifique os logs do webhook');
+    console.log('- Compare com os logs dos testes');
+    
+    console.log('\n📋 Links úteis:');
+    console.log('- Logs do webhook: https://supabase.com/dashboard/project/ojfdzfgcysxoxzszhbzr/functions/evolution-webhook/logs');
+    console.log('- Para testar manualmente: debugHelper.showWebhookLogsInstructions()');
+    
+    console.log('\n🔍 === PRÓXIMOS PASSOS ===');
+    console.log('1. Aguarde os testes terminarem (5 segundos)');
+    console.log('2. Envie uma mensagem real do WhatsApp');
+    console.log('3. Verifique os logs do webhook');
+    console.log('4. Compare os logs dos testes com os logs reais');
   }
 };
 

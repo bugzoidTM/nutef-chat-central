@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -49,6 +48,13 @@ serve(async (req) => {
       );
     }
 
+    // Add debug logging to understand the structure
+    console.log('🔍 Raw body type:', typeof body);
+    console.log('🔍 Body keys:', Object.keys(body));
+    console.log('🔍 Has body.data?', !!body.data);
+    console.log('🔍 Has body.event?', !!body.event);
+    console.log('🔍 Has body.instance?', !!body.instance);
+
     // Extract event data - Evolution sends different formats
     let eventData = body;
     let messageData = body;
@@ -62,9 +68,13 @@ serve(async (req) => {
         instance: body.instance,
         data: body.data
       };
+      console.log('📦 Using wrapped data structure');
+    } else {
+      console.log('📦 Using direct structure (no data wrapper)');
     }
 
     console.log('🔄 Processing event data:', JSON.stringify(eventData, null, 2));
+    console.log('🔄 Message data:', JSON.stringify(messageData, null, 2));
 
     // Handle message events
     if (eventData.event === 'messages.upsert' || eventData.event === 'MESSAGES_UPSERT') {
@@ -73,8 +83,14 @@ serve(async (req) => {
       const messages = Array.isArray(messageData) ? messageData : [messageData];
       const instanceName = eventData.instance || body.instance;
       
+      console.log('🔍 Instance name from eventData.instance:', eventData.instance);
+      console.log('🔍 Instance name from body.instance:', body.instance);
+      console.log('🔍 Final instance name:', instanceName);
+      
       if (!instanceName) {
         console.log('❌ No instance name found in event data');
+        console.log('❌ eventData:', JSON.stringify(eventData, null, 2));
+        console.log('❌ body:', JSON.stringify(body, null, 2));
         return new Response(JSON.stringify({ error: 'No instance name' }), {
           status: 400, headers: corsHeaders
         });
@@ -91,18 +107,30 @@ serve(async (req) => {
 
       if (instanceError || !instanceData) {
         console.log('❌ Error finding instance:', instanceError);
+        console.log('❌ Searched for instance_name:', instanceName);
+        // Let's also check what instances exist
+        const { data: allInstances } = await supabase
+          .from('instances')
+          .select('instance_name')
+          .limit(10);
+        console.log('❌ Available instances:', allInstances);
         return new Response(JSON.stringify({ error: 'Instance not found' }), {
           status: 404, headers: corsHeaders
         });
       }
 
       console.log('✅ Instance found:', instanceData.instance_name);
+      console.log('🔍 Processing messages array length:', messages.length);
 
-      // Process messages - handle both single and array formats
-      // const messages = Array.isArray(messageData) ? messageData : [messageData];
-      
+      // Process messages
       for (const message of messages) {
         console.log('💬 Processing message:', JSON.stringify(message, null, 2));
+        
+        // Debug message structure
+        console.log('🔍 Message keys:', Object.keys(message));
+        console.log('🔍 Has message.key?', !!message.key);
+        console.log('🔍 Has message.message?', !!message.message);
+        console.log('🔍 message.key:', JSON.stringify(message.key, null, 2));
         
         // Skip messages sent by us
         if (message.key?.fromMe) {
@@ -111,6 +139,8 @@ serve(async (req) => {
         }
 
         const remoteJid = message.key?.remoteJid;
+        console.log('🔍 remoteJid:', remoteJid);
+        
         if (!remoteJid) {
           console.log('⏭️ Skipping message without remoteJid');
           continue;
@@ -122,23 +152,32 @@ serve(async (req) => {
 
         // Extract message content
         let messageContent = '';
+        console.log('🔍 message.message:', JSON.stringify(message.message, null, 2));
+        
         if (message.message?.conversation) {
           messageContent = message.message.conversation;
+          console.log('📝 Content from conversation:', messageContent);
         } else if (message.message?.extendedTextMessage?.text) {
           messageContent = message.message.extendedTextMessage.text;
+          console.log('📝 Content from extendedTextMessage:', messageContent);
         } else if (message.message?.imageMessage?.caption) {
           messageContent = message.message.imageMessage.caption || '[Imagem]';
+          console.log('📝 Content from imageMessage:', messageContent);
         } else if (message.message?.videoMessage?.caption) {
           messageContent = message.message.videoMessage.caption || '[Vídeo]';
+          console.log('📝 Content from videoMessage:', messageContent);
         } else if (message.message?.audioMessage) {
           messageContent = '[Áudio]';
+          console.log('📝 Content from audioMessage:', messageContent);
         } else if (message.message?.documentMessage?.title) {
           messageContent = `[Documento: ${message.message.documentMessage.title}]`;
+          console.log('📝 Content from documentMessage:', messageContent);
         } else {
           messageContent = '[Mensagem sem texto]';
+          console.log('📝 Content fallback:', messageContent);
         }
 
-        console.log('📝 Extracted message content:', messageContent);
+        console.log('📝 Final extracted message content:', messageContent);
 
         if (!messageContent) {
           console.log('❌ Skipping message without content');
@@ -147,6 +186,8 @@ serve(async (req) => {
 
         // Check if conversation already exists
         let conversationId;
+        console.log('🔍 Checking for existing conversation:', { clientPhone, instanceId: instanceData.id });
+        
         const { data: existingConversation, error: convError } = await supabase
           .from('conversations')
           .select('id')
@@ -164,13 +205,19 @@ serve(async (req) => {
           console.log('🔄 Using existing conversation:', conversationId);
 
           // Update last_message_at and set status to new if finished
-          await supabase
+          const { error: updateError } = await supabase
             .from('conversations')
             .update({ 
               last_message_at: new Date().toISOString(),
               status: 'new'
             })
             .eq('id', conversationId);
+
+          if (updateError) {
+            console.log('❌ Error updating conversation:', updateError);
+          } else {
+            console.log('✅ Conversation updated successfully');
+          }
         } else {
           console.log('🆕 Creating new conversation for:', clientPhone);
           
@@ -199,17 +246,21 @@ serve(async (req) => {
 
         // Insert the message
         console.log('💬 Inserting message into conversation:', conversationId);
+        const messageToInsert = {
+          conversation_id: conversationId,
+          content: messageContent,
+          direction: 'incoming',
+          from_phone: clientPhone,
+          to_phone: instanceData.phone,
+          message_type: 'text',
+          timestamp: new Date().toISOString(),
+        };
+        
+        console.log('💬 Message to insert:', JSON.stringify(messageToInsert, null, 2));
+        
         const { error: messageError } = await supabase
           .from('messages')
-          .insert({
-            conversation_id: conversationId,
-            content: messageContent,
-            direction: 'incoming',
-            from_phone: clientPhone,
-            to_phone: instanceData.phone,
-            message_type: 'text',
-            timestamp: new Date().toISOString(),
-          });
+          .insert(messageToInsert);
 
         if (messageError) {
           console.log('❌ Error inserting message:', messageError);
@@ -237,8 +288,11 @@ serve(async (req) => {
       }
     } else {
       console.log('ℹ️ Unhandled event type:', eventData.event);
+      console.log('ℹ️ Available events to handle: messages.upsert, MESSAGES_UPSERT, connection.update, CONNECTION_UPDATE');
     }
 
+    console.log('✅ Webhook processing completed successfully');
+    
     return new Response(JSON.stringify({ 
       success: true, 
       message: 'Webhook processed successfully'
@@ -248,6 +302,7 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('❌ Webhook error:', error);
+    console.error('❌ Error stack:', error.stack);
     
     return new Response(JSON.stringify({ 
       error: 'Internal server error', 
