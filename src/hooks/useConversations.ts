@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -23,7 +24,13 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
       
       let query = supabase
         .from('conversations')
-        .select('*')
+        .select(`
+          *,
+          instances (
+            instance_name,
+            phone
+          )
+        `)
         .order('last_message_at', { ascending: false });
 
       if (selectedSector !== 'all') {
@@ -87,21 +94,6 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
         throw new Error('Instância não encontrada');
       }
 
-      // Insert message in database
-      const { data: messageData, error: messageError } = await supabase
-        .from('messages')
-        .insert({
-          conversation_id: conversationId,
-          from_phone: instance.phone,
-          to_phone: conversation.client_phone,
-          content,
-          direction: 'outgoing',
-        })
-        .select()
-        .single();
-
-      if (messageError) throw messageError;
-
       // Update conversation status to in_progress if it's new
       if (conversation.status === 'new') {
         const { error: updateError } = await supabase
@@ -123,19 +115,13 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
         console.log('Message sent successfully via Evolution API');
       } catch (evolutionError) {
         console.error('Error sending message via Evolution API:', evolutionError);
-        // Don't throw here to avoid breaking the flow if Evolution API fails
-        // The message is already saved in the database
-        toast({
-          title: "Aviso",
-          description: "Mensagem salva no banco, mas houve erro ao enviar via WhatsApp",
-          variant: "destructive",
-        });
+        throw new Error('Erro ao enviar mensagem via WhatsApp');
       }
 
-      return messageData;
+      return { success: true };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['messages'] });
+      queryClient.invalidateQueries({ queryKey: ['evolution-messages'] });
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
       
       toast({

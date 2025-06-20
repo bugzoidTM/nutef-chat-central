@@ -67,3 +67,35 @@ export interface SendTextMessageResponse {
     conversation: string;
   };
 }
+
+// New types for fetching messages directly from Evolution
+export interface EvolutionMessage {
+  key: {
+    id: string;
+    fromMe: boolean;
+    remoteJid: string;
+  };
+  message: {
+    conversation?: string;
+    extendedTextMessage?: {
+      text: string;
+    };
+  };
+  messageTimestamp: number;
+  pushName?: string;
+}
+
+export interface FetchMessagesResponse {
+  messages: EvolutionMessage[];
+}
+
+export interface FetchMessagesRequest {
+  where?: {
+    key?: {
+      fromMe?: boolean;
+      remoteJid?: string;
+    };
+  };
+  limit?: number;
+  page?: number;
+}
