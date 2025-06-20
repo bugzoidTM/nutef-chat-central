@@ -23,34 +23,10 @@ export const useEvolutionMutations = (instanceName: string, refetchChats: () => 
           response = await evolutionApi.createInstance(instanceName, options);
           console.log('Evolution API instance creation response:', response);
           
-          // Wait a bit for instance to be ready, then setup webhook
-          setTimeout(async () => {
-            try {
-              console.log('Setting up webhook for instance:', instanceName);
-              await evolutionApi.setupWebhookAutomatically(instanceName);
-              console.log('Webhook configured successfully');
-            } catch (webhookError) {
-              console.error('Failed to configure webhook:', webhookError);
-              toast({
-                title: "Aviso",
-                description: "Instância criada, mas houve erro ao configurar webhook. Tente reconectar.",
-                variant: "destructive",
-              });
-            }
-          }, 3000); // Wait 3 seconds for instance to be ready
-          
         } else {
           console.log('Instance already exists, getting connection state...');
-          // If instance exists, just get connection state and ensure webhook is set
+          // If instance exists, just get connection state
           const connectionState = await evolutionApi.getConnectionState(instanceName);
-          
-          // Try to setup webhook anyway
-          try {
-            await evolutionApi.setupWebhookAutomatically(instanceName);
-            console.log('Webhook verified/updated successfully');
-          } catch (webhookError) {
-            console.warn('Could not verify webhook, but continuing:', webhookError);
-          }
           
           response = {
             instance: {
@@ -58,6 +34,20 @@ export const useEvolutionMutations = (instanceName: string, refetchChats: () => 
               status: connectionState.instance.state
             }
           };
+        }
+
+        // Always setup webhook (whether new or existing instance)
+        console.log('Setting up webhook for instance:', instanceName);
+        try {
+          await evolutionApi.setupWebhookAutomatically(instanceName);
+          console.log('Webhook configured successfully');
+        } catch (webhookError) {
+          console.error('Failed to configure webhook:', webhookError);
+          toast({
+            title: "Aviso",
+            description: "Instância criada, mas houve erro ao configurar webhook.",
+            variant: "destructive",
+          });
         }
         
         return response;

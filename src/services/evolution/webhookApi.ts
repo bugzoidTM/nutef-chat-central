@@ -12,8 +12,7 @@ export const setWebhook = async (
   const events = webhookEvents || [
     'MESSAGES_UPSERT',
     'MESSAGES_UPDATE',
-    'CONNECTION_UPDATE',
-    'SEND_MESSAGE'
+    'CONNECTION_UPDATE'
   ];
   
   return makeRequest(`/webhook/set/${instanceName}`, {
@@ -43,16 +42,10 @@ export const setupWebhookAutomatically = async (instanceName: string): Promise<a
   console.log('Setting up webhook automatically for instance:', instanceName);
   
   try {
-    // First try to get existing webhook
-    const existingWebhook = await getWebhook(instanceName);
-    console.log('Existing webhook:', existingWebhook);
-    
-    // Set or update webhook
+    // Set webhook
     const result = await setWebhook(instanceName, webhookUrl, [
       'MESSAGES_UPSERT',
-      'MESSAGES_UPDATE', 
-      'CONNECTION_UPDATE',
-      'SEND_MESSAGE'
+      'CONNECTION_UPDATE'
     ]);
     
     console.log('Webhook setup result:', result);

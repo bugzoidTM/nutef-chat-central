@@ -9,7 +9,10 @@ export const useMessages = (selectedConversation: string | null) => {
   const { data: messages = [], isLoading: messagesLoading, error: messagesError } = useQuery({
     queryKey: ['messages', selectedConversation],
     queryFn: async () => {
-      if (!selectedConversation) return [];
+      if (!selectedConversation) {
+        console.log('🔍 useMessages - No conversation selected');
+        return [];
+      }
       
       console.log('🔍 useMessages - Fetching messages from Supabase for conversation:', selectedConversation);
       
@@ -25,10 +28,11 @@ export const useMessages = (selectedConversation: string | null) => {
       }
 
       console.log('📝 useMessages - Supabase returned:', data?.length || 0, 'messages');
+      console.log('📝 useMessages - Raw messages data:', data);
       return data || [];
     },
     enabled: !!selectedConversation,
-    refetchInterval: 3000, // Refresh every 3 seconds
+    refetchInterval: 2000, // Refresh every 2 seconds
     retry: (failureCount, error: any) => {
       console.log(`🔄 useMessages - Retry attempt ${failureCount}:`, error?.message);
       return failureCount < 2;
@@ -67,6 +71,13 @@ export const useMessages = (selectedConversation: string | null) => {
   if (messagesError) {
     console.error('❌ useMessages - Messages error:', messagesError);
   }
+
+  console.log('📊 useMessages - Current state:', {
+    selectedConversation,
+    messagesCount: messages.length,
+    messagesLoading,
+    hasError: !!messagesError
+  });
 
   return {
     messages,

@@ -20,7 +20,7 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
   const { data: conversations = [], isLoading: conversationsLoading, error: conversationsError } = useQuery({
     queryKey: ['conversations', selectedSector, selectedStatus],
     queryFn: async () => {
-      console.log('📊 useConversations - Fetching conversations...');
+      console.log('📊 useConversations - Fetching conversations from Supabase...');
       
       let query = supabase
         .from('conversations')
@@ -45,9 +45,10 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
 
       const { data, error } = await query;
       
-      console.log('📊 useConversations - Query result:', { 
+      console.log('📊 useConversations - Supabase query result:', { 
         data: data ? `${data.length} conversations` : 'null', 
-        error: error?.message || 'none' 
+        error: error?.message || 'none',
+        rawData: data
       });
       
       if (error) {
@@ -57,7 +58,7 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
       
       return data || [];
     },
-    refetchInterval: 5000, // Refresh every 5 seconds
+    refetchInterval: 3000, // Refresh every 3 seconds
     retry: (failureCount, error: any) => {
       console.log(`🔄 useConversations - Retry attempt ${failureCount}:`, error?.message);
       return failureCount < 2;
@@ -76,12 +77,20 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
   };
 
   console.log('📈 useConversations - Conversation counts:', conversationCounts);
+  console.log('📋 useConversations - All conversations:', conversations);
 
   // Send message mutation
   const sendMessageMutation = useMutation({
     mutationFn: async ({ conversationId, content }: { conversationId: string; content: string }) => {
+      console.log('📤 Sending message for conversation:', conversationId, 'content:', content);
+      
       const conversation = conversations.find(c => c.id === conversationId);
-      if (!conversation) throw new Error('Conversa não encontrada');
+      if (!conversation) {
+        console.error('❌ Conversation not found:', conversationId);
+        throw new Error('Conversa não encontrada');
+      }
+
+      console.log('📞 Found conversation:', conversation);
 
       // Get instance information for this conversation
       const { data: instance, error: instanceError } = await supabase
@@ -91,11 +100,15 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
         .single();
 
       if (instanceError || !instance) {
+        console.error('❌ Instance not found:', instanceError);
         throw new Error('Instância não encontrada');
       }
 
+      console.log('🏢 Found instance:', instance);
+
       // Update conversation status to in_progress if it's new
       if (conversation.status === 'new') {
+        console.log('🔄 Updating conversation status to in_progress');
         const { error: updateError } = await supabase
           .from('conversations')
           .update({ 
@@ -105,12 +118,20 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
           })
           .eq('id', conversationId);
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error('❌ Error updating conversation:', updateError);
+          throw updateError;
+        }
       }
 
       // Send message via Evolution API
       try {
-        console.log('📤 Sending message via Evolution API:', { instanceName: instance.instance_name, number: conversation.client_phone, text: content });
+        console.log('📤 Sending message via Evolution API:', { 
+          instanceName: instance.instance_name, 
+          number: conversation.client_phone, 
+          text: content 
+        });
+        
         await evolutionApi.sendTextMessage(instance.instance_name, conversation.client_phone, content);
         console.log('✅ Message sent successfully via Evolution API');
 
@@ -141,6 +162,7 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
       return { success: true };
     },
     onSuccess: () => {
+      console.log('✅ Message sent successfully, invalidating queries');
       queryClient.invalidateQueries({ queryKey: ['messages'] });
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
       
