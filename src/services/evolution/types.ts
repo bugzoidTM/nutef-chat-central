@@ -37,6 +37,32 @@ export interface QRCodeResponse {
   code: string;
 }
 
+// Tipos para buscar instâncias
+export interface InstanceInfo {
+  instanceName: string;
+  status: string;
+  profilePictureUrl?: string;
+  profileName?: string;
+  phoneNumber?: string;
+  connectionState?: string;
+}
+
+export interface FetchInstancesResponse {
+  instances: InstanceInfo[];
+}
+
+// Tipos para informações de conexão
+export interface ConnectionInfo {
+  instance: {
+    instanceName: string;
+    owner: string;
+    profilePictureUrl: string;
+    profileName: string;
+    phoneNumber: string;
+    state: string;
+  };
+}
+
 export interface Chat {
   id: string;
   name?: string;
@@ -45,6 +71,11 @@ export interface Chat {
     content: string;
     timestamp: number;
   };
+  // Informações específicas da Evolution
+  remoteJid?: string;
+  profilePictureUrl?: string;
+  isGroup?: boolean;
+  participant?: string;
 }
 
 export interface FindChatsResponse {
@@ -67,7 +98,7 @@ export interface SendTextMessageResponse {
   };
 }
 
-// Novos tipos para buscar mensagens da Evolution API
+// Tipos para buscar mensagens da Evolution API
 export interface FindMessagesRequest {
   where: {
     key: {
@@ -128,7 +159,22 @@ export interface FindMessagesResponse {
   messages: EvolutionMessage[];
 }
 
-// Tipo unificado para mensagens compatível com o frontend
+// Tipo para conversas baseadas na Evolution API
+export interface EvolutionConversation {
+  id: string; // remoteJid
+  client_name: string | null;
+  client_phone: string;
+  sector: string;
+  status: string;
+  last_message_at: string;
+  instance_name: string;
+  instance_phone: string;
+  unread_count?: number;
+  profile_picture_url?: string;
+  is_group?: boolean;
+}
+
+// Tipo unificado para mensagens
 export interface UnifiedMessage {
   id: string;
   content: string;
@@ -139,5 +185,5 @@ export interface UnifiedMessage {
   message_type: 'text' | 'image' | 'video' | 'audio' | 'document' | 'sticker' | 'location' | 'contact';
   media_url?: string;
   caption?: string;
-  source: 'supabase' | 'evolution';
+  source: 'evolution';
 }

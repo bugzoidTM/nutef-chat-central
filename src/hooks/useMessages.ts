@@ -1,99 +1,56 @@
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { findMessages, convertEvolutionMessageToUnified } from '@/services/evolution/messageApi';
+import { useEvolutionInstances } from '@/hooks/useEvolutionInstances';
 import type { UnifiedMessage } from '@/services/evolution/types';
 
-type MessageSource = 'supabase' | 'evolution';
-
-interface UseMessagesOptions {
-  source?: MessageSource;
-  instanceName?: string;
-  instancePhone?: string;
-}
-
-export const useMessages = (
-  selectedConversation: string | null, 
-  options: UseMessagesOptions = {}
-) => {
-  const { 
-    source = 'supabase', 
-    instanceName = 'default',
-    instancePhone = ''
-  } = options;
+export const useMessages = (selectedConversation: string | null) => {
+  const { defaultInstance, hasConnectedInstances } = useEvolutionInstances();
   
   const { data: messages = [], isLoading: messagesLoading, error: messagesError } = useQuery({
-    queryKey: ['messages', selectedConversation, source, instanceName],
+    queryKey: ['evolution-messages', selectedConversation, defaultInstance?.instanceName],
     queryFn: async (): Promise<UnifiedMessage[]> => {
-      if (!selectedConversation) return [];
+      if (!selectedConversation || !defaultInstance || !hasConnectedInstances) {
+        console.log('⚠️ useMessages - Missing requirements:', { 
+          selectedConversation: !!selectedConversation,
+          defaultInstance: !!defaultInstance,
+          hasConnectedInstances
+        });
+        return [];
+      }
       
-      console.log('🔍 useMessages - Fetching messages for conversation:', selectedConversation, 'source:', source);
+      console.log('🔍 useMessages - Fetching messages for conversation:', selectedConversation);
+      console.log('📡 useMessages - Using instance:', defaultInstance.instanceName, defaultInstance.phoneNumber);
       
-      if (source === 'evolution') {
-        if (!instanceName) {
-          console.error('❌ useMessages - Instance name is required for Evolution API');
-          throw new Error('Nome da instância é obrigatório para buscar mensagens da Evolution API');
-        }
-
-        try {
-          // Para Evolution API, selectedConversation deve ser o remoteJid (número@s.whatsapp.net)
-          const remoteJid = selectedConversation.includes('@') 
-            ? selectedConversation 
-            : `${selectedConversation}@s.whatsapp.net`;
-
-          console.log('📡 useMessages - Fetching from Evolution API:', { instanceName, remoteJid });
-          
-          const evolutionResponse = await findMessages(instanceName, remoteJid, 50, 0);
-          
-          console.log('📝 useMessages - Evolution API response:', { 
-            messagesCount: evolutionResponse.messages?.length || 0
-          });
-
-          // Converter mensagens da Evolution para formato unificado
-          const unifiedMessages = evolutionResponse.messages?.map(msg => 
-            convertEvolutionMessageToUnified(msg, instancePhone)
-          ) || [];
-
-          // Ordenar por timestamp (mais antigo primeiro)
-          unifiedMessages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-
-          return unifiedMessages;
-        } catch (error) {
-          console.error('❌ useMessages - Evolution API error:', error);
-          throw error;
-        }
-      } else {
-        // Buscar do Supabase (comportamento original)
-        const { data, error } = await supabase
-          .from('messages')
-          .select('*')
-          .eq('conversation_id', selectedConversation)
-          .order('timestamp', { ascending: true });
-
-        console.log('📝 useMessages - Supabase query result:', { 
-          data: data ? `${data.length} messages` : 'null', 
-          error: error?.message || 'none' 
+      try {
+        // Buscar mensagens da Evolution API
+        const evolutionResponse = await findMessages(
+          defaultInstance.instanceName, 
+          selectedConversation, 
+          50, 
+          0
+        );
+        
+        console.log('📝 useMessages - Evolution API response:', { 
+          messagesCount: evolutionResponse.messages?.length || 0
         });
 
-        if (error) throw error;
-        
-        // Converter mensagens do Supabase para formato unificado
-        const unifiedMessages: UnifiedMessage[] = (data || []).map(msg => ({
-          id: msg.id,
-          content: msg.content,
-          direction: msg.direction,
-          timestamp: msg.timestamp,
-          from_phone: msg.from_phone,
-          to_phone: msg.to_phone,
-          message_type: msg.message_type || 'text',
-          media_url: msg.media_url,
-          caption: msg.caption,
-          source: 'supabase'
-        }));
+        // Converter mensagens da Evolution para formato unificado
+        const unifiedMessages = evolutionResponse.messages?.map(msg => 
+          convertEvolutionMessageToUnified(msg, defaultInstance.phoneNumber || '')
+        ) || [];
 
+        // Ordenar por timestamp (mais antigo primeiro)
+        unifiedMessages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+        console.log('✅ useMessages - Messages processed:', unifiedMessages.length);
         return unifiedMessages;
+      } catch (error) {
+        console.error('❌ useMessages - Evolution API error:', error);
+        throw error;
       }
     },
-    enabled: !!selectedConversation,
+    enabled: !!selectedConversation && hasConnectedInstances && !!defaultInstance,
+    refetchInterval: 15000, // Atualizar a cada 15 segundos
     retry: (failureCount, error: any) => {
       console.log(`🔄 useMessages - Retry attempt ${failureCount}:`, error?.message);
       return failureCount < 2;
@@ -109,23 +66,7 @@ export const useMessages = (
     messages,
     messagesLoading,
     messagesError,
+    defaultInstance,
+    hasConnectedInstances,
   };
-};
-
-// Hook específico para buscar do Supabase (compatibilidade)
-export const useSupabaseMessages = (selectedConversation: string | null) => {
-  return useMessages(selectedConversation, { source: 'supabase' });
-};
-
-// Hook específico para buscar da Evolution API
-export const useEvolutionMessages = (
-  selectedConversation: string | null,
-  instanceName: string,
-  instancePhone: string
-) => {
-  return useMessages(selectedConversation, { 
-    source: 'evolution', 
-    instanceName,
-    instancePhone 
-  });
 };

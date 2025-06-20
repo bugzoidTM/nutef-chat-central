@@ -2,28 +2,29 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Send, Phone, MoreVertical, Database, Zap } from 'lucide-react';
+import { Send, Phone, MoreVertical, Database, Zap, AlertTriangle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import type { UnifiedMessage } from '@/services/evolution/types';
-
-interface Conversation {
-  id: string;
-  client_name: string | null;
-  client_phone: string;
-  sector: string;
-  status: string;
-}
+import type { EvolutionConversation } from '@/services/evolution/types';
 
 interface ChatAreaProps {
-  conversation: Conversation | null;
+  conversation: EvolutionConversation | null;
   messages: UnifiedMessage[];
   onSendMessage: (message: string) => void;
   isLoading?: boolean;
+  messagesError?: Error | null;
 }
 
-const ChatArea = ({ conversation, messages, onSendMessage, isLoading = false }: ChatAreaProps) => {
+const ChatArea = ({ 
+  conversation, 
+  messages, 
+  onSendMessage, 
+  isLoading = false, 
+  messagesError = null 
+}: ChatAreaProps) => {
   const [messageText, setMessageText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -101,7 +102,7 @@ const ChatArea = ({ conversation, messages, onSendMessage, isLoading = false }: 
             Bem-vindo ao NutefTalk
           </h3>
           <p className="text-gray-500">
-            Selecione uma conversa para começar o atendimento
+            Selecione uma conversa para começar o atendimento via Evolution API
           </p>
         </div>
       </div>
@@ -120,9 +121,16 @@ const ChatArea = ({ conversation, messages, onSendMessage, isLoading = false }: 
               </AvatarFallback>
             </Avatar>
             <div>
-              <h2 className="text-lg font-semibold text-gray-900">
-                {conversation.client_name || 'Cliente'}
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-semibold text-gray-900">
+                  {conversation.client_name || 'Cliente'}
+                </h2>
+                {conversation.is_group && (
+                  <Badge variant="outline" className="text-xs">
+                    Grupo
+                  </Badge>
+                )}
+              </div>
               <div className="flex items-center space-x-2">
                 <span className="text-sm text-gray-500">{conversation.client_phone}</span>
                 <Badge 
@@ -131,6 +139,13 @@ const ChatArea = ({ conversation, messages, onSendMessage, isLoading = false }: 
                 >
                   {getSectorLabel(conversation.sector)}
                 </Badge>
+              </div>
+              {/* Informações da instância */}
+              <div className="flex items-center gap-2 mt-1">
+                <Zap className="h-3 w-3 text-green-500" />
+                <span className="text-xs text-gray-500">
+                  {conversation.instance_name} • {conversation.instance_phone}
+                </span>
               </div>
             </div>
           </div>
@@ -142,12 +157,27 @@ const ChatArea = ({ conversation, messages, onSendMessage, isLoading = false }: 
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
+        {/* Error message */}
+        {messagesError && (
+          <Alert className="mb-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>
+              Erro ao carregar mensagens: {messagesError.message}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {messages.length === 0 ? (
           <div className="text-center py-8">
             {isLoading ? (
               <div className="flex items-center justify-center gap-2">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500"></div>
-                <p className="text-gray-500">Carregando mensagens...</p>
+                <p className="text-gray-500">Carregando mensagens da Evolution API...</p>
+              </div>
+            ) : messagesError ? (
+              <div className="text-center">
+                <AlertTriangle className="mx-auto h-12 w-12 text-red-400 mb-4" />
+                <p className="text-gray-500">Não foi possível carregar as mensagens</p>
               </div>
             ) : (
               <p className="text-gray-500">Nenhuma mensagem ainda</p>
@@ -187,13 +217,9 @@ const ChatArea = ({ conversation, messages, onSendMessage, isLoading = false }: 
                     })}
                   </span>
                   
-                  {/* Indicador da fonte da mensagem */}
+                  {/* Indicador da fonte da mensagem (sempre Evolution agora) */}
                   <div className="ml-2 flex items-center gap-1">
-                    {message.source === 'evolution' ? (
-                      <Zap className="h-3 w-3" />
-                    ) : (
-                      <Database className="h-3 w-3" />
-                    )}
+                    <Zap className="h-3 w-3" title="Evolution API" />
                   </div>
                 </div>
               </div>
