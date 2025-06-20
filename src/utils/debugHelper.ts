@@ -2153,6 +2153,110 @@ export const debugHelper = {
     }
   },
 
+  // SOLUÇÃO FINAL: Reconfigurar webhook no Evolution
+  async fixEvolutionWebhookFinal() {
+    console.log('🔧 === RECONFIGURAÇÃO FINAL DO WEBHOOK ===');
+    console.log('🎯 Vamos forçar o Evolution a enviar eventos reais!');
+    
+    const { instances } = await this.checkInstances();
+    if (!instances || instances.length === 0) {
+      console.error('❌ No instances found');
+      return;
+    }
+
+    const instance = instances[0];
+    const instanceName = instance.instance_name;
+    
+    console.log('🔧 1. Removendo webhook atual...');
+    
+    try {
+      // Primeiro, remover webhook atual
+      const deleteResponse = await fetch(`https://evolution.nutef.com/webhook/set/${instanceName}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': '5be0fd0304550ebb6027dcce02ae4ab1'
+        }
+      });
+      
+      if (deleteResponse.ok) {
+        console.log('✅ Webhook removido');
+      } else {
+        console.log('ℹ️ Webhook não existia ou erro ao remover');
+      }
+      
+      console.log('⏰ Aguardando 2 segundos...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      console.log('🔧 2. Criando webhook novo...');
+      
+      // Criar webhook novo com configuração completa
+      const createResponse = await fetch(`https://evolution.nutef.com/webhook/set/${instanceName}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': '5be0fd0304550ebb6027dcce02ae4ab1'
+        },
+        body: JSON.stringify({
+          url: 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook',
+          enabled: true,
+          events: [
+            'MESSAGES_UPSERT',
+            'MESSAGES_UPDATE', 
+            'MESSAGES_DELETE',
+            'SEND_MESSAGE',
+            'CONNECTION_UPDATE',
+            'QRCODE_UPDATED'
+          ],
+          webhook_by_events: false,
+          webhook_base64: false
+        })
+      });
+      
+      if (createResponse.ok) {
+        const result = await createResponse.json();
+        console.log('✅ Webhook criado com sucesso:', result);
+        
+        console.log('🔧 3. Reiniciando instância...');
+        
+        // Reiniciar instância para aplicar mudanças
+        const restartResponse = await fetch(`https://evolution.nutef.com/instance/restart/${instanceName}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': '5be0fd0304550ebb6027dcce02ae4ab1'
+          }
+        });
+        
+        if (restartResponse.ok) {
+          console.log('✅ Instância reiniciada');
+          console.log('⏰ Aguarde 30 segundos para reconexão...');
+          
+          setTimeout(() => {
+            console.log('🎯 TESTE AGORA:');
+            console.log('📱 Envie uma mensagem REAL para (73) 99992-1633');
+            console.log('🔍 A mensagem deve aparecer no dashboard!');
+            console.log('');
+            console.log('🆘 Se ainda não funcionar:');
+            console.log('1. Verifique se o WhatsApp está online');
+            console.log('2. Escaneie o QR Code novamente');
+            console.log('3. Execute debugHelper.interceptWebhookTest()');
+          }, 30000);
+          
+        } else {
+          console.log('❌ Erro ao reiniciar instância');
+        }
+        
+      } else {
+        const errorText = await createResponse.text();
+        console.error('❌ Erro criando webhook:', createResponse.status, errorText);
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro na reconfiguração:', error);
+    }
+  },
+
   // TESTE FINAL: Interceptar webhook real
   async interceptWebhookTest() {
     console.log('🕵️ === INTERCEPTANDO WEBHOOK REAL ===');
