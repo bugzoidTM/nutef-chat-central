@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -14,21 +15,12 @@ serve(async (req) => {
 
   console.log('🚀 Evolution webhook received request:', req.method, req.url);
   console.log('📋 Request headers:', Object.fromEntries(req.headers.entries()));
-  console.log('🔍 User-Agent:', req.headers.get('user-agent'));
-  console.log('🔍 Content-Type:', req.headers.get('content-type'));
 
   try {
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
-    console.log('🔧 Environment check:', {
-      hasSupabaseUrl: !!supabaseUrl,
-      hasSupabaseKey: !!supabaseKey,
-      supabaseUrlLength: supabaseUrl?.length || 0,
-      supabaseKeyLength: supabaseKey?.length || 0
-    });
-
     if (!supabaseUrl || !supabaseKey) {
       console.error('❌ Missing required environment variables');
       return new Response(
@@ -52,50 +44,17 @@ serve(async (req) => {
       );
     }
 
-    // Verificar se é uma chamada válida (do Evolution API ou teste autorizado)
-    const isFromEvolution = req.headers.get('user-agent')?.includes('Evolution') || 
-                           req.headers.get('user-agent')?.includes('WhatsApp') ||
-                           body?.instance || body?.instanceName;
-    
-    const hasValidAuth = req.headers.get('authorization');
-    
-    if (!isFromEvolution && !hasValidAuth) {
-      console.log('❌ Unauthorized request - not from Evolution API and no valid auth');
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized - webhook expects calls from Evolution API' }), 
-        { status: 401, headers: corsHeaders }
-      );
-    }
-
-    console.log('✅ Request authorized:', { isFromEvolution, hasValidAuth: !!hasValidAuth });
-
-    // Handle different webhook formats from Evolution API
+    // Normalize webhook data structure
     let events = [];
     
-    // Check if it's a single event with 'event' property
     if (body.event) {
       events = [body];
-      console.log('📌 Single event detected');
-    }
-    // Check if it's an array of events
-    else if (Array.isArray(body)) {
+    } else if (Array.isArray(body)) {
       events = body;
-      console.log('📌 Array of events detected');
-    }
-    // Check if it's wrapped in a 'data' property
-    else if (body.data) {
-      if (Array.isArray(body.data)) {
-        events = body.data;
-        console.log('📌 Events in data array detected');
-      } else {
-        events = [body.data];
-        console.log('📌 Single event in data property detected');
-      }
-    }
-    // Fallback: treat entire body as single event
-    else {
+    } else if (body.data) {
+      events = Array.isArray(body.data) ? body.data : [body.data];
+    } else {
       events = [body];
-      console.log('📌 Treating entire body as single event');
     }
 
     console.log('📋 Processing events:', events.length);
@@ -105,16 +64,14 @@ serve(async (req) => {
       console.log('🔄 Processing event:', JSON.stringify(eventData, null, 2));
       
       const { event, instance, instanceName, data } = eventData;
-      
-      // Use instanceName or instance for finding the instance
       const instanceKey = instanceName || instance;
       
       if (!instanceKey) {
-        console.log('❌ No instance key found in event data, available keys:', Object.keys(eventData));
+        console.log('❌ No instance key found in event data');
         continue;
       }
 
-      // Find the instance in our database using the instance name
+      // Find the instance in our database
       console.log('🔍 Looking for instance with name:', instanceKey);
       
       const { data: instanceData, error: instanceError } = await supabase
@@ -125,68 +82,25 @@ serve(async (req) => {
 
       if (instanceError) {
         console.log('❌ Error finding instance:', instanceError);
-        console.log('⚠️ Skipping event for unknown instance:', instanceKey);
-        
-        // Log available instances for debugging
-        const { data: allInstances, error: listError } = await supabase
-          .from('instances')
-          .select('instance_name, phone')
-          .limit(10);
-          
-        if (!listError && allInstances) {
-          console.log('📝 Available instances in database:', allInstances.map(i => i.instance_name));
-        }
-        
         continue;
       }
 
-      console.log('✅ Instance found:', { 
-        id: instanceData.id, 
-        name: instanceData.instance_name, 
-        phone: instanceData.phone 
-      });
+      console.log('✅ Instance found:', instanceData.instance_name);
 
-      // Handle different event types - normalizar para minúsculo para comparação
+      // Handle message events
       const eventLower = event?.toLowerCase() || '';
-      console.log('🔍 Event received:', event, '-> normalized:', eventLower);
       
-      if (eventLower === 'messages.upsert' || eventLower === 'messages_upsert' || 
-          eventLower === 'messages.set' || eventLower === 'messages_set') {
+      if (eventLower.includes('message')) {
         console.log('📩 Processing message event:', event);
         
-        // Handle both single message and array of messages
         let messages = [];
-        
-        console.log('🔍 Debugging data structure:', {
-          hasData: !!data,
-          hasDataMessages: !!data?.messages,
-          hasDataKey: !!data?.key,
-          hasDataMessage: !!data?.message,
-          dataKeys: data ? Object.keys(data) : [],
-          keyType: typeof data?.key,
-          messageType: typeof data?.message
-        });
         
         if (data?.messages) {
           messages = Array.isArray(data.messages) ? data.messages : [data.messages];
-          console.log('📨 PATH 1: Using data.messages array');
         } else if (data?.key && data?.message) {
-          // Evolution API sends data with key and message properties
           messages = [data];
-          console.log('📨 PATH 2: Using complete data object (has key and message)');
-          console.log('🔍 Selected data structure:', {
-            hasKey: !!data.key,
-            hasMessage: !!data.message,
-            remoteJid: data.key?.remoteJid,
-            pushName: data.pushName
-          });
-        } else if (data?.key || data?.message) {
-          // Se temos key ou message, usar o data completo
+        } else if (data) {
           messages = [data];
-          console.log('📨 PATH 3: Using complete data object (fallback)');
-          console.log('🔍 Data keys available:', Object.keys(data || {}));
-        } else {
-          console.log('❌ PATH 4: No valid message structure found in data:', Object.keys(data || {}));
         }
 
         console.log('📝 Found messages to process:', messages.length);
@@ -194,23 +108,8 @@ serve(async (req) => {
         for (const message of messages) {
           console.log('💬 Processing message:', JSON.stringify(message, null, 2));
           
-          // Debug detalhado da estrutura da mensagem
-          console.log('🔍 Message keys:', Object.keys(message));
-          console.log('🔍 message.key:', message.key ? JSON.stringify(message.key, null, 2) : 'undefined');
-          console.log('🔍 message.message:', message.message ? JSON.stringify(message.message, null, 2) : 'undefined');
-          
-          // Corrigir a verificação - os dados podem estar na raiz do data ou dentro de message
           const isFromMe = message.key?.fromMe || false;
           const remoteJid = message.key?.remoteJid || '';
-          
-          console.log('🔍 Debug message structure:', {
-            hasKey: !!message.key,
-            remoteJid: remoteJid,
-            isFromMe: isFromMe,
-            hasMessage: !!message.message,
-            messageKeys: message.message ? Object.keys(message.message) : [],
-            pushName: message.pushName
-          });
           
           // Skip messages sent by us
           if (isFromMe) {
@@ -220,12 +119,10 @@ serve(async (req) => {
 
           if (!remoteJid) {
             console.log('⏭️ Skipping message without remoteJid');
-            console.log('🔍 Available message properties:', Object.keys(message));
-            console.log('🔍 Full message structure:', JSON.stringify(message, null, 2));
             continue;
           }
 
-          // Get message content from different possible locations
+          // Extract message content
           let messageContent = '';
           if (message.message?.conversation) {
             messageContent = message.message.conversation;
@@ -235,11 +132,11 @@ serve(async (req) => {
             messageContent = message.message.imageMessage.caption || '[Imagem]';
           } else if (message.message?.videoMessage?.caption) {
             messageContent = message.message.videoMessage.caption || '[Vídeo]';
-          } else if (message.message?.documentMessage?.title) {
-            messageContent = `[Documento: ${message.message.documentMessage.title}]`;
           } else if (message.message?.audioMessage) {
             messageContent = '[Áudio]';
-          } else if (message.pushName && !messageContent) {
+          } else if (message.message?.documentMessage?.title) {
+            messageContent = `[Documento: ${message.message.documentMessage.title}]`;
+          } else {
             messageContent = '[Mensagem sem texto]';
           }
 
@@ -247,7 +144,6 @@ serve(async (req) => {
 
           if (!messageContent) {
             console.log('❌ Skipping message without content');
-            console.log('🔍 Message structure for content extraction:', JSON.stringify(message.message, null, 2));
             continue;
           }
 
@@ -328,7 +224,7 @@ serve(async (req) => {
 
           console.log('✅ Message inserted successfully');
         }
-      } else if (eventLower === 'connection.update' || eventLower === 'connection_update') {
+      } else if (eventLower.includes('connection')) {
         console.log('🔄 Connection update:', data);
         
         // Update instance status based on connection state
@@ -343,9 +239,6 @@ serve(async (req) => {
             
           console.log('✅ Instance status updated to:', status);
         }
-      } else if (eventLower === 'send.message' || eventLower === 'send_message') {
-        console.log('📤 Message sent event:', data);
-        // Could be used to update message status to 'sent'
       } else {
         console.log('ℹ️ Unhandled event type:', event);
       }

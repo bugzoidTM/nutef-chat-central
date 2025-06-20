@@ -57,13 +57,13 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
       
       return data || [];
     },
+    refetchInterval: 5000, // Refresh every 5 seconds
     retry: (failureCount, error: any) => {
       console.log(`🔄 useConversations - Retry attempt ${failureCount}:`, error?.message);
       return failureCount < 2;
     },
   });
 
-  // Log conversations error if exists
   if (conversationsError) {
     console.error('❌ useConversations - Conversations error:', conversationsError);
   }
@@ -108,20 +108,40 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
         if (updateError) throw updateError;
       }
 
-      // Send message via Evolution API using sendTextMessage function
+      // Send message via Evolution API
       try {
-        console.log('Sending message via Evolution API with configured environment variables');
+        console.log('📤 Sending message via Evolution API:', { instanceName: instance.instance_name, number: conversation.client_phone, text: content });
         await evolutionApi.sendTextMessage(instance.instance_name, conversation.client_phone, content);
-        console.log('Message sent successfully via Evolution API');
+        console.log('✅ Message sent successfully via Evolution API');
+
+        // Insert the outgoing message into Supabase
+        const { error: messageError } = await supabase
+          .from('messages')
+          .insert({
+            conversation_id: conversationId,
+            content: content,
+            direction: 'outgoing',
+            from_phone: instance.phone,
+            to_phone: conversation.client_phone,
+            message_type: 'text',
+            timestamp: new Date().toISOString(),
+          });
+
+        if (messageError) {
+          console.error('❌ Error inserting outgoing message:', messageError);
+        } else {
+          console.log('✅ Outgoing message inserted into Supabase');
+        }
+
       } catch (evolutionError) {
-        console.error('Error sending message via Evolution API:', evolutionError);
+        console.error('❌ Error sending message via Evolution API:', evolutionError);
         throw new Error('Erro ao enviar mensagem via WhatsApp');
       }
 
       return { success: true };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['evolution-messages'] });
+      queryClient.invalidateQueries({ queryKey: ['messages'] });
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
       
       toast({
@@ -130,6 +150,7 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
       });
     },
     onError: (error: any) => {
+      console.error('❌ Error in sendMessageMutation:', error);
       toast({
         title: "Erro ao enviar mensagem",
         description: error.message,

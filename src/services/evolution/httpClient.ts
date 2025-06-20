@@ -1,40 +1,51 @@
 
-import { EVOLUTION_CONFIG } from '@/config/evolution';
+import { EVOLUTION_API_CONFIG } from '@/config/evolution';
 
 export const makeRequest = async <T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> => {
-  const url = `${EVOLUTION_CONFIG.baseUrl}${endpoint}`;
+  const url = `${EVOLUTION_API_CONFIG.BASE_URL}${endpoint}`;
   
-  console.log('Evolution API Request:', {
+  console.log('🌐 Making Evolution API request:', {
     url,
     method: options.method || 'GET',
-    hasApiKey: !!EVOLUTION_CONFIG.apiKey,
-    endpoint
+    headers: options.headers
   });
-  
+
   const response = await fetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      'apikey': EVOLUTION_CONFIG.apiKey,
+      'apikey': EVOLUTION_API_CONFIG.API_KEY,
       ...options.headers,
     },
   });
 
+  console.log('📡 Evolution API response:', {
+    status: response.status,
+    statusText: response.statusText,
+    url: response.url
+  });
+
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Evolution API Error:', {
+    console.error('❌ Evolution API Error:', {
       status: response.status,
       statusText: response.statusText,
       errorText,
-      url
+      url: response.url
     });
-    throw new Error(`Evolution API Error: ${response.status} - ${errorText}`);
+    
+    throw new Error(`Evolution API Error: ${JSON.stringify({
+      status: response.status,
+      statusText: response.statusText,
+      errorText,
+      url: response.url
+    })}`);
   }
 
   const data = await response.json();
-  console.log('Evolution API Response:', data);
+  console.log('✅ Evolution API success:', data);
   return data;
 };

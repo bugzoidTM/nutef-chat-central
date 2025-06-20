@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useConversations } from '@/hooks/useConversations';
-import { useEvolutionMessages } from '@/hooks/useEvolutionMessages';
+import { useMessages } from '@/hooks/useMessages';
 import { useRealtimeSubscriptions } from '@/hooks/useRealtimeSubscriptions';
 import Sidebar from './Sidebar';
 import ConversationList from './ConversationList';
@@ -19,7 +19,7 @@ const Dashboard = () => {
 
   // Custom hooks
   const { conversations, conversationCounts, sendMessageMutation } = useConversations(selectedSector, selectedStatus);
-  const { messages } = useEvolutionMessages(selectedConversation); // Changed to use Evolution API directly
+  const { messages } = useMessages(selectedConversation); // Back to using Supabase messages
   useRealtimeSubscriptions();
 
   const handleSendMessage = (content: string) => {
