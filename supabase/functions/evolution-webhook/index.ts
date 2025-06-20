@@ -69,12 +69,18 @@ serve(async (req) => {
         data: body.data
       };
       console.log('📦 Using wrapped data structure');
+      console.log('🔧 eventData created:', JSON.stringify(eventData, null, 2));
+      console.log('🔧 messageData created:', JSON.stringify(messageData, null, 2));
     } else {
       console.log('📦 Using direct structure (no data wrapper)');
     }
 
-    console.log('🔄 Processing event data:', JSON.stringify(eventData, null, 2));
-    console.log('🔄 Message data:', JSON.stringify(messageData, null, 2));
+    console.log('🔄 Final eventData:', JSON.stringify(eventData, null, 2));
+    console.log('🔄 Final messageData:', JSON.stringify(messageData, null, 2));
+    
+    // Debug the specific event value
+    console.log('🔍 eventData.event value:', eventData.event);
+    console.log('🔍 eventData.instance value:', eventData.instance);
 
     // Handle message events
     if (eventData.event === 'messages.upsert' || eventData.event === 'MESSAGES_UPSERT') {

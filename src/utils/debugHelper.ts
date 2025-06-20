@@ -896,20 +896,70 @@ export const debugHelper = {
         console.log('\n🔍 Verificando se a conversa foi criada...');
         await this.checkConversations();
         
-        console.log('\n🎯 CONCLUSÃO:');
-        console.log('Se ainda não criou conversa, o problema é no processamento interno do webhook');
-        console.log('Precisamos verificar os logs detalhados do Supabase');
-        console.log('📋 Logs: https://supabase.com/dashboard/project/ojfdzfgcysxoxzszhbzr/functions/evolution-webhook/logs');
+        console.log('\n🎯 CONCLUSÃO BASEADA NOS LOGS:');
+        console.log('❌ Nos logs vemos: "ℹ️ Unhandled event type: undefined"');
+        console.log('💡 Isso significa que eventData.event está undefined');
+        console.log('🔧 O webhook está perdendo o event e instance no processamento');
         
-        console.log('\n💡 POSSÍVEIS CAUSAS:');
-        console.log('1. Erro ao buscar a instância no banco');
-        console.log('2. Erro ao extrair dados da mensagem');
-        console.log('3. Erro ao inserir no banco (RLS ou permissões)');
-        console.log('4. Erro silencioso que não é retornado na resposta');
+        console.log('\n📋 Logs do webhook: https://supabase.com/dashboard/project/ojfdzfgcysxoxzszhbzr/functions/evolution-webhook/logs');
+        console.log('\n🔍 PROCURE POR ESTES LOGS:');
+        console.log('- "🔧 eventData created:" (deve mostrar event e instance)');
+        console.log('- "🔄 Final eventData:" (deve mostrar event e instance)');
+        console.log('- "🔍 eventData.event value:" (deve mostrar "messages.upsert")');
+        console.log('- "ℹ️ Unhandled event type:" (se undefined, confirmamos o problema)');
+        
+        console.log('\n🎯 PRÓXIMO PASSO:');
+        console.log('Execute este teste e verifique os logs para confirmar onde está o problema');
       }, 3000);
       
     } catch (error) {
       console.error('❌ Erro no teste com data:', error);
+    }
+  },
+
+  // Teste simplificado para debug
+  async testSimpleDataPayload() {
+    console.log('🧪 === TESTE SIMPLIFICADO COM DATA ===');
+    
+    const webhookUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
+    const payload = {
+      "event": "messages.upsert",
+      "instance": "whatsapp_73999921633",
+      "data": {
+        "key": {
+          "remoteJid": "5511777777777@s.whatsapp.net",
+          "fromMe": false,
+          "id": "SIMPLE_TEST_" + Date.now()
+        },
+        "message": {
+          "conversation": "Teste simples com data - " + new Date().toLocaleString('pt-BR')
+        },
+        "pushName": "Debug Test"
+      }
+    };
+    
+    console.log('📋 Payload enviado:', JSON.stringify(payload, null, 2));
+    
+    try {
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qZmR6ZmdjeXN4b3h6c3poYnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAyOTc2MDcsImV4cCI6MjA2NTg3MzYwN30.Y3BEkfR24jKAdARwBc8UE-4b2_uwy7B2Sd3RYDsaTQ4'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      const result = await response.json();
+      console.log('📊 Resultado:', result);
+      
+      console.log('\n🔍 VERIFIQUE OS LOGS EM:');
+      console.log('https://supabase.com/dashboard/project/ojfdzfgcysxoxzszhbzr/functions/evolution-webhook/logs');
+      
+      setTimeout(() => this.checkConversations(), 3000);
+      
+    } catch (error) {
+      console.error('❌ Erro:', error);
     }
   }
 };
