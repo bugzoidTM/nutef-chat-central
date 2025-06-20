@@ -1,12 +1,113 @@
-
 import { makeRequest } from './httpClient';
-import type { FindChatsResponse, SendTextMessageRequest, SendTextMessageResponse } from './types';
+import type { 
+  FindChatsResponse, 
+  SendTextMessageRequest, 
+  SendTextMessageResponse,
+  FindMessagesRequest,
+  FindMessagesResponse,
+  EvolutionMessage,
+  UnifiedMessage
+} from './types';
 
 // Find chats - GET /chat/findChats/{instanceName}
 export const findChats = async (instanceName: string): Promise<FindChatsResponse> => {
   console.log('Finding chats for instance:', instanceName);
   
   return makeRequest<FindChatsResponse>(`/chat/findChats/${instanceName}`);
+};
+
+// Find messages - POST /chat/findMessages/{instanceName}
+export const findMessages = async (
+  instanceName: string,
+  remoteJid: string,
+  limit = 50,
+  offset = 0
+): Promise<FindMessagesResponse> => {
+  console.log('Finding messages for instance:', instanceName, 'remoteJid:', remoteJid);
+  
+  const requestBody: FindMessagesRequest = {
+    where: {
+      key: {
+        remoteJid
+      }
+    },
+    limit,
+    offset
+  };
+
+  return makeRequest<FindMessagesResponse>(`/chat/findMessages/${instanceName}`, {
+    method: 'POST',
+    body: JSON.stringify(requestBody),
+  });
+};
+
+// Função helper para converter mensagens da Evolution para formato unificado
+export const convertEvolutionMessageToUnified = (
+  evolutionMessage: EvolutionMessage,
+  instancePhone: string
+): UnifiedMessage => {
+  // Extrair conteúdo da mensagem
+  let content = '';
+  let messageType: UnifiedMessage['message_type'] = 'text';
+  let mediaUrl: string | undefined;
+  let caption: string | undefined;
+
+  const { message } = evolutionMessage;
+
+  if (message.conversation) {
+    content = message.conversation;
+    messageType = 'text';
+  } else if (message.extendedTextMessage?.text) {
+    content = message.extendedTextMessage.text;
+    messageType = 'text';
+  } else if (message.imageMessage) {
+    content = message.imageMessage.caption || 'Imagem';
+    messageType = 'image';
+    mediaUrl = message.imageMessage.url;
+    caption = message.imageMessage.caption;
+  } else if (message.videoMessage) {
+    content = message.videoMessage.caption || 'Vídeo';
+    messageType = 'video';
+    mediaUrl = message.videoMessage.url;
+    caption = message.videoMessage.caption;
+  } else if (message.audioMessage) {
+    content = 'Áudio';
+    messageType = 'audio';
+    mediaUrl = message.audioMessage.url;
+  } else if (message.documentMessage) {
+    content = message.documentMessage.title || message.documentMessage.fileName || 'Documento';
+    messageType = 'document';
+    mediaUrl = message.documentMessage.url;
+  } else if (message.stickerMessage) {
+    content = 'Sticker';
+    messageType = 'sticker';
+    mediaUrl = message.stickerMessage.url;
+  } else if (message.locationMessage) {
+    content = `Localização: ${message.locationMessage.name || message.locationMessage.address || 'Localização compartilhada'}`;
+    messageType = 'location';
+  } else if (message.contactMessage) {
+    content = `Contato: ${message.contactMessage.displayName}`;
+    messageType = 'contact';
+  }
+
+  // Determinar direção da mensagem
+  const direction: 'incoming' | 'outgoing' = evolutionMessage.key.fromMe ? 'outgoing' : 'incoming';
+
+  // Extrair número do telefone do remoteJid
+  const phoneNumber = evolutionMessage.key.remoteJid.split('@')[0];
+
+  return {
+    id: evolutionMessage.key.id,
+    content,
+    direction,
+    timestamp: new Date(parseInt(evolutionMessage.messageTimestamp) * 1000).toISOString(),
+    from_phone: direction === 'outgoing' ? instancePhone : phoneNumber,
+    to_phone: direction === 'outgoing' ? phoneNumber : instancePhone,
+    message_type: messageType,
+    media_url: mediaUrl,
+    caption,
+    source: 'evolution'
+  };
 };
 
 // Send text message - POST /message/sendText/{instanceName}

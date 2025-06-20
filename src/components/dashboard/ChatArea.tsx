@@ -1,21 +1,12 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Send, Phone, MoreVertical } from 'lucide-react';
+import { Send, Phone, MoreVertical, Database, Zap } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
-
-interface Message {
-  id: string;
-  content: string;
-  direction: 'incoming' | 'outgoing';
-  timestamp: string;
-  from_phone: string;
-  to_phone: string;
-}
+import type { UnifiedMessage } from '@/services/evolution/types';
 
 interface Conversation {
   id: string;
@@ -27,7 +18,7 @@ interface Conversation {
 
 interface ChatAreaProps {
   conversation: Conversation | null;
-  messages: Message[];
+  messages: UnifiedMessage[];
   onSendMessage: (message: string) => void;
   isLoading?: boolean;
 }
@@ -75,6 +66,27 @@ const ChatArea = ({ conversation, messages, onSendMessage, isLoading = false }: 
         return 'Vendas';
       default:
         return sector;
+    }
+  };
+
+  const getMessageTypeLabel = (messageType: UnifiedMessage['message_type']) => {
+    switch (messageType) {
+      case 'image':
+        return '📷 Imagem';
+      case 'video':
+        return '🎥 Vídeo';
+      case 'audio':
+        return '🎵 Áudio';
+      case 'document':
+        return '📄 Documento';
+      case 'sticker':
+        return '😊 Sticker';
+      case 'location':
+        return '📍 Localização';
+      case 'contact':
+        return '👤 Contato';
+      default:
+        return null;
     }
   };
 
@@ -132,7 +144,14 @@ const ChatArea = ({ conversation, messages, onSendMessage, isLoading = false }: 
       <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
         {messages.length === 0 ? (
           <div className="text-center py-8">
-            <p className="text-gray-500">Nenhuma mensagem ainda</p>
+            {isLoading ? (
+              <div className="flex items-center justify-center gap-2">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500"></div>
+                <p className="text-gray-500">Carregando mensagens...</p>
+              </div>
+            ) : (
+              <p className="text-gray-500">Nenhuma mensagem ainda</p>
+            )}
           </div>
         ) : (
           messages.map((message) => (
@@ -147,17 +166,36 @@ const ChatArea = ({ conversation, messages, onSendMessage, isLoading = false }: 
                     : 'bg-white text-gray-900 border border-gray-200'
                 }`}
               >
+                {/* Indicador do tipo de mensagem */}
+                {message.message_type !== 'text' && (
+                  <p className={`text-xs mb-1 ${
+                    message.direction === 'outgoing' ? 'text-green-100' : 'text-gray-600'
+                  }`}>
+                    {getMessageTypeLabel(message.message_type)}
+                  </p>
+                )}
+                
                 <p className="text-sm">{message.content}</p>
-                <p
-                  className={`text-xs mt-1 ${
-                    message.direction === 'outgoing' ? 'text-green-100' : 'text-gray-500'
-                  }`}
-                >
-                  {formatDistanceToNow(new Date(message.timestamp), {
-                    addSuffix: true,
-                    locale: ptBR,
-                  })}
-                </p>
+                
+                <div className={`flex items-center justify-between mt-1 text-xs ${
+                  message.direction === 'outgoing' ? 'text-green-100' : 'text-gray-500'
+                }`}>
+                  <span>
+                    {formatDistanceToNow(new Date(message.timestamp), {
+                      addSuffix: true,
+                      locale: ptBR,
+                    })}
+                  </span>
+                  
+                  {/* Indicador da fonte da mensagem */}
+                  <div className="ml-2 flex items-center gap-1">
+                    {message.source === 'evolution' ? (
+                      <Zap className="h-3 w-3" />
+                    ) : (
+                      <Database className="h-3 w-3" />
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           ))

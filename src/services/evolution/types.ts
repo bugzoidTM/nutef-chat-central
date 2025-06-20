@@ -1,4 +1,3 @@
-
 // Types for Evolution API
 export interface CreateInstanceRequest {
   instanceName: string;
@@ -66,4 +65,79 @@ export interface SendTextMessageResponse {
   message: {
     conversation: string;
   };
+}
+
+// Novos tipos para buscar mensagens da Evolution API
+export interface FindMessagesRequest {
+  where: {
+    key: {
+      remoteJid: string;
+    };
+  };
+  limit?: number;
+  offset?: number;
+}
+
+export interface EvolutionMessage {
+  key: {
+    remoteJid: string;
+    fromMe: boolean;
+    id: string;
+  };
+  message: {
+    conversation?: string;
+    extendedTextMessage?: {
+      text: string;
+    };
+    imageMessage?: {
+      caption?: string;
+      url?: string;
+    };
+    videoMessage?: {
+      caption?: string;
+      url?: string;
+    };
+    audioMessage?: {
+      url?: string;
+    };
+    documentMessage?: {
+      title?: string;
+      fileName?: string;
+      url?: string;
+    };
+    stickerMessage?: {
+      url?: string;
+    };
+    locationMessage?: {
+      degreesLatitude: number;
+      degreesLongitude: number;
+      name?: string;
+      address?: string;
+    };
+    contactMessage?: {
+      displayName: string;
+      vcard: string;
+    };
+  };
+  messageTimestamp: string;
+  pushName?: string;
+  status?: string;
+}
+
+export interface FindMessagesResponse {
+  messages: EvolutionMessage[];
+}
+
+// Tipo unificado para mensagens compatível com o frontend
+export interface UnifiedMessage {
+  id: string;
+  content: string;
+  direction: 'incoming' | 'outgoing';
+  timestamp: string;
+  from_phone: string;
+  to_phone: string;
+  message_type: 'text' | 'image' | 'video' | 'audio' | 'document' | 'sticker' | 'location' | 'contact';
+  media_url?: string;
+  caption?: string;
+  source: 'supabase' | 'evolution';
 }
