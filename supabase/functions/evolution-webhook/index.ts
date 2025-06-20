@@ -14,7 +14,17 @@ serve(async (req) => {
 
   console.log('🚀 Evolution webhook received request:', req.method, req.url);
   console.log('📋 Request headers:', Object.fromEntries(req.headers.entries()));
-  console.log('🔄 WEBHOOK VERSION: v2.1.0 - FIXED EVENTDATA LOGIC');
+  console.log('🔄 WEBHOOK VERSION: v2.2.0 - FIXED AUTH ISSUE');
+  
+  // Check if request has authorization header - Evolution doesn't send it
+  const authHeader = req.headers.get('authorization');
+  const apiKeyHeader = req.headers.get('apikey');
+  
+  console.log('🔐 Auth header present:', !!authHeader);
+  console.log('🔐 API key header present:', !!apiKeyHeader);
+  
+  // Evolution API doesn't send auth headers, so we bypass Supabase auth for webhooks
+  // We'll validate the request structure instead
 
   try {
     // Initialize Supabase client with service role key

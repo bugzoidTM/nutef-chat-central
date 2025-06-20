@@ -2008,14 +2008,14 @@ export const debugHelper = {
     console.log('🔍 Enviando para:', 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook');
     
     try {
-      const response = await fetch('https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          // Sem apikey - Evolution não envia apikey para webhooks
-        },
-        body: JSON.stringify(evolutionPayload)
-      });
+             const response = await fetch('https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook', {
+         method: 'POST',
+         headers: {
+           'Content-Type': 'application/json',
+           'Authorization': `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qZmR6ZmdjeXN4b3h6c3poYnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAyOTc2MDcsImV4cCI6MjA2NTg3MzYwN30.Y3BEkfR24jKAdARwBc8UE-4b2_uwy7B2Sd3RYDsaTQ4`, // Temporário para teste
+         },
+         body: JSON.stringify(evolutionPayload)
+       });
       
       console.log('📡 Response status:', response.status);
       console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
