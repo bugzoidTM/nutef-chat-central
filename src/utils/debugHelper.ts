@@ -961,6 +961,65 @@ export const debugHelper = {
     } catch (error) {
       console.error('❌ Erro:', error);
     }
+  },
+
+  // Teste final para confirmar correção
+  async testWebhookFix() {
+    console.log('🔧 === TESTE FINAL PARA CONFIRMAR CORREÇÃO ===');
+    
+    const webhookUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
+    const payload = {
+      "event": "messages.upsert",
+      "instance": "whatsapp_73999921633",
+      "data": {
+        "key": {
+          "remoteJid": "5511666666666@s.whatsapp.net",
+          "fromMe": false,
+          "id": "FIX_TEST_" + Date.now()
+        },
+        "message": {
+          "conversation": "TESTE CORREÇÃO DO WEBHOOK - " + new Date().toLocaleString('pt-BR')
+        },
+        "pushName": "Fix Test"
+      }
+    };
+    
+    console.log('📋 Payload de teste:', JSON.stringify(payload, null, 2));
+    
+    try {
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qZmR6ZmdjeXN4b3h6c3poYnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAyOTc2MDcsImV4cCI6MjA2NTg3MzYwN30.Y3BEkfR24jKAdARwBc8UE-4b2_uwy7B2Sd3RYDsaTQ4'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      const result = await response.json();
+      console.log('📊 Resultado:', result);
+      
+      console.log('\n🔍 VERIFIQUE OS LOGS PARA CONFIRMAR:');
+      console.log('https://supabase.com/dashboard/project/ojfdzfgcysxoxzszhbzr/functions/evolution-webhook/logs');
+      
+      console.log('\n📋 PROCURE POR:');
+      console.log('✅ "🔧 Verification - eventData.event: messages.upsert"');
+      console.log('✅ "🔧 Verification - eventData.instance: whatsapp_73999921633"');
+      console.log('✅ "📩 Processing message event" (deve aparecer!)');
+      console.log('❌ NÃO deve mais aparecer "ℹ️ Unhandled event type: undefined"');
+      
+      setTimeout(async () => {
+        console.log('\n🔍 Verificando se a conversa foi criada...');
+        await this.checkConversations();
+        
+        console.log('\n🎯 RESULTADO ESPERADO:');
+        console.log('✅ Se apareceu conversa nova = PROBLEMA CORRIGIDO!');
+        console.log('❌ Se não apareceu = ainda há problema nos logs');
+      }, 3000);
+      
+    } catch (error) {
+      console.error('❌ Erro:', error);
+    }
   }
 };
 

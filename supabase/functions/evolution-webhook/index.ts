@@ -54,25 +54,31 @@ serve(async (req) => {
     console.log('🔍 Has body.data?', !!body.data);
     console.log('🔍 Has body.event?', !!body.event);
     console.log('🔍 Has body.instance?', !!body.instance);
+    console.log('🔍 body.event value:', body.event);
+    console.log('🔍 body.instance value:', body.instance);
 
     // Extract event data - Evolution sends different formats
-    let eventData = body;
-    let messageData = body;
+    let eventData;
+    let messageData;
     
     if (body.data) {
       // Evolution API sends: { event: "...", instance: "...", data: {...} }
       // We need to preserve the event and instance from the root level
+      console.log('📦 Using wrapped data structure');
       messageData = body.data;
       eventData = {
         event: body.event,
         instance: body.instance,
         data: body.data
       };
-      console.log('📦 Using wrapped data structure');
       console.log('🔧 eventData created:', JSON.stringify(eventData, null, 2));
       console.log('🔧 messageData created:', JSON.stringify(messageData, null, 2));
+      console.log('🔧 Verification - eventData.event:', eventData.event);
+      console.log('🔧 Verification - eventData.instance:', eventData.instance);
     } else {
       console.log('📦 Using direct structure (no data wrapper)');
+      eventData = body;
+      messageData = body;
     }
 
     console.log('🔄 Final eventData:', JSON.stringify(eventData, null, 2));
