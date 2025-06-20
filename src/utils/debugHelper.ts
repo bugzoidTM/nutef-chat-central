@@ -1080,6 +1080,182 @@ export const debugHelper = {
     } catch (error) {
       console.error('❌ Erro:', error);
     }
+  },
+
+  // Diagnóstico completo do dashboard
+  async debugDashboardIssues() {
+    console.log('🔍 === DIAGNÓSTICO COMPLETO DO DASHBOARD ===');
+    
+    // 1. Verificar autenticação e perfil
+    const { user } = await this.checkAuth();
+    const { profile } = await this.checkProfile();
+    
+    if (!user || !profile) {
+      console.error('❌ Usuário não autenticado ou sem perfil');
+      return;
+    }
+    
+    console.log('✅ Usuário autenticado:', { id: user.id, email: user.email });
+    console.log('✅ Perfil encontrado:', { id: profile.id, role: profile.role });
+    
+    // 2. Testar query de conversas diretamente
+    console.log('\n🔍 TESTANDO QUERY DE CONVERSAS...');
+    try {
+      const { data: conversations, error: convError } = await supabase
+        .from('conversations')
+        .select(`
+          *,
+          instances (
+            instance_name,
+            phone
+          )
+        `)
+        .order('last_message_at', { ascending: false });
+        
+      if (convError) {
+        console.error('❌ Erro na query de conversas:', convError);
+      } else {
+        console.log('✅ Conversas encontradas:', conversations?.length || 0);
+        console.log('📋 Conversas:', conversations);
+      }
+    } catch (error) {
+      console.error('❌ Erro na query de conversas:', error);
+    }
+    
+    // 3. Testar query específica da conversa de teste
+    console.log('\n🔍 PROCURANDO CONVERSA DE TESTE...');
+    try {
+      const { data: testConv, error: testError } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('client_phone', '5511555555555')
+        .maybeSingle();
+        
+      if (testError) {
+        console.error('❌ Erro buscando conversa de teste:', testError);
+      } else if (testConv) {
+        console.log('✅ Conversa de teste encontrada:', testConv);
+        
+        // 4. Testar mensagens desta conversa
+        const { data: testMessages, error: msgError } = await supabase
+          .from('messages')
+          .select('*')
+          .eq('conversation_id', testConv.id)
+          .order('timestamp', { ascending: true });
+          
+        if (msgError) {
+          console.error('❌ Erro buscando mensagens de teste:', msgError);
+        } else {
+          console.log('✅ Mensagens de teste encontradas:', testMessages?.length || 0);
+          console.log('📝 Mensagens:', testMessages);
+        }
+      } else {
+        console.log('❌ Conversa de teste não encontrada');
+      }
+    } catch (error) {
+      console.error('❌ Erro buscando conversa de teste:', error);
+    }
+    
+    // 5. Verificar setores do usuário (se for atendente)
+    if (profile.role === 'attendant') {
+      console.log('\n🔍 VERIFICANDO SETORES DO ATENDENTE...');
+      try {
+        const { data: sectors, error: sectorError } = await supabase
+          .from('attendant_sectors')
+          .select('sector')
+          .eq('attendant_id', profile.id);
+          
+        if (sectorError) {
+          console.error('❌ Erro buscando setores:', sectorError);
+        } else {
+          console.log('✅ Setores do atendente:', sectors);
+        }
+      } catch (error) {
+        console.error('❌ Erro buscando setores:', error);
+      }
+    }
+    
+    // 6. Testar real-time subscription
+    console.log('\n🔍 TESTANDO REAL-TIME SUBSCRIPTION...');
+    const channel = supabase
+      .channel('test-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'conversations',
+        },
+        (payload) => {
+          console.log('📨 Real-time update recebido:', payload);
+        }
+      )
+      .subscribe((status) => {
+        console.log('📡 Status da subscrição:', status);
+      });
+      
+    // Aguardar um pouco e depois limpar
+    setTimeout(() => {
+      supabase.removeChannel(channel);
+      console.log('🔄 Canal real-time removido');
+    }, 5000);
+    
+    console.log('\n✅ Diagnóstico completo!');
+    console.log('\n🎯 PRÓXIMOS PASSOS:');
+    console.log('1. Se não viu conversas: problema de RLS - execute o SQL de correção');
+    console.log('2. Se viu conversas mas não no dashboard: problema de cache/real-time');
+    console.log('3. Se real-time não conectou: problema de configuração do Supabase');
+  },
+
+  // Forçar atualização do cache do dashboard
+  async forceRefreshDashboard() {
+    console.log('🔄 === FORÇANDO ATUALIZAÇÃO DO DASHBOARD ===');
+    
+    // Simulação de como o React Query funciona
+    console.log('🔄 Invalidando queries do React Query...');
+    
+    // Se você tiver acesso ao queryClient globalmente
+    if (window.queryClient) {
+      window.queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      window.queryClient.invalidateQueries({ queryKey: ['messages'] });
+      console.log('✅ Queries invalidadas via queryClient global');
+    } else {
+      console.log('❌ queryClient global não encontrado');
+    }
+    
+    // Tentar forçar uma re-renderização
+    console.log('🔄 Para forçar atualização manual:');
+    console.log('1. Troque de aba no dashboard e volte');
+    console.log('2. Recarregue a página');
+    console.log('3. Faça logout e login novamente');
+    
+    // Teste uma inserção direta para ver se dispara o real-time
+    console.log('\n🧪 TESTANDO INSERÇÃO DIRETA PARA DISPARAR REAL-TIME...');
+    try {
+      const testConvId = crypto.randomUUID();
+      const { error } = await supabase.from('conversations').insert({
+        id: testConvId,
+        instance_id: 'a573ea33-9d0c-4081-add8-7fe47ff1b118', // ID da instância existente
+        client_phone: '5511777777777',
+        client_name: 'Teste Real-time',
+        sector: 'support',
+        status: 'new'
+      });
+      
+      if (error) {
+        console.error('❌ Erro inserindo conversa de teste:', error);
+      } else {
+        console.log('✅ Conversa de teste inserida para disparar real-time');
+        
+        // Remover após 10 segundos
+        setTimeout(async () => {
+          await supabase.from('conversations').delete().eq('id', testConvId);
+          console.log('🗑️ Conversa de teste removida');
+        }, 10000);
+      }
+    } catch (error) {
+      console.error('❌ Erro no teste de real-time:', error);
+    }
   }
 };
 
