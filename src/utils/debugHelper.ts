@@ -1678,6 +1678,190 @@ export const debugHelper = {
     }
   },
 
+  // TESTE BRUTAL: Simular webhook real diretamente
+  async bruteForceWebhookTest() {
+    console.log('💥 === TESTE BRUTAL: SIMULANDO WEBHOOK REAL ===');
+    console.log('🔥 Vamos forçar uma mensagem a aparecer no dashboard!');
+    
+    const { instances } = await this.checkInstances();
+    if (!instances || instances.length === 0) {
+      console.error('❌ No instances found');
+      return;
+    }
+
+    const instance = instances[0];
+    const testPhone = '5511987654321';
+    const testMessage = `💥 MENSAGEM FORÇADA - ${new Date().toLocaleString('pt-BR')}`;
+    
+    console.log('🔥 1. Criando/atualizando conversa diretamente...');
+    
+    // Forçar criação de conversa
+    const { data: conversation, error: convError } = await supabase
+      .from('conversations')
+      .upsert({
+        client_phone: testPhone,
+        client_name: 'TESTE BRUTAL',
+        instance_id: instance.id,
+        sector: 'support',
+        status: 'new',
+        last_message_at: new Date().toISOString(),
+      }, {
+        onConflict: 'client_phone,instance_id'
+      })
+      .select()
+      .single();
+      
+    if (convError) {
+      console.error('❌ Erro criando conversa:', convError);
+      return;
+    }
+    
+    console.log('✅ Conversa criada/atualizada:', conversation.id);
+    
+    console.log('🔥 2. Inserindo mensagem diretamente...');
+    
+    // Forçar inserção de mensagem
+    const { data: message, error: msgError } = await supabase
+      .from('messages')
+      .insert({
+        conversation_id: conversation.id,
+        content: testMessage,
+        direction: 'incoming',
+        from_phone: testPhone,
+        to_phone: instance.phone,
+        message_type: 'text',
+        timestamp: new Date().toISOString(),
+      })
+      .select()
+      .single();
+      
+    if (msgError) {
+      console.error('❌ Erro inserindo mensagem:', msgError);
+      return;
+    }
+    
+    console.log('✅ Mensagem inserida:', message.id);
+    
+    console.log('🔥 3. Forçando refresh do dashboard...');
+    
+    // Forçar refresh de todas as queries
+    if (window.queryClient) {
+      await window.queryClient.invalidateQueries();
+      console.log('✅ Queries invalidadas');
+    }
+    
+    // Forçar refresh dos hooks
+    window.dispatchEvent(new CustomEvent('forceRefresh'));
+    
+    console.log('🔥 4. Verificando se apareceu...');
+    
+    setTimeout(async () => {
+      const { data: checkMessages } = await supabase
+        .from('messages')
+        .select(`
+          *,
+          conversations!inner (
+            client_phone,
+            client_name
+          )
+        `)
+        .eq('id', message.id);
+        
+      if (checkMessages && checkMessages.length > 0) {
+        console.log('🎉 MENSAGEM CONFIRMADA NO BANCO:');
+        console.log(checkMessages[0]);
+        console.log('');
+        console.log('🔍 SE NÃO APARECEU NO DASHBOARD:');
+        console.log('1. O problema é no frontend (React/hooks)');
+        console.log('2. Ou nas políticas RLS');
+        console.log('3. Ou no real-time subscription');
+        console.log('');
+        console.log('🔧 Execute: debugHelper.debugDashboardIssues()');
+      }
+    }, 2000);
+  },
+
+  // TESTE FINAL: Interceptar webhook real
+  async interceptWebhookTest() {
+    console.log('🕵️ === INTERCEPTANDO WEBHOOK REAL ===');
+    console.log('📱 AGORA envie uma mensagem REAL para (73) 99992-1633');
+    console.log('⏰ Vou monitorar TUDO por 30 segundos...');
+    
+    const startTime = new Date();
+    let foundSomething = false;
+    
+    // Monitor 1: Mensagens no banco
+    const checkMessages = setInterval(async () => {
+      const { data: newMessages } = await supabase
+        .from('messages')
+        .select('*')
+        .gte('created_at', startTime.toISOString())
+        .order('created_at', { ascending: false });
+        
+      if (newMessages && newMessages.length > 0) {
+        console.log('🎯 NOVA MENSAGEM DETECTADA:', newMessages[0]);
+        foundSomething = true;
+      }
+    }, 1000);
+    
+    // Monitor 2: Conversas no banco
+    const checkConversations = setInterval(async () => {
+      const { data: newConversations } = await supabase
+        .from('conversations')
+        .select('*')
+        .gte('last_message_at', startTime.toISOString())
+        .order('last_message_at', { ascending: false });
+        
+      if (newConversations && newConversations.length > 0) {
+        console.log('🎯 NOVA CONVERSA DETECTADA:', newConversations[0]);
+        foundSomething = true;
+      }
+    }, 1000);
+    
+    // Monitor 3: Real-time events
+    const subscription = supabase
+      .channel('webhook-monitor')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages'
+      }, (payload) => {
+        console.log('🔴 REAL-TIME MESSAGE INSERT:', payload);
+        foundSomething = true;
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'conversations'
+      }, (payload) => {
+        console.log('🔴 REAL-TIME CONVERSATION UPDATE:', payload);
+        foundSomething = true;
+      })
+      .subscribe();
+    
+    setTimeout(() => {
+      clearInterval(checkMessages);
+      clearInterval(checkConversations);
+      subscription.unsubscribe();
+      
+      if (foundSomething) {
+        console.log('🎉 ALGO FOI DETECTADO! Verifique os logs acima.');
+      } else {
+        console.log('💀 NADA DETECTADO EM 30 SEGUNDOS!');
+        console.log('🔍 Possíveis problemas:');
+        console.log('1. Webhook não está sendo chamado');
+        console.log('2. Evolution API não está enviando eventos');
+        console.log('3. Mensagem não chegou no WhatsApp');
+        console.log('4. Instância desconectada');
+        console.log('');
+        console.log('🔧 Próximos passos:');
+        console.log('- Verifique se o WhatsApp está online');
+        console.log('- Execute debugHelper.checkEvolutionConfiguration()');
+        console.log('- Verifique logs do Supabase manualmente');
+      }
+    }, 30000);
+  },
+
   // Teste de stress: monitorar webhook intensivamente
   async intensiveWebhookMonitor() {
     console.log('🔄 === MONITOR INTENSIVO DO WEBHOOK ===');
