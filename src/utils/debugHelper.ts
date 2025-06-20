@@ -1808,6 +1808,166 @@ export const debugHelper = {
     }, 2000);
   },
 
+  // DIAGNÓSTICO FINAL: Verificar webhook do Evolution
+  async finalWebhookDiagnosis() {
+    console.log('🔬 === DIAGNÓSTICO FINAL DO WEBHOOK ===');
+    
+    const { instances } = await this.checkInstances();
+    if (!instances || instances.length === 0) {
+      console.error('❌ No instances found');
+      return;
+    }
+
+    const instance = instances[0];
+    const instanceName = instance.instance_name;
+    
+    console.log('🔍 1. Verificando configuração atual do webhook...');
+    
+    try {
+      // Buscar configuração atual
+      const webhookResponse = await fetch(`https://evolution.nutef.com/webhook/find/${instanceName}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': '5be0fd0304550ebb6027dcce02ae4ab1'
+        }
+      });
+      
+      if (webhookResponse.ok) {
+        const webhookConfig = await webhookResponse.json();
+        console.log('✅ Configuração atual do webhook:', webhookConfig);
+        
+        if (webhookConfig.enabled) {
+          console.log('✅ Webhook habilitado');
+          console.log('📡 URL:', webhookConfig.url);
+          console.log('📋 Eventos:', webhookConfig.events);
+          
+          // Verificar se MESSAGES_UPSERT está na lista
+          if (webhookConfig.events && webhookConfig.events.includes('MESSAGES_UPSERT')) {
+            console.log('✅ MESSAGES_UPSERT configurado');
+          } else {
+            console.log('❌ MESSAGES_UPSERT NÃO configurado!');
+            console.log('🔧 Eventos atuais:', webhookConfig.events);
+          }
+          
+          console.log('🔍 2. Testando conectividade do webhook...');
+          
+          // Testar se o webhook responde
+          try {
+            const testResponse = await fetch(webhookConfig.url, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                event: 'TEST_CONNECTIVITY',
+                instance: instanceName,
+                data: { test: true, timestamp: new Date().toISOString() }
+              })
+            });
+            
+            console.log('📡 Teste de conectividade:', testResponse.status);
+            if (testResponse.ok) {
+              console.log('✅ Webhook responde normalmente');
+            } else {
+              console.log('❌ Webhook não responde:', testResponse.statusText);
+            }
+          } catch (testError) {
+            console.error('❌ Erro testando webhook:', testError);
+          }
+          
+        } else {
+          console.log('❌ WEBHOOK DESABILITADO!');
+          console.log('🔧 Habilitando webhook...');
+          
+          // Tentar habilitar
+          const enableResponse = await fetch(`https://evolution.nutef.com/webhook/set/${instanceName}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': '5be0fd0304550ebb6027dcce02ae4ab1'
+            },
+            body: JSON.stringify({
+              url: 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook',
+              enabled: true,
+              events: [
+                'APPLICATION_STARTUP',
+                'QRCODE_UPDATED',
+                'MESSAGES_SET',
+                'MESSAGES_UPSERT',
+                'MESSAGES_UPDATE',
+                'MESSAGES_DELETE',
+                'SEND_MESSAGE',
+                'CONTACTS_SET',
+                'CONTACTS_UPSERT',
+                'CONTACTS_UPDATE',
+                'PRESENCE_UPDATE',
+                'CHATS_SET',
+                'CHATS_UPSERT',
+                'CHATS_UPDATE',
+                'CHATS_DELETE',
+                'GROUPS_UPSERT',
+                'GROUP_UPDATE',
+                'GROUP_PARTICIPANTS_UPDATE',
+                'CONNECTION_UPDATE',
+                'CALL',
+                'NEW_JWT_TOKEN',
+                'TYPEBOT_START',
+                'TYPEBOT_CHANGE_STATUS'
+              ]
+            })
+          });
+          
+          if (enableResponse.ok) {
+            console.log('✅ Webhook habilitado com sucesso!');
+            console.log('🔄 Teste enviar uma mensagem real agora...');
+          } else {
+            console.error('❌ Erro habilitando webhook:', enableResponse.status);
+          }
+        }
+        
+      } else {
+        console.error('❌ Erro buscando configuração do webhook:', webhookResponse.status);
+      }
+      
+      console.log('🔍 3. Verificando logs recentes do Evolution...');
+      
+      // Tentar buscar logs (se disponível)
+      const logsResponse = await fetch(`https://evolution.nutef.com/instance/logs/${instanceName}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': '5be0fd0304550ebb6027dcce02ae4ab1'
+        }
+      });
+      
+      if (logsResponse.ok) {
+        const logs = await logsResponse.json();
+        console.log('📋 Logs recentes:', logs);
+      } else {
+        console.log('ℹ️ Logs não disponíveis ou sem permissão');
+      }
+      
+    } catch (error) {
+      console.error('❌ Erro no diagnóstico:', error);
+    }
+    
+    console.log('');
+    console.log('🎯 RESUMO DO DIAGNÓSTICO:');
+    console.log('1. Se webhook está habilitado mas mensagens não chegam:');
+    console.log('   - Evolution pode não estar enviando eventos');
+    console.log('   - Instância pode estar com problema');
+    console.log('   - Filtros no Evolution podem estar bloqueando');
+    console.log('');
+    console.log('2. Se webhook estava desabilitado:');
+    console.log('   - Agora foi habilitado, teste novamente');
+    console.log('');
+    console.log('3. Próximos passos:');
+    console.log('   - Envie uma mensagem real para (73) 99992-1633');
+    console.log('   - Execute debugHelper.interceptWebhookTest()');
+    console.log('   - Verifique logs do Supabase manualmente');
+  },
+
   // TESTE FINAL: Interceptar webhook real
   async interceptWebhookTest() {
     console.log('🕵️ === INTERCEPTANDO WEBHOOK REAL ===');
