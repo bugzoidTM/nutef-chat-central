@@ -1020,6 +1020,66 @@ export const debugHelper = {
     } catch (error) {
       console.error('❌ Erro:', error);
     }
+  },
+
+  // Teste para confirmar nova versão do webhook
+  async testWebhookVersion() {
+    console.log('🔍 === TESTE DE VERSÃO DO WEBHOOK ===');
+    
+    const webhookUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
+    const payload = {
+      "event": "messages.upsert",
+      "instance": "whatsapp_73999921633",
+      "data": {
+        "key": {
+          "remoteJid": "5511555555555@s.whatsapp.net",
+          "fromMe": false,
+          "id": "VERSION_TEST_" + Date.now()
+        },
+        "message": {
+          "conversation": "Teste de versão - " + new Date().toLocaleString('pt-BR')
+        },
+        "pushName": "Version Test"
+      }
+    };
+    
+    console.log('📋 Testando nova versão do webhook...');
+    
+    try {
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qZmR6ZmdjeXN4b3h6c3poYnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAyOTc2MDcsImV4cCI6MjA2NTg3MzYwN30.Y3BEkfR24jKAdARwBc8UE-4b2_uwy7B2Sd3RYDsaTQ4'
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      const result = await response.json();
+      console.log('📊 Resultado:', result);
+      
+      console.log('\n🔍 VERIFIQUE OS LOGS PARA VER:');
+      console.log('https://supabase.com/dashboard/project/ojfdzfgcysxoxzszhbzr/functions/evolution-webhook/logs');
+      
+      console.log('\n📋 PROCURE POR:');
+      console.log('✅ "🔄 WEBHOOK VERSION: v2.1.0 - FIXED EVENTDATA LOGIC"');
+      console.log('✅ "🔍 body.event value: messages.upsert"');
+      console.log('✅ "🔧 eventData created:" com event e instance');
+      console.log('✅ "📩 Processing message event"');
+      console.log('❌ NÃO deve aparecer "ℹ️ Unhandled event type: undefined"');
+      
+      console.log('\n🎯 SE APARECER A MENSAGEM DE VERSÃO:');
+      console.log('✅ A nova versão está rodando - problema deve estar corrigido!');
+      console.log('❌ Se não aparecer - há problema de deploy');
+      
+      setTimeout(async () => {
+        console.log('\n🔍 Verificando conversas...');
+        await this.checkConversations();
+      }, 3000);
+      
+    } catch (error) {
+      console.error('❌ Erro:', error);
+    }
   }
 };
 

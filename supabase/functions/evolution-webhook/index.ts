@@ -14,6 +14,7 @@ serve(async (req) => {
 
   console.log('🚀 Evolution webhook received request:', req.method, req.url);
   console.log('📋 Request headers:', Object.fromEntries(req.headers.entries()));
+  console.log('🔄 WEBHOOK VERSION: v2.1.0 - FIXED EVENTDATA LOGIC');
 
   try {
     // Initialize Supabase client with service role key
@@ -87,6 +88,11 @@ serve(async (req) => {
     // Debug the specific event value
     console.log('🔍 eventData.event value:', eventData.event);
     console.log('🔍 eventData.instance value:', eventData.instance);
+    
+    // FORCED DEBUG TO IDENTIFY THE ISSUE
+    console.log('🚨 DEBUGGING - typeof eventData:', typeof eventData);
+    console.log('🚨 DEBUGGING - eventData keys:', Object.keys(eventData || {}));
+    console.log('🚨 DEBUGGING - eventData === messageData?', eventData === messageData);
 
     // Handle message events
     if (eventData.event === 'messages.upsert' || eventData.event === 'MESSAGES_UPSERT') {
