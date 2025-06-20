@@ -51,8 +51,17 @@ serve(async (req) => {
 
     // Extract event data - Evolution sends different formats
     let eventData = body;
+    let messageData = body;
+    
     if (body.data) {
-      eventData = body.data;
+      // Evolution API sends: { event: "...", instance: "...", data: {...} }
+      // We need to preserve the event and instance from the root level
+      messageData = body.data;
+      eventData = {
+        event: body.event,
+        instance: body.instance,
+        data: body.data
+      };
     }
 
     console.log('🔄 Processing event data:', JSON.stringify(eventData, null, 2));
@@ -61,8 +70,8 @@ serve(async (req) => {
     if (eventData.event === 'messages.upsert' || eventData.event === 'MESSAGES_UPSERT') {
       console.log('📩 Processing message event');
       
-      const messageData = eventData.data || eventData;
-      const instanceName = eventData.instance || eventData.instanceName;
+      const messages = Array.isArray(messageData) ? messageData : [messageData];
+      const instanceName = eventData.instance || body.instance;
       
       if (!instanceName) {
         console.log('❌ No instance name found in event data');
@@ -90,7 +99,7 @@ serve(async (req) => {
       console.log('✅ Instance found:', instanceData.instance_name);
 
       // Process messages - handle both single and array formats
-      const messages = Array.isArray(messageData) ? messageData : [messageData];
+      // const messages = Array.isArray(messageData) ? messageData : [messageData];
       
       for (const message of messages) {
         console.log('💬 Processing message:', JSON.stringify(message, null, 2));
