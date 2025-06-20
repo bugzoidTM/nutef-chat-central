@@ -234,18 +234,40 @@ export const debugHelper = {
         console.log('✅ Configuração atual do webhook:', webhookData);
         
         const expectedUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
-        if (webhookData.webhook && webhookData.webhook.url === expectedUrl) {
+        
+        // A estrutura pode ser diferente - vamos verificar várias possibilidades
+        const currentUrl = webhookData.url || webhookData.webhook?.url;
+        const isEnabled = webhookData.enabled || webhookData.webhook?.enabled;
+        const events = webhookData.events || webhookData.webhook?.events || [];
+        
+        console.log('🔍 Dados extraídos:', {
+          url: currentUrl,
+          enabled: isEnabled,
+          eventsCount: events.length,
+          events: events
+        });
+        
+        if (currentUrl === expectedUrl) {
           console.log('✅ URL do webhook está correta');
         } else {
           console.error('❌ URL do webhook incorreta!');
-          console.log('URL atual:', webhookData.webhook?.url);
+          console.log('URL atual:', currentUrl);
           console.log('URL esperada:', expectedUrl);
         }
         
-        if (webhookData.webhook && webhookData.webhook.enabled) {
+        if (isEnabled) {
           console.log('✅ Webhook está habilitado');
         } else {
           console.error('❌ Webhook está desabilitado!');
+        }
+        
+        // Verificar se tem MESSAGES_UPSERT nos eventos
+        const hasMessagesUpsert = events.includes('MESSAGES_UPSERT');
+        if (hasMessagesUpsert) {
+          console.log('✅ MESSAGES_UPSERT está configurado');
+        } else {
+          console.error('❌ MESSAGES_UPSERT NÃO está configurado!');
+          console.log('Eventos atuais:', events);
         }
       } else {
         console.error('❌ Erro ao verificar webhook:', webhookResponse.status, webhookResponse.statusText);
