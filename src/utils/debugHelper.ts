@@ -1082,6 +1082,186 @@ export const debugHelper = {
     }
   },
 
+  // Verificar diferenças entre payloads de teste e reais
+  async debugWebhookPayloads() {
+    console.log('🔍 === ANÁLISE DE PAYLOADS DO WEBHOOK ===');
+    
+    // 1. Verificar logs recentes do webhook
+    console.log('📋 ÚLTIMOS LOGS DO WEBHOOK:');
+    console.log('Vá para: https://supabase.com/dashboard/project/ojfdzfgcysxoxzszhbzr/functions/evolution-webhook/logs');
+    console.log('Procure por mensagens reais (não de teste)');
+    
+    // 2. Verificar todas as conversas no banco
+    console.log('\n🔍 VERIFICANDO TODAS AS CONVERSAS...');
+    try {
+      const { data: allConversations, error } = await supabase
+        .from('conversations')
+        .select('*')
+        .order('created_at', { ascending: false });
+        
+      if (error) {
+        console.error('❌ Erro:', error);
+      } else {
+        console.log('✅ Total de conversas no banco:', allConversations?.length || 0);
+        allConversations?.forEach((conv, index) => {
+          console.log(`📞 Conversa ${index + 1}:`, {
+            id: conv.id,
+            client_phone: conv.client_phone,
+            client_name: conv.client_name,
+            status: conv.status,
+            created_at: conv.created_at,
+            last_message_at: conv.last_message_at
+          });
+        });
+      }
+    } catch (error) {
+      console.error('❌ Erro buscando conversas:', error);
+    }
+    
+    // 3. Verificar todas as mensagens
+    console.log('\n🔍 VERIFICANDO TODAS AS MENSAGENS...');
+    try {
+      const { data: allMessages, error } = await supabase
+        .from('messages')
+        .select(`
+          *,
+          conversations!inner (
+            client_phone,
+            client_name
+          )
+        `)
+        .order('created_at', { ascending: false })
+        .limit(20);
+        
+      if (error) {
+        console.error('❌ Erro:', error);
+      } else {
+        console.log('✅ Total de mensagens recentes:', allMessages?.length || 0);
+        allMessages?.forEach((msg, index) => {
+          console.log(`💬 Mensagem ${index + 1}:`, {
+            content: msg.content.substring(0, 50) + '...',
+            from_phone: msg.from_phone,
+            direction: msg.direction,
+            created_at: msg.created_at,
+            conversation_phone: msg.conversations?.client_phone
+          });
+        });
+      }
+    } catch (error) {
+      console.error('❌ Erro buscando mensagens:', error);
+    }
+    
+    console.log('\n🎯 PRÓXIMOS PASSOS:');
+    console.log('1. Verifique os logs do webhook para payloads reais');
+    console.log('2. Compare a estrutura dos payloads reais vs teste');
+    console.log('3. Envie uma mensagem real do WhatsApp agora');
+  },
+
+  // Teste com diferentes números para criar múltiplas conversas
+  async testMultipleConversations() {
+    console.log('🧪 === TESTE DE MÚLTIPLAS CONVERSAS ===');
+    
+    const webhookUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
+    const testNumbers = ['5511111111111', '5511222222222', '5511333333333'];
+    
+    for (let i = 0; i < testNumbers.length; i++) {
+      const payload = {
+        "event": "messages.upsert",
+        "instance": "whatsapp_73999921633",
+        "data": {
+          "key": {
+            "remoteJid": `${testNumbers[i]}@s.whatsapp.net`,
+            "fromMe": false,
+            "id": `MULTI_TEST_${i}_${Date.now()}`
+          },
+          "message": {
+            "conversation": `Mensagem de teste ${i + 1} - ${new Date().toLocaleString('pt-BR')}`
+          },
+          "pushName": `Teste ${i + 1}`
+        }
+      };
+      
+      console.log(`📤 Enviando teste ${i + 1} para ${testNumbers[i]}...`);
+      
+      try {
+        const response = await fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9qZmR6ZmdjeXN4b3h6c3poYnpyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTAyOTc2MDcsImV4cCI6MjA2NTg3MzYwN30.Y3BEkfR24jKAdARwBc8UE-4b2_uwy7B2Sd3RYDsaTQ4'
+          },
+          body: JSON.stringify(payload)
+        });
+        
+        const result = await response.json();
+        console.log(`✅ Teste ${i + 1} resultado:`, result);
+        
+        // Aguardar 1 segundo entre testes
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+      } catch (error) {
+        console.error(`❌ Erro no teste ${i + 1}:`, error);
+      }
+    }
+    
+    console.log('\n⏳ Aguardando 5 segundos para verificar resultados...');
+    setTimeout(async () => {
+      await this.debugWebhookPayloads();
+    }, 5000);
+  },
+
+  // Monitorar webhook em tempo real
+  async monitorWebhookRealTime() {
+    console.log('🔄 === MONITOR DE WEBHOOK EM TEMPO REAL ===');
+    console.log('📱 AGORA envie uma mensagem REAL do WhatsApp para o número (73) 99992-1633');
+    console.log('🕐 Aguardando 30 segundos para capturar...');
+    
+    // Marcar o tempo inicial
+    const startTime = new Date();
+    console.log('⏰ Iniciado em:', startTime.toLocaleString('pt-BR'));
+    
+    // Verificar mensagens novas a cada 3 segundos por 30 segundos
+    const checkInterval = setInterval(async () => {
+      try {
+        const { data: newMessages, error } = await supabase
+          .from('messages')
+          .select(`
+            *,
+            conversations!inner (
+              client_phone,
+              client_name
+            )
+          `)
+          .gte('created_at', startTime.toISOString())
+          .order('created_at', { ascending: false });
+          
+        if (!error && newMessages && newMessages.length > 0) {
+          console.log('🆕 NOVA MENSAGEM DETECTADA:');
+          newMessages.forEach(msg => {
+            console.log('💬', {
+              content: msg.content,
+              from_phone: msg.from_phone,
+              direction: msg.direction,
+              created_at: msg.created_at,
+              conversation_phone: msg.conversations?.client_phone,
+              is_real: !msg.content.includes('Teste') && !msg.content.includes('VERSION_TEST')
+            });
+          });
+        }
+      } catch (error) {
+        console.error('❌ Erro verificando mensagens:', error);
+      }
+    }, 3000);
+    
+    // Parar após 30 segundos
+    setTimeout(() => {
+      clearInterval(checkInterval);
+      console.log('⏹️ Monitoramento finalizado');
+      console.log('📋 Verifique também os logs do webhook:');
+      console.log('https://supabase.com/dashboard/project/ojfdzfgcysxoxzszhbzr/functions/evolution-webhook/logs');
+    }, 30000);
+  },
+
   // Diagnóstico completo do dashboard
   async debugDashboardIssues() {
     console.log('🔍 === DIAGNÓSTICO COMPLETO DO DASHBOARD ===');
