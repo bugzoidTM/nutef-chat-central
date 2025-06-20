@@ -180,6 +180,183 @@ export const debugHelper = {
     console.log('✅ Test data cleaned');
   },
 
+  // Verificar configuração completa do Evolution API
+  async checkEvolutionConfiguration() {
+    console.log('🔍 === VERIFICAÇÃO COMPLETA DO EVOLUTION API ===');
+    
+    const { instances } = await this.checkInstances();
+    if (!instances || instances.length === 0) {
+      console.error('❌ No instances found');
+      return;
+    }
+
+    const instance = instances[0];
+    const instanceName = instance.instance_name;
+    
+    console.log(`🔗 Verificando configuração para instância: ${instanceName}`);
+    console.log(`📞 Número da instância: ${instance.phone}`);
+    console.log(`📡 Status da instância: ${instance.status}`);
+    
+    // 1. Verificar status da instância
+    console.log('\n🔍 1. VERIFICANDO STATUS DA INSTÂNCIA...');
+    try {
+      const statusResponse = await fetch(`https://evolution.nutef.com/instance/connect/${instanceName}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': 'B6D711FCDE4D4FD5936544120E713976'
+        }
+      });
+      
+      if (statusResponse.ok) {
+        const statusData = await statusResponse.json();
+        console.log('✅ Status da instância:', statusData);
+      } else {
+        console.error('❌ Erro ao verificar status:', statusResponse.status, statusResponse.statusText);
+      }
+    } catch (error) {
+      console.error('❌ Erro na requisição de status:', error);
+    }
+    
+    // 2. Verificar configuração do webhook
+    console.log('\n🔍 2. VERIFICANDO CONFIGURAÇÃO DO WEBHOOK...');
+    try {
+      const webhookResponse = await fetch(`https://evolution.nutef.com/webhook/find/${instanceName}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': 'B6D711FCDE4D4FD5936544120E713976'
+        }
+      });
+      
+      if (webhookResponse.ok) {
+        const webhookData = await webhookResponse.json();
+        console.log('✅ Configuração atual do webhook:', webhookData);
+        
+        const expectedUrl = 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook';
+        if (webhookData.webhook && webhookData.webhook.url === expectedUrl) {
+          console.log('✅ URL do webhook está correta');
+        } else {
+          console.error('❌ URL do webhook incorreta!');
+          console.log('URL atual:', webhookData.webhook?.url);
+          console.log('URL esperada:', expectedUrl);
+        }
+        
+        if (webhookData.webhook && webhookData.webhook.enabled) {
+          console.log('✅ Webhook está habilitado');
+        } else {
+          console.error('❌ Webhook está desabilitado!');
+        }
+      } else {
+        console.error('❌ Erro ao verificar webhook:', webhookResponse.status, webhookResponse.statusText);
+      }
+    } catch (error) {
+      console.error('❌ Erro na requisição de webhook:', error);
+    }
+    
+    // 3. Verificar configuração dos eventos
+    console.log('\n🔍 3. VERIFICANDO EVENTOS DO WEBHOOK...');
+    try {
+      const eventsResponse = await fetch(`https://evolution.nutef.com/settings/find/${instanceName}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': 'B6D711FCDE4D4FD5936544120E713976'
+        }
+      });
+      
+      if (eventsResponse.ok) {
+        const eventsData = await eventsResponse.json();
+        console.log('✅ Configurações da instância:', eventsData);
+      } else {
+        console.error('❌ Erro ao verificar eventos:', eventsResponse.status, eventsResponse.statusText);
+      }
+    } catch (error) {
+      console.error('❌ Erro na requisição de eventos:', error);
+    }
+    
+    console.log('\n🎯 RESUMO DA VERIFICAÇÃO:');
+    console.log('1. Verifique se a instância está conectada (QR Code escaneado)');
+    console.log('2. Verifique se o webhook está habilitado e com URL correta');
+    console.log('3. Verifique se os eventos estão configurados para enviar messages.upsert');
+  },
+
+  // Configurar webhook automaticamente
+  async fixEvolutionWebhook() {
+    console.log('🔧 === CORRIGINDO CONFIGURAÇÃO DO WEBHOOK ===');
+    
+    const { instances } = await this.checkInstances();
+    if (!instances || instances.length === 0) {
+      console.error('❌ No instances found');
+      return;
+    }
+
+    const instance = instances[0];
+    const instanceName = instance.instance_name;
+    
+    console.log(`🔧 Configurando webhook para instância: ${instanceName}`);
+    
+    // Configuração do webhook
+    const webhookConfig = {
+      webhook: {
+        url: 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook',
+        enabled: true,
+        events: [
+          'APPLICATION_STARTUP',
+          'QRCODE_UPDATED',
+          'MESSAGES_UPSERT',
+          'MESSAGES_UPDATE',
+          'MESSAGES_DELETE',
+          'SEND_MESSAGE',
+          'CONTACTS_SET',
+          'CONTACTS_UPSERT',
+          'CONTACTS_UPDATE',
+          'PRESENCE_UPDATE',
+          'CHATS_SET',
+          'CHATS_UPSERT',
+          'CHATS_UPDATE',
+          'CHATS_DELETE',
+          'GROUPS_UPSERT',
+          'GROUP_UPDATE',
+          'GROUP_PARTICIPANTS_UPDATE',
+          'CONNECTION_UPDATE',
+          'LABELS_EDIT',
+          'LABELS_ASSOCIATION',
+          'CALL'
+        ]
+      }
+    };
+    
+    try {
+      const response = await fetch(`https://evolution.nutef.com/webhook/set/${instanceName}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': 'B6D711FCDE4D4FD5936544120E713976'
+        },
+        body: JSON.stringify(webhookConfig)
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Webhook configurado com sucesso:', result);
+        
+        // Verificar se foi aplicado
+        setTimeout(async () => {
+          console.log('\n🔍 Verificando se a configuração foi aplicada...');
+          await this.checkEvolutionConfiguration();
+        }, 2000);
+        
+      } else {
+        console.error('❌ Erro ao configurar webhook:', response.status, response.statusText);
+        const errorText = await response.text();
+        console.error('❌ Detalhes do erro:', errorText);
+      }
+    } catch (error) {
+      console.error('❌ Erro na requisição:', error);
+    }
+  },
+
   // Verificar configuração do webhook no Evolution API
   async checkEvolutionWebhook() {
     const { instances } = await this.checkInstances();
