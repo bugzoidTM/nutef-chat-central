@@ -47,29 +47,32 @@ export const useConversationSelection = (
         console.log('📖 Conversação ID:', conversationId);
         console.log('📖 Mensagens não lidas:', selectedConv.unread_messages);
         
-        // ⭐ MUDANÇA CRÍTICA: Primeiro verificar quais mensagens existem
-        const { data: existingMessages, error: checkError } = await supabase
+        // ⭐ CORREÇÃO CRÍTICA: Usar query mais direta para buscar mensagens não lidas
+        const { data: unreadMessages, error: checkError } = await supabase
           .from('messages')
           .select('id, content, is_read, direction, timestamp')
           .eq('conversation_id', conversationId)
           .eq('direction', 'incoming')
+          .eq('is_read', false)
           .order('timestamp', { ascending: false });
 
-        console.log('🔍 Mensagens existentes na conversa:', {
-          total: existingMessages?.length || 0,
-          messages: existingMessages?.map(m => ({
+        console.log('🔍 Mensagens não lidas encontradas:', {
+          total: unreadMessages?.length || 0,
+          error: checkError,
+          messages: unreadMessages?.slice(0, 3).map(m => ({
             id: m.id,
             content: m.content?.substring(0, 30),
-            is_read: m.is_read,
-            direction: m.direction
+            is_read: m.is_read
           }))
         });
 
-        const unreadMessages = existingMessages?.filter(m => m.is_read === false) || [];
-        console.log('📖 Mensagens não lidas encontradas:', unreadMessages.length);
+        if (checkError) {
+          console.error('❌ Erro ao buscar mensagens não lidas:', checkError);
+          return;
+        }
 
-        if (unreadMessages.length === 0) {
-          console.log('⚠️ AVISO: Não há mensagens não lidas, mas contador mostra:', selectedConv.unread_messages);
+        if (!unreadMessages || unreadMessages.length === 0) {
+          console.log('⚠️ AVISO: Não há mensagens não lidas reais, mas contador mostra:', selectedConv.unread_messages);
           // ⭐ Forçar atualização das queries para sincronizar dados
           await Promise.all([
             queryClient.invalidateQueries({ queryKey: ['message-counts'] }),
@@ -89,18 +92,22 @@ export const useConversationSelection = (
           );
         });
 
-        // ⭐ Atualizar mensagens no banco usando os IDs específicos
+        // ⭐ CORREÇÃO CRÍTICA: Atualizar usando query mais específica
         const messageIds = unreadMessages.map(m => m.id);
+        console.log('📊 IDs das mensagens a serem marcadas como lidas:', messageIds);
+
         const { data: updatedMessages, error: readError } = await supabase
           .from('messages')
           .update({ is_read: true })
-          .in('id', messageIds)
+          .eq('conversation_id', conversationId)
+          .eq('direction', 'incoming')
+          .eq('is_read', false)
           .select('id, content, is_read, conversation_id');
 
         console.log('📊 Resultado da atualização:', {
           error: readError,
           updatedCount: updatedMessages?.length || 0,
-          updatedMessages: updatedMessages
+          updatedMessages: updatedMessages?.slice(0, 3)
         });
 
         if (readError) {
@@ -122,7 +129,7 @@ export const useConversationSelection = (
             queryClient.invalidateQueries({ queryKey: ['last-messages'] })
           ]);
           
-          console.log('✅ Queries invalidadas');
+          console.log('✅ Queries invalidadas - contador deve zerar');
         }
       } catch (error) {
         console.error('❌ Erro CRÍTICO ao marcar mensagens como lidas:', error);
