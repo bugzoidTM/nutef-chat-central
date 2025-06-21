@@ -5,26 +5,6 @@ import { useToast } from '@/hooks/use-toast';
 import type { SectorType, StatusType, Conversation } from '@/types/dashboard';
 import * as evolutionApi from '@/services/evolutionApi';
 
-// ⭐ Sistema temporário para simular mensagens lidas via localStorage
-const getReadMessages = (): Set<string> => {
-  try {
-    const stored = localStorage.getItem('read_messages');
-    return stored ? new Set(JSON.parse(stored)) : new Set();
-  } catch {
-    return new Set();
-  }
-};
-
-const markMessagesAsRead = (conversationId: string, messageIds: string[]) => {
-  try {
-    const readMessages = getReadMessages();
-    messageIds.forEach(id => readMessages.add(id));
-    localStorage.setItem('read_messages', JSON.stringify([...readMessages]));
-  } catch (error) {
-    console.error('Erro ao salvar mensagens lidas:', error);
-  }
-};
-
 export const useConversations = (selectedSector: SectorType, selectedStatus: StatusType) => {
   const { profile } = useAuth();
   const { toast } = useToast();
@@ -119,7 +99,7 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
     refetchInterval: 3000,
   });
 
-  // ⭐ Query para contar mensagens NÃO LIDAS por conversa
+  // ⭐ Query para contar APENAS mensagens NÃO LIDAS (incoming + is_read = false)
   const { data: messageCounts = [] } = useQuery({
     queryKey: ['message-counts', rawConversations.map(c => c.id)],
     queryFn: async () => {
@@ -128,56 +108,52 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
       console.log('🔢 Counting UNREAD messages for conversations...');
       const conversationIds = rawConversations.map(c => c.id);
       
-      // ⭐ Primeiro tenta contar com is_read (campo novo)
-      let { data, error } = await supabase
+      const { data, error } = await supabase
         .from('messages')
-        .select('conversation_id, id')
+        .select('conversation_id, id, is_read, direction')
         .in('conversation_id', conversationIds)
-        .eq('direction', 'incoming')  // Apenas mensagens recebidas
-        .eq('is_read', false);        // Apenas não lidas
-
-      // ⭐ Se falhar (campo não existe), conta todas as mensagens incoming e filtra pelo localStorage
-      if (error && error.message.includes('is_read')) {
-        console.log('⚠️ Campo is_read não existe, usando fallback com localStorage...');
-        const fallbackResult = await supabase
-          .from('messages')
-          .select('conversation_id, id')
-          .in('conversation_id', conversationIds)
-          .eq('direction', 'incoming');  // Apenas mensagens recebidas
-        
-        if (fallbackResult.error) {
-          console.error('❌ Error in fallback query:', fallbackResult.error);
-          return [];
-        }
-
-        // ⭐ Filtrar mensagens não lidas usando localStorage
-        const readMessages = getReadMessages();
-        data = fallbackResult.data?.filter(msg => !readMessages.has(msg.id)) || [];
-        error = null;
-      }
+        .eq('direction', 'incoming')
+        .eq('is_read', false);
 
       if (error) {
         console.error('❌ Error counting unread messages:', error);
         return [];
       }
 
-      // ⭐ Contar mensagens NÃO LIDAS por conversa
-      const counts = conversationIds.map(id => ({
-        conversation_id: id,
-        count: data?.filter(msg => msg.conversation_id === id).length || 0
-      }));
+      console.log('📋 Raw unread messages data:', data);
 
-      console.log('🔢 Unread message counts:', counts);
+      // ⭐ Contar mensagens NÃO LIDAS por conversa
+      const counts = conversationIds.map(id => {
+        const unreadCount = data?.filter(msg => msg.conversation_id === id).length || 0;
+        return {
+          conversation_id: id,
+          count: unreadCount
+        };
+      });
+
+      console.log('🔢 Final unread message counts:', counts);
       return counts;
     },
     enabled: rawConversations.length > 0,
-    refetchInterval: 3000, // Reduzido para ser mais responsivo
+    refetchInterval: 2000, // Mais frequente para debug
   });
 
   // ⭐ Combinar dados das conversas com última mensagem e contador de NÃO LIDAS
   const conversations = rawConversations.map(conversation => {
     const lastMessage = lastMessages.find(msg => msg.conversation_id === conversation.id);
     const messageCount = messageCounts.find(count => count.conversation_id === conversation.id);
+    
+    // ⭐ Log específico para debug da conversa Nutef
+    if (conversation.client_phone?.includes('551193247')) {
+      console.log('🎯 DEBUG NUTEF - Dados da conversa:', {
+        id: conversation.id,
+        phone: conversation.client_phone,
+        status: conversation.status,
+        lastMessage: lastMessage?.content,
+        unreadCount: messageCount?.count || 0,
+        messageCountData: messageCount
+      });
+    }
     
     return {
       ...conversation,

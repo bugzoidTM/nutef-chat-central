@@ -29,56 +29,48 @@ const Dashboard = () => {
     // ⭐ Primeiro seleciona a conversa imediatamente para mostrar o conteúdo
     setSelectedConversation(conversationId);
     
-    // ⭐ Marcar todas as mensagens desta conversa como lidas
+    // ⭐ Encontrar a conversa selecionada
+    const selectedConv = conversations.find(c => c.id === conversationId);
+    
+    // ⭐ Debug específico para Nutef
+    if (selectedConv?.client_phone?.includes('551193247')) {
+      console.log('🎯 DEBUG NUTEF - Clicou na conversa:', {
+        id: conversationId,
+        phone: selectedConv.client_phone,
+        status: selectedConv.status,
+        unreadMessages: selectedConv.unread_messages
+      });
+    }
+    
+    // ⭐ Marcar todas as mensagens INCOMING como lidas
     try {
-      console.log('📖 Marcando mensagens como lidas para conversa:', conversationId);
+      console.log('📖 Marcando mensagens incoming como lidas para conversa:', conversationId);
       
-      // ⭐ Tentar marcar mensagens como lidas (se campo is_read existir)
-      const { error: readError } = await supabase
+      const { data: updatedMessages, error: readError } = await supabase
         .from('messages')
         .update({ is_read: true })
         .eq('conversation_id', conversationId)
         .eq('direction', 'incoming')
-        .eq('is_read', false);
+        .eq('is_read', false)
+        .select('id');
 
       if (readError) {
-        if (readError.message.includes('is_read')) {
-          console.log('⚠️ Campo is_read ainda não existe, usando fallback com localStorage');
-          
-          // ⭐ Fallback: buscar mensagens da conversa e marcar como lidas no localStorage
-          const { data: messages, error: fetchError } = await supabase
-            .from('messages')
-            .select('id')
-            .eq('conversation_id', conversationId)
-            .eq('direction', 'incoming');
-
-          if (!fetchError && messages) {
-            // ⭐ Marcar mensagens como lidas no localStorage
-            const readMessages = JSON.parse(localStorage.getItem('read_messages') || '[]');
-            const messageIds = messages.map(msg => msg.id);
-            const updatedReadMessages = [...new Set([...readMessages, ...messageIds])];
-            localStorage.setItem('read_messages', JSON.stringify(updatedReadMessages));
-            
-            console.log('✅ Mensagens marcadas como lidas no localStorage');
-            
-            // ⭐ Invalidar query do contador para atualizar UI imediatamente
-            queryClient.invalidateQueries({ queryKey: ['message-counts'] });
-          }
-        } else {
-          console.error('❌ Erro ao marcar mensagens como lidas:', readError);
-        }
+        console.error('❌ Erro ao marcar mensagens como lidas:', readError);
       } else {
-        console.log('✅ Mensagens marcadas como lidas');
+        console.log('✅ Mensagens marcadas como lidas:', updatedMessages?.length || 0, 'mensagens');
         
-        // ⭐ Invalidar query do contador para atualizar UI imediatamente
-        queryClient.invalidateQueries({ queryKey: ['message-counts'] });
+        // ⭐ Debug específico para Nutef
+        if (selectedConv?.client_phone?.includes('551193247')) {
+          console.log('🎯 DEBUG NUTEF - Mensagens atualizadas:', updatedMessages);
+        }
+        
+        // ⭐ Forçar invalidação imediata das queries
+        await queryClient.invalidateQueries({ queryKey: ['message-counts'] });
+        await queryClient.invalidateQueries({ queryKey: ['conversations'] });
       }
     } catch (error) {
       console.error('❌ Erro ao marcar mensagens como lidas:', error);
     }
-    
-    // Encontrar a conversa selecionada
-    const selectedConv = conversations.find(c => c.id === conversationId);
     
     // Se a conversa for nova, mudar para "em andamento" de forma assíncrona
     if (selectedConv && selectedConv.status === 'new') {
