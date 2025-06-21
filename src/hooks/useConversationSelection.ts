@@ -30,9 +30,9 @@ export const useConversationSelection = (
       unreadMessages: selectedConv?.unread_messages
     });
     
-    // ⭐ Debug específico para Nutef
-    if (selectedConv?.client_phone?.includes('551193247')) {
-      console.log('🎯 DEBUG NUTEF - Clicou na conversa:', {
+    // ⭐ Debug específico para a conversa atual
+    if (selectedConv?.client_phone?.includes('5511964982174')) {
+      console.log('🎯 DEBUG CAROLINE - Clicou na conversa:', {
         id: conversationId,
         phone: selectedConv.client_phone,
         status: selectedConv.status,
@@ -47,6 +47,38 @@ export const useConversationSelection = (
         console.log('📖 Conversação ID:', conversationId);
         console.log('📖 Mensagens não lidas:', selectedConv.unread_messages);
         
+        // ⭐ MUDANÇA CRÍTICA: Primeiro verificar quais mensagens existem
+        const { data: existingMessages, error: checkError } = await supabase
+          .from('messages')
+          .select('id, content, is_read, direction, timestamp')
+          .eq('conversation_id', conversationId)
+          .eq('direction', 'incoming')
+          .order('timestamp', { ascending: false });
+
+        console.log('🔍 Mensagens existentes na conversa:', {
+          total: existingMessages?.length || 0,
+          messages: existingMessages?.map(m => ({
+            id: m.id,
+            content: m.content?.substring(0, 30),
+            is_read: m.is_read,
+            direction: m.direction
+          }))
+        });
+
+        const unreadMessages = existingMessages?.filter(m => m.is_read === false) || [];
+        console.log('📖 Mensagens não lidas encontradas:', unreadMessages.length);
+
+        if (unreadMessages.length === 0) {
+          console.log('⚠️ AVISO: Não há mensagens não lidas, mas contador mostra:', selectedConv.unread_messages);
+          // ⭐ Forçar atualização das queries para sincronizar dados
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ['message-counts'] }),
+            queryClient.invalidateQueries({ queryKey: ['conversations', selectedSector, selectedStatus] }),
+            queryClient.invalidateQueries({ queryKey: ['last-messages'] })
+          ]);
+          return;
+        }
+        
         // ⭐ Atualização otimista primeiro - zerar contador imediatamente na UI
         queryClient.setQueryData(['conversations', selectedSector, selectedStatus], (oldData: any) => {
           if (!oldData) return oldData;
@@ -57,13 +89,13 @@ export const useConversationSelection = (
           );
         });
 
+        // ⭐ Atualizar mensagens no banco usando os IDs específicos
+        const messageIds = unreadMessages.map(m => m.id);
         const { data: updatedMessages, error: readError } = await supabase
           .from('messages')
           .update({ is_read: true })
-          .eq('conversation_id', conversationId)
-          .eq('direction', 'incoming')
-          .eq('is_read', false)
-          .select('id, content, is_read');
+          .in('id', messageIds)
+          .select('id, content, is_read, conversation_id');
 
         console.log('📊 Resultado da atualização:', {
           error: readError,
@@ -78,15 +110,16 @@ export const useConversationSelection = (
         } else {
           console.log('✅ Mensagens marcadas como lidas:', updatedMessages?.length || 0, 'mensagens');
           
-          // ⭐ Debug específico para Nutef
-          if (selectedConv?.client_phone?.includes('551193247')) {
-            console.log('🎯 DEBUG NUTEF - Mensagens atualizadas:', updatedMessages);
+          // ⭐ Debug específico para Caroline
+          if (selectedConv?.client_phone?.includes('5511964982174')) {
+            console.log('🎯 DEBUG CAROLINE - Mensagens atualizadas:', updatedMessages);
           }
           
           // ⭐ Invalidar queries relacionadas para sincronizar dados
           await Promise.all([
             queryClient.invalidateQueries({ queryKey: ['message-counts'] }),
-            queryClient.invalidateQueries({ queryKey: ['messages', conversationId] })
+            queryClient.invalidateQueries({ queryKey: ['messages', conversationId] }),
+            queryClient.invalidateQueries({ queryKey: ['last-messages'] })
           ]);
           
           console.log('✅ Queries invalidadas');
