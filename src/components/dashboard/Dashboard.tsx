@@ -33,6 +33,7 @@ const Dashboard = () => {
     try {
       console.log('📖 Marcando mensagens como lidas para conversa:', conversationId);
       
+      // ⭐ Tentar marcar mensagens como lidas (se campo is_read existir)
       const { error: readError } = await supabase
         .from('messages')
         .update({ is_read: true })
@@ -41,7 +42,31 @@ const Dashboard = () => {
         .eq('is_read', false);
 
       if (readError) {
-        console.error('❌ Erro ao marcar mensagens como lidas:', readError);
+        if (readError.message.includes('is_read')) {
+          console.log('⚠️ Campo is_read ainda não existe, usando fallback com localStorage');
+          
+          // ⭐ Fallback: buscar mensagens da conversa e marcar como lidas no localStorage
+          const { data: messages, error: fetchError } = await supabase
+            .from('messages')
+            .select('id')
+            .eq('conversation_id', conversationId)
+            .eq('direction', 'incoming');
+
+          if (!fetchError && messages) {
+            // ⭐ Marcar mensagens como lidas no localStorage
+            const readMessages = JSON.parse(localStorage.getItem('read_messages') || '[]');
+            const messageIds = messages.map(msg => msg.id);
+            const updatedReadMessages = [...new Set([...readMessages, ...messageIds])];
+            localStorage.setItem('read_messages', JSON.stringify(updatedReadMessages));
+            
+            console.log('✅ Mensagens marcadas como lidas no localStorage');
+            
+            // ⭐ Invalidar query do contador para atualizar UI imediatamente
+            queryClient.invalidateQueries({ queryKey: ['message-counts'] });
+          }
+        } else {
+          console.error('❌ Erro ao marcar mensagens como lidas:', readError);
+        }
       } else {
         console.log('✅ Mensagens marcadas como lidas');
         

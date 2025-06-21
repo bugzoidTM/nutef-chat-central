@@ -5,6 +5,26 @@ import { useToast } from '@/hooks/use-toast';
 import type { SectorType, StatusType, Conversation } from '@/types/dashboard';
 import * as evolutionApi from '@/services/evolutionApi';
 
+// ⭐ Sistema temporário para simular mensagens lidas via localStorage
+const getReadMessages = (): Set<string> => {
+  try {
+    const stored = localStorage.getItem('read_messages');
+    return stored ? new Set(JSON.parse(stored)) : new Set();
+  } catch {
+    return new Set();
+  }
+};
+
+const markMessagesAsRead = (conversationId: string, messageIds: string[]) => {
+  try {
+    const readMessages = getReadMessages();
+    messageIds.forEach(id => readMessages.add(id));
+    localStorage.setItem('read_messages', JSON.stringify([...readMessages]));
+  } catch (error) {
+    console.error('Erro ao salvar mensagens lidas:', error);
+  }
+};
+
 export const useConversations = (selectedSector: SectorType, selectedStatus: StatusType) => {
   const { profile } = useAuth();
   const { toast } = useToast();
@@ -108,12 +128,33 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
       console.log('🔢 Counting UNREAD messages for conversations...');
       const conversationIds = rawConversations.map(c => c.id);
       
-      const { data, error } = await supabase
+      // ⭐ Primeiro tenta contar com is_read (campo novo)
+      let { data, error } = await supabase
         .from('messages')
-        .select('conversation_id')
+        .select('conversation_id, id')
         .in('conversation_id', conversationIds)
         .eq('direction', 'incoming')  // Apenas mensagens recebidas
         .eq('is_read', false);        // Apenas não lidas
+
+      // ⭐ Se falhar (campo não existe), conta todas as mensagens incoming e filtra pelo localStorage
+      if (error && error.message.includes('is_read')) {
+        console.log('⚠️ Campo is_read não existe, usando fallback com localStorage...');
+        const fallbackResult = await supabase
+          .from('messages')
+          .select('conversation_id, id')
+          .in('conversation_id', conversationIds)
+          .eq('direction', 'incoming');  // Apenas mensagens recebidas
+        
+        if (fallbackResult.error) {
+          console.error('❌ Error in fallback query:', fallbackResult.error);
+          return [];
+        }
+
+        // ⭐ Filtrar mensagens não lidas usando localStorage
+        const readMessages = getReadMessages();
+        data = fallbackResult.data?.filter(msg => !readMessages.has(msg.id)) || [];
+        error = null;
+      }
 
       if (error) {
         console.error('❌ Error counting unread messages:', error);
