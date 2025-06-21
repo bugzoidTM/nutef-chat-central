@@ -53,61 +53,42 @@ export const useSendMessage = (conversations: any[]) => {
         }
       }
 
-      // ⭐ Obter setor do usuário para adicionar no prefixo da mensagem
-      let userSector = 'support'; // default
-      if (profile) {
-        // Buscar setor do atendente se não for admin
-        if (profile.role !== 'admin') {
-          try {
-            const { data: sectorData } = await supabase
-              .from('attendant_sectors')
-              .select('sector')
-              .eq('attendant_id', profile.id)
-              .single();
-            
-            if (sectorData) {
-              userSector = sectorData.sector;
-            }
-          } catch (error) {
-            console.log('⚠️ Não foi possível obter setor do atendente, usando padrão');
-          }
-        }
-      }
-
-      // ⭐ Função para traduzir setor
-      const getSectorLabel = (sector: string) => {
-        switch (sector) {
-          case 'support':
-            return 'Suporte';
-          case 'financial':
-            return 'Financeiro';
-          case 'sales':
-            return 'Vendas';
-          default:
-            return sector;
-        }
-      };
-
-      // ⭐ Criar mensagem com prefixo para WhatsApp
-      const senderName = profile?.name || 'Atendente';
-      const sectorLabel = getSectorLabel(userSector);
-      const messageWithPrefix = `${senderName} (${sectorLabel}):\n${content}`;
-
       // Send message via Evolution API
       try {
         console.log('📤 Sending message via Evolution API:', { 
           instanceName: instance.instance_name, 
           number: conversation.client_phone, 
-          text: messageWithPrefix 
+          text: content 
         });
         
-        await evolutionApi.sendTextMessage(instance.instance_name, conversation.client_phone, messageWithPrefix);
+        await evolutionApi.sendTextMessage(instance.instance_name, conversation.client_phone, content);
         console.log('✅ Message sent successfully via Evolution API');
 
         // Insert the outgoing message into Supabase
         const now = new Date();
         // Adicionar 1 segundo para garantir que mensagens enviadas apareçam após as recebidas
         const messageTimestamp = new Date(now.getTime() + 1000).toISOString();
+        
+        // ⭐ Obter setor do usuário para mostrar nas mensagens
+        let userSector = 'support'; // default
+        if (profile) {
+          // Buscar setor do atendente se não for admin
+          if (profile.role !== 'admin') {
+            try {
+              const { data: sectorData } = await supabase
+                .from('attendant_sectors')
+                .select('sector')
+                .eq('attendant_id', profile.id)
+                .single();
+              
+              if (sectorData) {
+                userSector = sectorData.sector;
+              }
+            } catch (error) {
+              console.log('⚠️ Não foi possível obter setor do atendente, usando padrão');
+            }
+          }
+        }
         
         const { error: messageError } = await supabase
           .from('messages')
@@ -121,7 +102,7 @@ export const useSendMessage = (conversations: any[]) => {
             timestamp: messageTimestamp,
             is_read: true,
             // ⭐ Adicionar informações do remetente
-            sender_name: senderName,
+            sender_name: profile?.name || 'Atendente',
             sender_sector: userSector,
           });
 

@@ -30,4 +30,7 @@ export interface Message {
   from_phone: string;
   to_phone: string;
   conversation_id: string;
+  // ⭐ NOVOS CAMPOS para identificar o remetente das mensagens enviadas
+  sender_name?: string;
+  sender_sector?: string;
 }

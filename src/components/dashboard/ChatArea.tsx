@@ -14,6 +14,8 @@ interface Message {
   timestamp: string;
   from_phone: string;
   to_phone: string;
+  sender_name?: string;
+  sender_sector?: string;
 }
 
 interface Conversation {
@@ -181,6 +183,17 @@ const ChatArea = ({ conversation, messages, onSendMessage, isLoading = false }: 
                     : 'bg-white text-gray-900 border border-gray-200'
                 }`}
               >
+                {/* ⭐ Mostrar nome e setor do atendente nas mensagens enviadas */}
+                {message.direction === 'outgoing' && message.sender_name && (
+                  <div className="flex items-center space-x-1 mb-1">
+                    <p className="text-xs font-medium text-green-100">
+                      {message.sender_name}
+                      {message.sender_sector && (
+                        <span className="ml-1">({getSectorLabel(message.sender_sector)}):</span>
+                      )}
+                    </p>
+                  </div>
+                )}
                 <p className="text-sm">{message.content}</p>
                 <p
                   className={`text-xs mt-1 ${
