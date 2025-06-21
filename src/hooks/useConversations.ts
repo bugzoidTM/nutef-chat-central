@@ -99,38 +99,41 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
     refetchInterval: 3000,
   });
 
-  // ⭐ Query para contar mensagens por conversa
+  // ⭐ Query para contar mensagens NÃO LIDAS por conversa
   const { data: messageCounts = [] } = useQuery({
     queryKey: ['message-counts', rawConversations.map(c => c.id)],
     queryFn: async () => {
       if (rawConversations.length === 0) return [];
       
-      console.log('🔢 Counting messages for conversations...');
+      console.log('🔢 Counting UNREAD messages for conversations...');
       const conversationIds = rawConversations.map(c => c.id);
       
       const { data, error } = await supabase
         .from('messages')
         .select('conversation_id')
-        .in('conversation_id', conversationIds);
+        .in('conversation_id', conversationIds)
+        .eq('direction', 'incoming')  // Apenas mensagens recebidas
+        .eq('is_read', false);        // Apenas não lidas
 
       if (error) {
-        console.error('❌ Error counting messages:', error);
+        console.error('❌ Error counting unread messages:', error);
         return [];
       }
 
-      // ⭐ Contar mensagens por conversa
+      // ⭐ Contar mensagens NÃO LIDAS por conversa
       const counts = conversationIds.map(id => ({
         conversation_id: id,
         count: data?.filter(msg => msg.conversation_id === id).length || 0
       }));
 
+      console.log('🔢 Unread message counts:', counts);
       return counts;
     },
     enabled: rawConversations.length > 0,
-    refetchInterval: 5000,
+    refetchInterval: 3000, // Reduzido para ser mais responsivo
   });
 
-  // ⭐ Combinar dados das conversas com última mensagem e contador
+  // ⭐ Combinar dados das conversas com última mensagem e contador de NÃO LIDAS
   const conversations = rawConversations.map(conversation => {
     const lastMessage = lastMessages.find(msg => msg.conversation_id === conversation.id);
     const messageCount = messageCounts.find(count => count.conversation_id === conversation.id);
@@ -138,7 +141,7 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
     return {
       ...conversation,
       last_message_content: lastMessage?.content || null,
-      total_messages: messageCount?.count || 0,
+      unread_messages: messageCount?.count || 0, // Renomeado para ser mais claro
     };
   });
 
@@ -223,6 +226,7 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
             to_phone: conversation.client_phone,
             message_type: 'text',
             timestamp: new Date().toISOString(),
+            is_read: true,
           });
 
         if (messageError) {

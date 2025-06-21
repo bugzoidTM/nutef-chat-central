@@ -1,4 +1,3 @@
-
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -9,7 +8,7 @@ export const useRealtimeSubscriptions = () => {
   useEffect(() => {
     console.log('🔄 Setting up realtime subscriptions...');
 
-    // Subscribe to conversations changes
+    // Subscribe to conversations changes only (messages handled in useMessages hook)
     const conversationsChannel = supabase
       .channel('conversations-changes')
       .on(
@@ -22,29 +21,12 @@ export const useRealtimeSubscriptions = () => {
         (payload) => {
           console.log('📨 Conversation realtime update:', payload);
           queryClient.invalidateQueries({ queryKey: ['conversations'] });
+          queryClient.invalidateQueries({ queryKey: ['last-messages'] });
+          queryClient.invalidateQueries({ queryKey: ['message-counts'] });
         }
       )
       .subscribe((status) => {
         console.log('📡 Conversations channel status:', status);
-      });
-
-    // Subscribe to messages changes
-    const messagesChannel = supabase
-      .channel('messages-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'messages',
-        },
-        (payload) => {
-          console.log('📨 Message realtime update:', payload);
-          queryClient.invalidateQueries({ queryKey: ['messages'] });
-        }
-      )
-      .subscribe((status) => {
-        console.log('📡 Messages channel status:', status);
       });
 
     // Log successful setup
@@ -52,8 +34,8 @@ export const useRealtimeSubscriptions = () => {
 
     return () => {
       console.log('🔄 Cleaning up realtime subscriptions...');
+      console.log('📡 Conversations channel status:', conversationsChannel.state);
       supabase.removeChannel(conversationsChannel);
-      supabase.removeChannel(messagesChannel);
       console.log('✅ Realtime subscriptions cleaned up');
     };
   }, [queryClient]);

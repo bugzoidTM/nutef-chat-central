@@ -16,7 +16,7 @@ interface Conversation {
   assigned_to: string | null;
   // ⭐ NOVOS CAMPOS
   last_message_content?: string;
-  total_messages?: number;
+  unread_messages?: number;
 }
 
 interface ConversationListProps {
@@ -157,10 +157,10 @@ const ConversationList = ({
                     <p className="text-xs text-gray-600 truncate flex-1 pr-2">
                       {truncateMessage(conversation.last_message_content)}
                     </p>
-                    {conversation.total_messages && conversation.total_messages > 0 && (
+                    {conversation.unread_messages && conversation.unread_messages > 0 && (
                       <div className="flex items-center space-x-1 text-xs text-gray-500 flex-shrink-0">
                         <MessageCircle className="h-3 w-3" />
-                        <span>{conversation.total_messages}</span>
+                        <span>{conversation.unread_messages}</span>
                       </div>
                     )}
                   </div>

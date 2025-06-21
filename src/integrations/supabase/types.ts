@@ -144,6 +144,7 @@ export type Database = {
           direction: Database["public"]["Enums"]["message_direction"]
           from_phone: string
           id: string
+          is_read: boolean
           message_type: Database["public"]["Enums"]["message_type"]
           timestamp: string
           to_phone: string
@@ -155,6 +156,7 @@ export type Database = {
           direction: Database["public"]["Enums"]["message_direction"]
           from_phone: string
           id?: string
+          is_read?: boolean
           message_type?: Database["public"]["Enums"]["message_type"]
           timestamp?: string
           to_phone: string
@@ -166,6 +168,7 @@ export type Database = {
           direction?: Database["public"]["Enums"]["message_direction"]
           from_phone?: string
           id?: string
+          is_read?: boolean
           message_type?: Database["public"]["Enums"]["message_type"]
           timestamp?: string
           to_phone?: string

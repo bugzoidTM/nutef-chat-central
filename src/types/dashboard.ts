@@ -19,7 +19,7 @@ export interface Conversation {
   assigned_to: string | null;
   // ⭐ NOVOS CAMPOS ADICIONADOS
   last_message_content?: string;
-  total_messages?: number;
+  unread_messages?: number;
 }
 
 export interface Message {

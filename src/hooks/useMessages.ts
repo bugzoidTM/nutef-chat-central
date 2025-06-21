@@ -1,10 +1,10 @@
-
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 export const useMessages = (selectedConversation: string | null) => {
   const queryClient = useQueryClient();
+  const channelRef = useRef<any>(null);
 
   const { data: messages = [], isLoading: messagesLoading, error: messagesError } = useQuery({
     queryKey: ['messages', selectedConversation],
@@ -41,12 +41,22 @@ export const useMessages = (selectedConversation: string | null) => {
 
   // Set up real-time subscription for messages
   useEffect(() => {
+    // Cleanup previous channel if exists
+    if (channelRef.current) {
+      console.log('🔄 Cleaning up previous message subscription');
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+
     if (!selectedConversation) return;
 
     console.log('🔄 Setting up real-time subscription for conversation:', selectedConversation);
 
+    // Create unique channel name for this conversation
+    const channelName = `messages-${selectedConversation}`;
+    
     const channel = supabase
-      .channel('messages-changes')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -58,13 +68,22 @@ export const useMessages = (selectedConversation: string | null) => {
         (payload) => {
           console.log('📨 Real-time message update:', payload);
           queryClient.invalidateQueries({ queryKey: ['messages', selectedConversation] });
+          queryClient.invalidateQueries({ queryKey: ['last-messages'] });
+          queryClient.invalidateQueries({ queryKey: ['message-counts'] });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log(`📡 Messages channel (${channelName}) status:`, status);
+      });
+
+    channelRef.current = channel;
 
     return () => {
-      console.log('🔄 Cleaning up real-time subscription');
-      supabase.removeChannel(channel);
+      console.log('🔄 Cleaning up message subscription for:', selectedConversation);
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
   }, [selectedConversation, queryClient]);
 

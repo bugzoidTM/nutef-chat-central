@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -78,6 +77,32 @@ const ChatArea = ({ conversation, messages, onSendMessage, isLoading = false }: 
     }
   };
 
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'new':
+        return 'bg-red-100 text-red-800';
+      case 'in_progress':
+        return 'bg-yellow-100 text-yellow-800';
+      case 'finished':
+        return 'bg-green-100 text-green-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'new':
+        return 'Nova';
+      case 'in_progress':
+        return 'Em andamento';
+      case 'finished':
+        return 'Finalizada';
+      default:
+        return status;
+    }
+  };
+
   if (!conversation) {
     return (
       <div className="flex-1 flex items-center justify-center bg-gray-50">
@@ -119,6 +144,12 @@ const ChatArea = ({ conversation, messages, onSendMessage, isLoading = false }: 
                 >
                   {getSectorLabel(conversation.sector)}
                 </Badge>
+                <Badge 
+                  variant="secondary" 
+                  className={`text-xs ${getStatusColor(conversation.status)}`}
+                >
+                  {getStatusLabel(conversation.status)}
+                </Badge>
               </div>
             </div>
           </div>
@@ -133,6 +164,9 @@ const ChatArea = ({ conversation, messages, onSendMessage, isLoading = false }: 
         {messages.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-gray-500">Nenhuma mensagem ainda</p>
+            <p className="text-sm text-gray-400 mt-1">
+              {conversation.client_name || conversation.client_phone} ainda não enviou mensagens
+            </p>
           </div>
         ) : (
           messages.map((message) => (

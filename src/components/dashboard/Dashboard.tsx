@@ -26,16 +26,51 @@ const Dashboard = () => {
 
   // ⭐ Função para atualizar o status da conversa quando selecionada
   const handleSelectConversation = async (conversationId: string) => {
+    // ⭐ Primeiro seleciona a conversa imediatamente para mostrar o conteúdo
     setSelectedConversation(conversationId);
+    
+    // ⭐ Marcar todas as mensagens desta conversa como lidas
+    try {
+      console.log('📖 Marcando mensagens como lidas para conversa:', conversationId);
+      
+      const { error: readError } = await supabase
+        .from('messages')
+        .update({ is_read: true })
+        .eq('conversation_id', conversationId)
+        .eq('direction', 'incoming')
+        .eq('is_read', false);
+
+      if (readError) {
+        console.error('❌ Erro ao marcar mensagens como lidas:', readError);
+      } else {
+        console.log('✅ Mensagens marcadas como lidas');
+        
+        // ⭐ Invalidar query do contador para atualizar UI imediatamente
+        queryClient.invalidateQueries({ queryKey: ['message-counts'] });
+      }
+    } catch (error) {
+      console.error('❌ Erro ao marcar mensagens como lidas:', error);
+    }
     
     // Encontrar a conversa selecionada
     const selectedConv = conversations.find(c => c.id === conversationId);
     
-    // Se a conversa for nova, mudar para "em andamento"
+    // Se a conversa for nova, mudar para "em andamento" de forma assíncrona
     if (selectedConv && selectedConv.status === 'new') {
       try {
         console.log('🔄 Atualizando status da conversa de "new" para "in_progress"');
         
+        // ⭐ Atualização otimista - atualiza a UI primeiro
+        queryClient.setQueryData(['conversations', selectedSector, selectedStatus], (oldData: any[]) => {
+          if (!oldData) return oldData;
+          return oldData.map(conv => 
+            conv.id === conversationId 
+              ? { ...conv, status: 'in_progress', assigned_to: profile?.id }
+              : conv
+          );
+        });
+        
+        // Depois atualiza no banco de dados
         const { error } = await supabase
           .from('conversations')
           .update({ 
@@ -47,16 +82,15 @@ const Dashboard = () => {
 
         if (error) {
           console.error('❌ Erro ao atualizar status da conversa:', error);
+          // ⭐ Se houve erro, reverte a atualização otimista
+          queryClient.invalidateQueries({ queryKey: ['conversations'] });
         } else {
           console.log('✅ Status da conversa atualizado com sucesso');
-          
-          // ⭐ Invalidar queries para atualizar a UI imediatamente
-          queryClient.invalidateQueries({ queryKey: ['conversations'] });
-          queryClient.invalidateQueries({ queryKey: ['last-messages'] });
-          queryClient.invalidateQueries({ queryKey: ['message-counts'] });
         }
       } catch (error) {
         console.error('❌ Erro ao atualizar conversa:', error);
+        // ⭐ Se houve erro, reverte a atualização otimista
+        queryClient.invalidateQueries({ queryKey: ['conversations'] });
       }
     }
   };
