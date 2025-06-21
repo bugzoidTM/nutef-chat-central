@@ -1,10 +1,10 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { LogoutButton } from '@/components/auth/LogoutButton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import type { SectorType, StatusType } from '@/types/dashboard';
+import NotificationSettings from './NotificationSettings';
 
 interface SidebarProps {
   selectedSector: SectorType;
@@ -112,7 +112,8 @@ const Sidebar = ({
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-gray-200">
+      <div className="p-4 border-t border-gray-200 space-y-3">
+        <NotificationSettings />
         <LogoutButton />
       </div>
     </div>

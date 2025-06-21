@@ -1,9 +1,9 @@
-
 import React from 'react';
 import { useConversations } from '@/hooks/useConversations';
 import { useMessages } from '@/hooks/useMessages';
 import { useRealtimeSubscriptions } from '@/hooks/useRealtimeSubscriptions';
 import { useConversationSelection } from '@/hooks/useConversationSelection';
+import { useNewMessageNotification } from '@/hooks/useNewMessageNotification';
 import Sidebar from './Sidebar';
 import ConversationList from './ConversationList';
 import ChatArea from './ChatArea';
@@ -35,6 +35,7 @@ const DashboardContent = ({
   );
   const { messages } = useMessages(selectedConversation);
   useRealtimeSubscriptions();
+  useNewMessageNotification();
 
   const handleSendMessage = (content: string) => {
     if (selectedConversation) {
