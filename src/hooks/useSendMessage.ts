@@ -1,4 +1,3 @@
-
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -66,6 +65,10 @@ export const useSendMessage = (conversations: any[]) => {
         console.log('✅ Message sent successfully via Evolution API');
 
         // Insert the outgoing message into Supabase
+        const now = new Date();
+        // Adicionar 1 segundo para garantir que mensagens enviadas apareçam após as recebidas
+        const messageTimestamp = new Date(now.getTime() + 1000).toISOString();
+        
         const { error: messageError } = await supabase
           .from('messages')
           .insert({
@@ -75,7 +78,7 @@ export const useSendMessage = (conversations: any[]) => {
             from_phone: instance.phone,
             to_phone: conversation.client_phone,
             message_type: 'text',
-            timestamp: new Date().toISOString(),
+            timestamp: messageTimestamp,
             is_read: true,
           });
 

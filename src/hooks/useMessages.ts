@@ -1,4 +1,3 @@
-
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect, useRef } from 'react';
@@ -21,7 +20,7 @@ export const useMessages = (selectedConversation: string | null) => {
         .from('messages')
         .select('*')
         .eq('conversation_id', selectedConversation)
-        .order('timestamp', { ascending: true });
+        .order('sequence_number', { ascending: true });
 
       if (error) {
         console.error('❌ useMessages - Error fetching messages:', error);
