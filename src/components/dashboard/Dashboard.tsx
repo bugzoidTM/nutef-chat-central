@@ -26,11 +26,20 @@ const Dashboard = () => {
 
   // ⭐ Função para atualizar o status da conversa quando selecionada
   const handleSelectConversation = async (conversationId: string) => {
+    console.log('🚀 CLIQUE DETECTADO - handleSelectConversation chamada para:', conversationId);
+    
     // ⭐ Primeiro seleciona a conversa imediatamente para mostrar o conteúdo
     setSelectedConversation(conversationId);
     
     // ⭐ Encontrar a conversa selecionada
     const selectedConv = conversations.find(c => c.id === conversationId);
+    
+    console.log('🎯 Conversa selecionada encontrada:', {
+      id: conversationId,
+      phone: selectedConv?.client_phone,
+      status: selectedConv?.status,
+      unreadMessages: selectedConv?.unread_messages
+    });
     
     // ⭐ Debug específico para Nutef
     if (selectedConv?.client_phone?.includes('551193247')) {
@@ -44,7 +53,8 @@ const Dashboard = () => {
     
     // ⭐ Marcar todas as mensagens INCOMING como lidas
     try {
-      console.log('📖 Marcando mensagens incoming como lidas para conversa:', conversationId);
+      console.log('📖 INICIANDO processo de marcar mensagens como lidas...');
+      console.log('📖 Conversação ID:', conversationId);
       
       const { data: updatedMessages, error: readError } = await supabase
         .from('messages')
@@ -52,7 +62,13 @@ const Dashboard = () => {
         .eq('conversation_id', conversationId)
         .eq('direction', 'incoming')
         .eq('is_read', false)
-        .select('id');
+        .select('id, content, is_read');
+
+      console.log('📊 Resultado da atualização:', {
+        error: readError,
+        updatedCount: updatedMessages?.length || 0,
+        updatedMessages: updatedMessages
+      });
 
       if (readError) {
         console.error('❌ Erro ao marcar mensagens como lidas:', readError);
@@ -65,11 +81,13 @@ const Dashboard = () => {
         }
         
         // ⭐ Forçar invalidação imediata das queries
+        console.log('🔄 Invalidando queries...');
         await queryClient.invalidateQueries({ queryKey: ['message-counts'] });
         await queryClient.invalidateQueries({ queryKey: ['conversations'] });
+        console.log('✅ Queries invalidadas');
       }
     } catch (error) {
-      console.error('❌ Erro ao marcar mensagens como lidas:', error);
+      console.error('❌ Erro CRÍTICO ao marcar mensagens como lidas:', error);
     }
     
     // Se a conversa for nova, mudar para "em andamento" de forma assíncrona
