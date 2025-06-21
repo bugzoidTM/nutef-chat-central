@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useConversations } from '@/hooks/useConversations';
@@ -21,7 +22,7 @@ const Dashboard = () => {
 
   // Custom hooks
   const { conversations, conversationCounts, sendMessageMutation } = useConversations(selectedSector, selectedStatus);
-  const { messages } = useMessages(selectedConversation); // Back to using Supabase messages
+  const { messages } = useMessages(selectedConversation);
   useRealtimeSubscriptions();
 
   // ⭐ Função para atualizar o status da conversa quando selecionada
@@ -51,43 +52,64 @@ const Dashboard = () => {
       });
     }
     
-    // ⭐ Marcar todas as mensagens INCOMING como lidas
-    try {
-      console.log('📖 INICIANDO processo de marcar mensagens como lidas...');
-      console.log('📖 Conversação ID:', conversationId);
-      
-      const { data: updatedMessages, error: readError } = await supabase
-        .from('messages')
-        .update({ is_read: true })
-        .eq('conversation_id', conversationId)
-        .eq('direction', 'incoming')
-        .eq('is_read', false)
-        .select('id, content, is_read');
-
-      console.log('📊 Resultado da atualização:', {
-        error: readError,
-        updatedCount: updatedMessages?.length || 0,
-        updatedMessages: updatedMessages
-      });
-
-      if (readError) {
-        console.error('❌ Erro ao marcar mensagens como lidas:', readError);
-      } else {
-        console.log('✅ Mensagens marcadas como lidas:', updatedMessages?.length || 0, 'mensagens');
+    // ⭐ Só marcar mensagens como lidas se houver mensagens não lidas
+    if (selectedConv && selectedConv.unread_messages && selectedConv.unread_messages > 0) {
+      try {
+        console.log('📖 INICIANDO processo de marcar mensagens como lidas...');
+        console.log('📖 Conversação ID:', conversationId);
+        console.log('📖 Mensagens não lidas:', selectedConv.unread_messages);
         
-        // ⭐ Debug específico para Nutef
-        if (selectedConv?.client_phone?.includes('551193247')) {
-          console.log('🎯 DEBUG NUTEF - Mensagens atualizadas:', updatedMessages);
+        // ⭐ Atualização otimista primeiro - zerar contador imediatamente na UI
+        queryClient.setQueryData(['conversations', selectedSector, selectedStatus], (oldData: any) => {
+          if (!oldData) return oldData;
+          return oldData.map((conv: any) => 
+            conv.id === conversationId 
+              ? { ...conv, unread_messages: 0 }
+              : conv
+          );
+        });
+
+        const { data: updatedMessages, error: readError } = await supabase
+          .from('messages')
+          .update({ is_read: true })
+          .eq('conversation_id', conversationId)
+          .eq('direction', 'incoming')
+          .eq('is_read', false)
+          .select('id, content, is_read');
+
+        console.log('📊 Resultado da atualização:', {
+          error: readError,
+          updatedCount: updatedMessages?.length || 0,
+          updatedMessages: updatedMessages
+        });
+
+        if (readError) {
+          console.error('❌ Erro ao marcar mensagens como lidas:', readError);
+          // ⭐ Reverter a atualização otimista em caso de erro
+          queryClient.invalidateQueries({ queryKey: ['conversations', selectedSector, selectedStatus] });
+        } else {
+          console.log('✅ Mensagens marcadas como lidas:', updatedMessages?.length || 0, 'mensagens');
+          
+          // ⭐ Debug específico para Nutef
+          if (selectedConv?.client_phone?.includes('551193247')) {
+            console.log('🎯 DEBUG NUTEF - Mensagens atualizadas:', updatedMessages);
+          }
+          
+          // ⭐ Invalidar queries relacionadas para sincronizar dados
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ['message-counts'] }),
+            queryClient.invalidateQueries({ queryKey: ['messages', conversationId] })
+          ]);
+          
+          console.log('✅ Queries invalidadas');
         }
-        
-        // ⭐ Forçar invalidação imediata das queries
-        console.log('🔄 Invalidando queries...');
-        await queryClient.invalidateQueries({ queryKey: ['message-counts'] });
-        await queryClient.invalidateQueries({ queryKey: ['conversations'] });
-        console.log('✅ Queries invalidadas');
+      } catch (error) {
+        console.error('❌ Erro CRÍTICO ao marcar mensagens como lidas:', error);
+        // ⭐ Reverter a atualização otimista em caso de erro crítico
+        queryClient.invalidateQueries({ queryKey: ['conversations', selectedSector, selectedStatus] });
       }
-    } catch (error) {
-      console.error('❌ Erro CRÍTICO ao marcar mensagens como lidas:', error);
+    } else {
+      console.log('📖 Não há mensagens não lidas para marcar');
     }
     
     // Se a conversa for nova, mudar para "em andamento" de forma assíncrona
@@ -96,9 +118,9 @@ const Dashboard = () => {
         console.log('🔄 Atualizando status da conversa de "new" para "in_progress"');
         
         // ⭐ Atualização otimista - atualiza a UI primeiro
-        queryClient.setQueryData(['conversations', selectedSector, selectedStatus], (oldData: any[]) => {
+        queryClient.setQueryData(['conversations', selectedSector, selectedStatus], (oldData: any) => {
           if (!oldData) return oldData;
-          return oldData.map(conv => 
+          return oldData.map((conv: any) => 
             conv.id === conversationId 
               ? { ...conv, status: 'in_progress', assigned_to: profile?.id }
               : conv

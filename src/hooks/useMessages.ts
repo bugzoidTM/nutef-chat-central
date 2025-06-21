@@ -1,3 +1,4 @@
+
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect, useRef } from 'react';
@@ -67,6 +68,7 @@ export const useMessages = (selectedConversation: string | null) => {
         },
         (payload) => {
           console.log('📨 Real-time message update:', payload);
+          // ⭐ Invalidar queries específicas para esta conversa
           queryClient.invalidateQueries({ queryKey: ['messages', selectedConversation] });
           queryClient.invalidateQueries({ queryKey: ['last-messages'] });
           queryClient.invalidateQueries({ queryKey: ['message-counts'] });

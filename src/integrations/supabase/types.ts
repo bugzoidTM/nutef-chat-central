@@ -144,7 +144,7 @@ export type Database = {
           direction: Database["public"]["Enums"]["message_direction"]
           from_phone: string
           id: string
-          is_read: boolean
+          is_read: boolean | null
           message_type: Database["public"]["Enums"]["message_type"]
           timestamp: string
           to_phone: string
@@ -156,7 +156,7 @@ export type Database = {
           direction: Database["public"]["Enums"]["message_direction"]
           from_phone: string
           id?: string
-          is_read?: boolean
+          is_read?: boolean | null
           message_type?: Database["public"]["Enums"]["message_type"]
           timestamp?: string
           to_phone: string
@@ -168,7 +168,7 @@ export type Database = {
           direction?: Database["public"]["Enums"]["message_direction"]
           from_phone?: string
           id?: string
-          is_read?: boolean
+          is_read?: boolean | null
           message_type?: Database["public"]["Enums"]["message_type"]
           timestamp?: string
           to_phone?: string
@@ -269,6 +269,13 @@ export type Database = {
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_message_counts_by_conversation: {
+        Args: { conversation_ids: string[] }
+        Returns: {
+          conversation_id: string
+          count: number
+        }[]
       }
     }
     Enums: {
