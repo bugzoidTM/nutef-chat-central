@@ -1,9 +1,10 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useConversations } from '@/hooks/useConversations';
 import { useMessages } from '@/hooks/useMessages';
 import { useRealtimeSubscriptions } from '@/hooks/useRealtimeSubscriptions';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
 import Sidebar from './Sidebar';
 import ConversationList from './ConversationList';
 import ChatArea from './ChatArea';
@@ -11,6 +12,7 @@ import type { SectorType, StatusType } from '@/types/dashboard';
 
 const Dashboard = () => {
   const { profile } = useAuth();
+  const queryClient = useQueryClient();
   
   const [selectedSector, setSelectedSector] = useState<SectorType>('all');
   const [selectedStatus, setSelectedStatus] = useState<StatusType>('all');
@@ -21,6 +23,43 @@ const Dashboard = () => {
   const { conversations, conversationCounts, sendMessageMutation } = useConversations(selectedSector, selectedStatus);
   const { messages } = useMessages(selectedConversation); // Back to using Supabase messages
   useRealtimeSubscriptions();
+
+  // ⭐ Função para atualizar o status da conversa quando selecionada
+  const handleSelectConversation = async (conversationId: string) => {
+    setSelectedConversation(conversationId);
+    
+    // Encontrar a conversa selecionada
+    const selectedConv = conversations.find(c => c.id === conversationId);
+    
+    // Se a conversa for nova, mudar para "em andamento"
+    if (selectedConv && selectedConv.status === 'new') {
+      try {
+        console.log('🔄 Atualizando status da conversa de "new" para "in_progress"');
+        
+        const { error } = await supabase
+          .from('conversations')
+          .update({ 
+            status: 'in_progress',
+            assigned_to: profile?.id,
+            last_message_at: new Date().toISOString(),
+          })
+          .eq('id', conversationId);
+
+        if (error) {
+          console.error('❌ Erro ao atualizar status da conversa:', error);
+        } else {
+          console.log('✅ Status da conversa atualizado com sucesso');
+          
+          // ⭐ Invalidar queries para atualizar a UI imediatamente
+          queryClient.invalidateQueries({ queryKey: ['conversations'] });
+          queryClient.invalidateQueries({ queryKey: ['last-messages'] });
+          queryClient.invalidateQueries({ queryKey: ['message-counts'] });
+        }
+      } catch (error) {
+        console.error('❌ Erro ao atualizar conversa:', error);
+      }
+    }
+  };
 
   const handleSendMessage = (content: string) => {
     if (selectedConversation) {
@@ -58,7 +97,7 @@ const Dashboard = () => {
         <ConversationList
           conversations={conversations}
           selectedConversation={selectedConversation}
-          onSelectConversation={setSelectedConversation}
+          onSelectConversation={handleSelectConversation}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
         />
