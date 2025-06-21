@@ -91,7 +91,7 @@ export const useSendMessage = (conversations: any[]) => {
       // ⭐ Criar mensagem com prefixo para WhatsApp
       const senderName = profile?.name || 'Atendente';
       const sectorLabel = getSectorLabel(userSector);
-      const messageWithPrefix = `${senderName} (${sectorLabel}):\n${content}`;
+      const messageWithPrefix = `*${senderName} (${sectorLabel})*:\n${content}`;
 
       // Send message via Evolution API
       try {
