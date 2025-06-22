@@ -8,7 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import type { SectorType, StatusType } from '@/types/dashboard';
 import type { AdminViewType } from '@/hooks/useDashboardState';
 import NotificationSettings from './NotificationSettings';
-import { MessageSquare, Users, BarChart3, Settings } from 'lucide-react';
+import { MessageSquare, Users, BarChart3, Settings, Clock, ArrowRightLeft } from 'lucide-react';
 
 interface SidebarProps {
   selectedSector: SectorType;
@@ -53,6 +53,8 @@ const Sidebar = ({
 
   const adminMenuItems = [
     { id: 'chat', label: 'Chat', icon: MessageSquare },
+    { id: 'queue', label: 'Fila de Atendimento', icon: Clock },
+    { id: 'transfers', label: 'Transferências', icon: ArrowRightLeft },
     { id: 'attendants', label: 'Atendentes', icon: Users },
     { id: 'sectors', label: 'Setores', icon: Settings },
     { id: 'reports', label: 'Relatórios', icon: BarChart3 },

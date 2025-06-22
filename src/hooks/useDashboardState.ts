@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { SectorType, StatusType } from '@/types/dashboard';
 
-export type AdminViewType = 'chat' | 'attendants' | 'sectors' | 'reports';
+export type AdminViewType = 'chat' | 'attendants' | 'sectors' | 'reports' | 'queue' | 'transfers';
 
 export const useDashboardState = () => {
   const [selectedSector, setSelectedSector] = useState<SectorType>('all');

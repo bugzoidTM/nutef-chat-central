@@ -11,6 +11,8 @@ import ChatArea from './ChatArea';
 import SectorManagement from './admin/SectorManagement';
 import AttendantManagement from './admin/AttendantManagement';
 import Reports from './admin/Reports';
+import { QueueManagement } from './QueueManagement';
+import { TransferHistory } from './TransferHistory';
 import type { SectorType, StatusType } from '@/types/dashboard';
 import type { AdminViewType } from '@/hooks/useDashboardState';
 
@@ -69,6 +71,10 @@ const DashboardContent = ({
           return <AttendantManagement />;
         case 'reports':
           return <Reports />;
+        case 'queue':
+          return <QueueManagement />;
+        case 'transfers':
+          return <TransferHistory />;
         case 'chat':
         default:
           // Layout de chat padrão para admins
