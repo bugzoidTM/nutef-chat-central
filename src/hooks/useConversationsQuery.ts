@@ -18,13 +18,28 @@ export const useConversationsQuery = (selectedSector: SectorType, selectedStatus
           instances (
             instance_name,
             phone
+          ),
+          sectors (
+            id,
+            name,
+            color
           )
         `)
         .order('last_message_at', { ascending: false });
 
+      // ⭐ Atualizado para usar sector_id em vez de sector enum
       if (selectedSector !== 'all') {
-        query = query.eq('sector', selectedSector);
-        console.log('🔽 Filtering by sector:', selectedSector);
+        // Buscar o ID do setor baseado no nome
+        const { data: sectorData } = await supabase
+          .from('sectors')
+          .select('id')
+          .eq('name', getSectorNameFromType(selectedSector))
+          .single();
+        
+        if (sectorData) {
+          query = query.eq('sector_id', sectorData.id);
+          console.log('🔽 Filtering by sector_id:', sectorData.id);
+        }
       }
 
       if (selectedStatus !== 'all') {
@@ -54,3 +69,17 @@ export const useConversationsQuery = (selectedSector: SectorType, selectedStatus
     },
   });
 };
+
+// Helper function para converter tipos de setor
+function getSectorNameFromType(sectorType: SectorType): string {
+  switch (sectorType) {
+    case 'support':
+      return 'Suporte';
+    case 'financial':
+      return 'Financeiro';
+    case 'sales':
+      return 'Vendas';
+    default:
+      return 'Suporte';
+  }
+}

@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+
+import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useSectors } from '@/hooks/useSectors';
 import { LogoutButton } from '@/components/auth/LogoutButton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -34,14 +36,19 @@ const Sidebar = ({
   onViewChange,
 }: SidebarProps) => {
   const { profile } = useAuth();
+  const { activeSectors, isLoading: sectorsLoading } = useSectors();
 
   if (!profile) return null;
 
+  // ⭐ Usar setores dinâmicos em vez de hardcoded
   const sectorOptions = [
-    { value: 'all', label: 'Todos os Setores', count: conversationCounts.new + conversationCounts.in_progress + conversationCounts.finished },
-    { value: 'support', label: 'Suporte', count: 0 },
-    { value: 'financial', label: 'Financeiro', count: 0 },
-    { value: 'sales', label: 'Vendas', count: 0 },
+    { value: 'all', label: 'Todos os Setores', count: conversationCounts.new + conversationCounts.in_progress + conversationCounts.finished, color: '#6B7280' },
+    ...activeSectors.map(sector => ({
+      value: getSectorTypeFromName(sector.name) as SectorType,
+      label: sector.name,
+      count: 0, // TODO: Implementar contagem por setor dinâmico
+      color: sector.color
+    }))
   ];
 
   const statusOptions = [
@@ -108,24 +115,36 @@ const Sidebar = ({
             {/* Sector Filters */}
             <div>
               <h3 className="text-sm font-medium text-gray-900 mb-3">Setores</h3>
-              <div className="space-y-2">
-                {sectorOptions.map((option) => (
-                  <button
-                    key={option.value}
-                    onClick={() => onSectorChange(option.value as SectorType)}
-                    className={`w-full flex items-center justify-between p-2 rounded-lg text-left transition-colors ${
-                      selectedSector === option.value
-                        ? 'bg-green-50 text-green-700 border border-green-200'
-                        : 'hover:bg-gray-50 text-gray-700'
-                    }`}
-                  >
-                    <span className="text-sm">{option.label}</span>
-                    <Badge variant="secondary" className="text-xs">
-                      {option.count}
-                    </Badge>
-                  </button>
-                ))}
-              </div>
+              {sectorsLoading ? (
+                <div className="text-sm text-gray-500">Carregando setores...</div>
+              ) : (
+                <div className="space-y-2">
+                  {sectorOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      onClick={() => onSectorChange(option.value as SectorType)}
+                      className={`w-full flex items-center justify-between p-2 rounded-lg text-left transition-colors ${
+                        selectedSector === option.value
+                          ? 'bg-green-50 text-green-700 border border-green-200'
+                          : 'hover:bg-gray-50 text-gray-700'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2">
+                        {option.value !== 'all' && (
+                          <div 
+                            className="w-3 h-3 rounded-full" 
+                            style={{ backgroundColor: option.color }}
+                          />
+                        )}
+                        <span className="text-sm">{option.label}</span>
+                      </div>
+                      <Badge variant="secondary" className="text-xs">
+                        {option.count}
+                      </Badge>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Status Filters */}
@@ -165,5 +184,19 @@ const Sidebar = ({
     </div>
   );
 };
+
+// Helper function para converter nome do setor para tipo
+function getSectorTypeFromName(sectorName: string): SectorType {
+  switch (sectorName) {
+    case 'Suporte':
+      return 'support';
+    case 'Financeiro':
+      return 'financial';
+    case 'Vendas':
+      return 'sales';
+    default:
+      return 'support';
+  }
+}
 
 export default Sidebar;
