@@ -3,8 +3,12 @@ import { useAuth } from '@/hooks/useAuth';
 import { LogoutButton } from '@/components/auth/LogoutButton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Separator } from '@/components/ui/separator';
 import type { SectorType, StatusType } from '@/types/dashboard';
+import type { AdminViewType } from '@/hooks/useDashboardState';
 import NotificationSettings from './NotificationSettings';
+import { MessageSquare, Users, BarChart3, Settings } from 'lucide-react';
 
 interface SidebarProps {
   selectedSector: SectorType;
@@ -16,6 +20,8 @@ interface SidebarProps {
     in_progress: number;
     finished: number;
   };
+  currentView: AdminViewType;
+  onViewChange: (view: AdminViewType) => void;
 }
 
 const Sidebar = ({
@@ -24,6 +30,8 @@ const Sidebar = ({
   onSectorChange,
   onStatusChange,
   conversationCounts,
+  currentView,
+  onViewChange,
 }: SidebarProps) => {
   const { profile } = useAuth();
 
@@ -43,6 +51,13 @@ const Sidebar = ({
     { value: 'finished', label: 'Finalizadas', count: conversationCounts.finished },
   ];
 
+  const adminMenuItems = [
+    { id: 'chat', label: 'Chat', icon: MessageSquare },
+    { id: 'attendants', label: 'Atendentes', icon: Users },
+    { id: 'sectors', label: 'Setores', icon: Settings },
+    { id: 'reports', label: 'Relatórios', icon: BarChart3 },
+  ];
+
   return (
     <div className="w-80 bg-white border-r border-gray-200 flex flex-col h-full">
       {/* Header */}
@@ -60,56 +75,85 @@ const Sidebar = ({
         </div>
       </div>
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="p-4 space-y-6">
-          {/* Sector Filters */}
-          <div>
-            <h3 className="text-sm font-medium text-gray-900 mb-3">Setores</h3>
-            <div className="space-y-2">
-              {sectorOptions.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => onSectorChange(option.value as SectorType)}
-                  className={`w-full flex items-center justify-between p-2 rounded-lg text-left transition-colors ${
-                    selectedSector === option.value
-                      ? 'bg-green-50 text-green-700 border border-green-200'
-                      : 'hover:bg-gray-50 text-gray-700'
-                  }`}
+      {/* Menu de Administração (apenas para admins) */}
+      {profile.role === 'admin' && (
+        <div className="p-4 border-b border-gray-200">
+          <h3 className="text-sm font-medium text-gray-900 mb-3">Administração</h3>
+          <div className="space-y-1">
+            {adminMenuItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <Button
+                  key={item.id}
+                  variant={currentView === item.id ? 'default' : 'ghost'}
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={() => onViewChange(item.id as AdminViewType)}
                 >
-                  <span className="text-sm">{option.label}</span>
-                  <Badge variant="secondary" className="text-xs">
-                    {option.count}
-                  </Badge>
-                </button>
-              ))}
-            </div>
+                  <Icon className="h-4 w-4 mr-2" />
+                  {item.label}
+                </Button>
+              );
+            })}
           </div>
+        </div>
+      )}
 
-          {/* Status Filters */}
-          <div>
-            <h3 className="text-sm font-medium text-gray-900 mb-3">Status</h3>
-            <div className="space-y-2">
-              {statusOptions.map((option) => (
-                <button
-                  key={option.value}
-                  onClick={() => onStatusChange(option.value as StatusType)}
-                  className={`w-full flex items-center justify-between p-2 rounded-lg text-left transition-colors ${
-                    selectedStatus === option.value
-                      ? 'bg-green-50 text-green-700 border border-green-200'
-                      : 'hover:bg-gray-50 text-gray-700'
-                  }`}
-                >
-                  <span className="text-sm">{option.label}</span>
-                  <Badge variant="secondary" className="text-xs">
-                    {option.count}
-                  </Badge>
-                </button>
-              ))}
+      {/* Content - Filtros de Chat (visível apenas na view de chat) */}
+      {currentView === 'chat' && (
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-4 space-y-6">
+            {/* Sector Filters */}
+            <div>
+              <h3 className="text-sm font-medium text-gray-900 mb-3">Setores</h3>
+              <div className="space-y-2">
+                {sectorOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => onSectorChange(option.value as SectorType)}
+                    className={`w-full flex items-center justify-between p-2 rounded-lg text-left transition-colors ${
+                      selectedSector === option.value
+                        ? 'bg-green-50 text-green-700 border border-green-200'
+                        : 'hover:bg-gray-50 text-gray-700'
+                    }`}
+                  >
+                    <span className="text-sm">{option.label}</span>
+                    <Badge variant="secondary" className="text-xs">
+                      {option.count}
+                    </Badge>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Status Filters */}
+            <div>
+              <h3 className="text-sm font-medium text-gray-900 mb-3">Status</h3>
+              <div className="space-y-2">
+                {statusOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => onStatusChange(option.value as StatusType)}
+                    className={`w-full flex items-center justify-between p-2 rounded-lg text-left transition-colors ${
+                      selectedStatus === option.value
+                        ? 'bg-green-50 text-green-700 border border-green-200'
+                        : 'hover:bg-gray-50 text-gray-700'
+                    }`}
+                  >
+                    <span className="text-sm">{option.label}</span>
+                    <Badge variant="secondary" className="text-xs">
+                      {option.count}
+                    </Badge>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Área vazia para outras views */}
+      {currentView !== 'chat' && <div className="flex-1" />}
 
       {/* Footer */}
       <div className="p-4 border-t border-gray-200 space-y-3">

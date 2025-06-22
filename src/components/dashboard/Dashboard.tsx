@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useDashboardState } from '@/hooks/useDashboardState';
@@ -12,7 +11,9 @@ const Dashboard = () => {
     selectedStatus,
     setSelectedStatus,
     searchTerm,
-    setSearchTerm
+    setSearchTerm,
+    currentView,
+    setCurrentView,
   } = useDashboardState();
 
   if (!profile) {
@@ -34,6 +35,8 @@ const Dashboard = () => {
       onStatusChange={setSelectedStatus}
       searchTerm={searchTerm}
       onSearchChange={setSearchTerm}
+      currentView={currentView}
+      onViewChange={setCurrentView}
     />
   );
 };
