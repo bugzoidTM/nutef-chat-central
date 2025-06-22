@@ -1,3 +1,4 @@
+
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -54,44 +55,26 @@ export const useSendMessage = (conversations: any[]) => {
       }
 
       // ⭐ Obter setor do usuário para adicionar no prefixo da mensagem
-      let userSector = 'support'; // default
-      if (profile) {
-        // Buscar setor do atendente se não for admin
-        if (profile.role !== 'admin') {
-          try {
-            const { data: sectorData } = await supabase
-              .from('attendant_sectors')
-              .select('sector')
-              .eq('attendant_id', profile.id)
-              .single();
-            
-            if (sectorData) {
-              userSector = sectorData.sector;
-            }
-          } catch (error) {
-            console.log('⚠️ Não foi possível obter setor do atendente, usando padrão');
+      let userSectorName = 'Suporte'; // default
+      if (profile && profile.sector_id) {
+        try {
+          const { data: sectorData } = await supabase
+            .from('sectors')
+            .select('name')
+            .eq('id', profile.sector_id)
+            .single();
+          
+          if (sectorData) {
+            userSectorName = sectorData.name;
           }
+        } catch (error) {
+          console.log('⚠️ Não foi possível obter setor do atendente, usando padrão');
         }
       }
 
-      // ⭐ Função para traduzir setor
-      const getSectorLabel = (sector: string) => {
-        switch (sector) {
-          case 'support':
-            return 'Suporte';
-          case 'financial':
-            return 'Financeiro';
-          case 'sales':
-            return 'Vendas';
-          default:
-            return sector;
-        }
-      };
-
       // ⭐ Criar mensagem com prefixo para WhatsApp
       const senderName = profile?.name || 'Atendente';
-      const sectorLabel = getSectorLabel(userSector);
-      const messageWithPrefix = `*${senderName} (${sectorLabel})*:\n${content}`;
+      const messageWithPrefix = `*${senderName} (${userSectorName})*:\n${content}`;
 
       // Send message via Evolution API
       try {
@@ -122,7 +105,7 @@ export const useSendMessage = (conversations: any[]) => {
             is_read: true,
             // ⭐ Adicionar informações do remetente
             sender_name: senderName,
-            sender_sector: userSector,
+            sender_sector: userSectorName,
           });
 
         if (messageError) {
