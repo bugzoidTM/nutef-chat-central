@@ -18,7 +18,8 @@ const SectorManagement = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    color: '#3B82F6'
+    color: '#3B82F6',
+    is_active: true
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,7 +33,7 @@ const SectorManagement = () => {
       setIsCreateDialogOpen(false);
     }
     
-    setFormData({ name: '', description: '', color: '#3B82F6' });
+    setFormData({ name: '', description: '', color: '#3B82F6', is_active: true });
   };
 
   const handleEdit = (sector: any) => {
@@ -40,7 +41,8 @@ const SectorManagement = () => {
     setFormData({
       name: sector.name,
       description: sector.description || '',
-      color: sector.color
+      color: sector.color,
+      is_active: sector.is_active
     });
   };
 

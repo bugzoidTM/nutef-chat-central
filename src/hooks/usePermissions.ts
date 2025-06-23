@@ -1,3 +1,4 @@
+
 import { useMemo } from 'react';
 import { useAuth } from './useAuth';
 import { useQuery } from '@tanstack/react-query';
@@ -48,12 +49,19 @@ export const usePermissions = () => {
       
       const { data, error } = await supabase
         .from('profiles')
-        .select('role, sector_id, can_transfer, max_concurrent_chats, managed_by, is_active')
+        .select('role, sector_id, managed_by, is_active')
         .eq('id', profile.id)
         .single();
       
       if (error) throw error;
-      return data as UserPermissions;
+      return {
+        role: data.role,
+        sectorId: data.sector_id,
+        canTransfer: true, // Default value until column exists
+        maxConcurrentChats: 10, // Default value until column exists
+        managedBy: data.managed_by,
+        isActive: data.is_active,
+      } as UserPermissions;
     },
     enabled: !!profile?.id,
   });
@@ -102,68 +110,6 @@ export const usePermissions = () => {
     };
   }, [userPermissions]);
 
-  // Verificar permissões específicas para uma conversa
-  const hasConversationPermission = useMemo(() => {
-    return (conversationId: string, permission: ConversationPermission, conversation?: {
-      sector_id: string | null;
-      assigned_to: string | null;
-      status: string;
-    }): boolean => {
-      if (!userPermissions || !userPermissions.isActive) return false;
-
-      const { role, sectorId } = userPermissions;
-
-      // Admins têm todas as permissões
-      if (role === 'admin') return true;
-
-      if (role === 'attendant') {
-        const isAssignedToMe = conversation?.assigned_to === profile?.id;
-        const isFromMySector = conversation?.sector_id === sectorId;
-        const hasAccess = isAssignedToMe || isFromMySector;
-
-        switch (permission) {
-          case 'read':
-            return hasAccess;
-
-          case 'write':
-            return hasAccess;
-
-          case 'transfer':
-            return hasAccess && userPermissions.canTransfer;
-
-          case 'assign':
-            return false; // Apenas admins podem atribuir
-
-          case 'close':
-            return hasAccess;
-
-          case 'reopen':
-            return false; // Apenas admins podem reabrir
-
-          default:
-            return false;
-        }
-      }
-
-      return false;
-    };
-  }, [userPermissions, profile?.id]);
-
-  // Verificar se pode acessar setor específico
-  const canAccessSector = useMemo(() => {
-    return (sectorId: string | null): boolean => {
-      if (!userPermissions || !userPermissions.isActive) return false;
-      return userPermissions.role === 'admin' || userPermissions.sectorId === sectorId;
-    };
-  }, [userPermissions]);
-
-  // Verificar se pode gerenciar um atendente específico
-  const canManageAttendant = useMemo(() => {
-    return (attendantId: string): boolean => {
-      return userPermissions?.role === 'admin' && userPermissions.isActive;
-    };
-  }, [userPermissions]);
-
   // Verificar se pode transferir para um atendente/setor específico
   const canTransferTo = useMemo(() => {
     return (targetSectorId: string | null, targetAttendantId?: string): boolean => {
@@ -176,7 +122,6 @@ export const usePermissions = () => {
 
       // Atendentes precisam ter permissão de transferência
       if (role === 'attendant' && canTransfer) {
-        // Pode transferir dentro do próprio setor ou para outros setores se tiver permissão
         return true;
       }
 
@@ -184,57 +129,14 @@ export const usePermissions = () => {
     };
   }, [userPermissions]);
 
-  // Verificar limite de conversas simultâneas
-  const canTakeNewConversation = useMemo(() => {
-    return (currentConversationCount: number): boolean => {
-      if (!userPermissions || !userPermissions.isActive) return false;
-
-      // Admins não têm limite
-      if (userPermissions.role === 'admin') return true;
-
-      // Verificar limite para atendentes
-      return currentConversationCount < userPermissions.maxConcurrentChats;
-    };
-  }, [userPermissions]);
-
-  // Lista de permissões do usuário atual
-  const permissions = useMemo(() => {
-    if (!userPermissions) return [];
-
-    const allPermissions: Permission[] = [
-      'view_all_conversations',
-      'view_sector_conversations', 
-      'view_assigned_conversations',
-      'transfer_conversations',
-      'assign_conversations',
-      'manage_attendants',
-      'manage_sectors',
-      'view_reports',
-      'manage_settings',
-      'escalate_conversations',
-      'close_conversations',
-      'reopen_conversations',
-      'view_conversation_history',
-      'export_data',
-      'manage_instances'
-    ];
-
-    return allPermissions.filter(permission => hasPermission(permission));
-  }, [hasPermission, userPermissions]);
-
   return {
     userPermissions,
-    permissions,
     hasPermission,
-    hasConversationPermission,
-    canAccessSector,
-    canManageAttendant,
     canTransferTo,
-    canTakeNewConversation,
     isAdmin: userPermissions?.role === 'admin',
     isAttendant: userPermissions?.role === 'attendant',
     isActive: userPermissions?.isActive || false,
     sectorId: userPermissions?.sectorId,
     maxConcurrentChats: userPermissions?.maxConcurrentChats || 0,
   };
-}; 
+};
