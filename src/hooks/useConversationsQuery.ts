@@ -11,7 +11,7 @@ export const useConversationsQuery = (selectedSector: SectorType, selectedStatus
     queryFn: async () => {
       console.log('📊 useConversationsQuery - Fetching conversations from Supabase...');
       
-      // Simplified query to avoid deep type instantiation
+      // Build base query without complex joins to avoid type issues
       let query = supabase
         .from('conversations')
         .select('*')
@@ -20,13 +20,14 @@ export const useConversationsQuery = (selectedSector: SectorType, selectedStatus
       // Filter by sector if not 'all'
       if (selectedSector !== 'all') {
         // Get sector data separately to avoid complex joins
+        const sectorName = getSectorNameFromType(selectedSector);
         const { data: sectorData } = await supabase
           .from('sectors')
           .select('id')
-          .eq('name', getSectorNameFromType(selectedSector))
-          .single();
+          .eq('name', sectorName)
+          .maybeSingle();
         
-        if (sectorData) {
+        if (sectorData?.id) {
           query = query.eq('sector_id', sectorData.id);
           console.log('🔽 Filtering by sector_id:', sectorData.id);
         }
@@ -44,37 +45,71 @@ export const useConversationsQuery = (selectedSector: SectorType, selectedStatus
         throw error;
       }
 
-      // Fetch related data separately to avoid complex type intersections
-      const conversationsWithRelations = await Promise.all(
-        (conversations || []).map(async (conv: any) => {
-          // Get instance data
-          const { data: instance } = await supabase
-            .from('instances')
-            .select('instance_name, phone')
-            .eq('id', conv.instance_id)
-            .single();
+      if (!conversations) {
+        console.log('📊 useConversationsQuery - No conversations found');
+        return [];
+      }
 
-          // Get sector data
-          const { data: sector } = await supabase
-            .from('sectors')
-            .select('id, name, color')
-            .eq('id', conv.sector_id)
-            .single();
+      // Fetch related data in separate queries to avoid type complexity
+      const enrichedConversations = await Promise.all(
+        conversations.map(async (conv: any) => {
+          try {
+            // Get instance data
+            const { data: instance } = await supabase
+              .from('instances')
+              .select('instance_name, phone')
+              .eq('id', conv.instance_id)
+              .maybeSingle();
 
-          return {
-            ...conv,
-            instances: instance,
-            sectors: sector,
-          };
+            // Get sector data
+            const { data: sector } = await supabase
+              .from('sectors')
+              .select('id, name, color')
+              .eq('id', conv.sector_id)
+              .maybeSingle();
+
+            return {
+              id: conv.id,
+              client_name: conv.client_name,
+              client_phone: conv.client_phone,
+              status: conv.status,
+              sector: conv.sector,
+              sector_id: conv.sector_id,
+              assigned_to: conv.assigned_to,
+              created_at: conv.created_at,
+              updated_at: conv.updated_at,
+              last_message_at: conv.last_message_at,
+              instance_id: conv.instance_id,
+              instances: instance || null,
+              sectors: sector || null,
+            };
+          } catch (error) {
+            console.error('Error enriching conversation:', error);
+            return {
+              id: conv.id,
+              client_name: conv.client_name,
+              client_phone: conv.client_phone,
+              status: conv.status,
+              sector: conv.sector,
+              sector_id: conv.sector_id,
+              assigned_to: conv.assigned_to,
+              created_at: conv.created_at,
+              updated_at: conv.updated_at,
+              last_message_at: conv.last_message_at,
+              instance_id: conv.instance_id,
+              instances: null,
+              sectors: null,
+            };
+          }
         })
       );
       
       console.log('📊 useConversationsQuery - Result:', { 
-        data: conversationsWithRelations ? `${conversationsWithRelations.length} conversations` : 'null',
-        rawData: conversationsWithRelations
+        data: enrichedConversations ? `${enrichedConversations.length} conversations` : 'null',
+        rawData: enrichedConversations
       });
       
-      return conversationsWithRelations || [];
+      return enrichedConversations;
     },
     refetchInterval: 3000,
     retry: (failureCount, error: any) => {
