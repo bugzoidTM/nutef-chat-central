@@ -1,3 +1,4 @@
+
 import { useMemo } from 'react';
 import { usePermissions } from './usePermissions';
 import type { Conversation } from '@/types/dashboard';
@@ -16,7 +17,6 @@ export interface ConversationAccess {
 
 export const useConversationPermissions = (conversation?: Conversation | null) => {
   const { 
-    hasConversationPermission, 
     hasPermission, 
     isAdmin, 
     isAttendant, 
@@ -38,12 +38,6 @@ export const useConversationPermissions = (conversation?: Conversation | null) =
         reason: 'Usuário não ativo ou conversa não encontrada'
       };
     }
-
-    const conversationData = {
-      sector_id: conversation.sector || null,
-      assigned_to: conversation.assigned_to,
-      status: conversation.status,
-    };
 
     const isAssignedToMe = conversation.assigned_to === userPermissions.managedBy;
     const isFromMySector = conversation.sector === userSectorId;
@@ -106,56 +100,13 @@ export const useConversationPermissions = (conversation?: Conversation | null) =
     };
   }, [conversation, userPermissions, isAdmin, isAttendant, userSectorId]);
 
-  // Verificações específicas
-  const canViewConversation = useMemo(() => 
-    hasConversationPermission(conversation?.id || '', 'read', {
-      sector_id: conversation?.sector || null,
-      assigned_to: conversation?.assigned_to || null,
-      status: conversation?.status || 'new'
-    }), 
-    [conversation, hasConversationPermission]
-  );
-
-  const canEditConversation = useMemo(() =>
-    hasConversationPermission(conversation?.id || '', 'write', {
-      sector_id: conversation?.sector || null,
-      assigned_to: conversation?.assigned_to || null,
-      status: conversation?.status || 'new'
-    }) && conversation?.status !== 'finished',
-    [conversation, hasConversationPermission]
-  );
-
-  const canTransferConversation = useMemo(() =>
-    hasConversationPermission(conversation?.id || '', 'transfer', {
-      sector_id: conversation?.sector || null,
-      assigned_to: conversation?.assigned_to || null,
-      status: conversation?.status || 'new'
-    }) && conversation?.status !== 'finished',
-    [conversation, hasConversationPermission]
-  );
-
-  const canAssignConversation = useMemo(() =>
-    hasPermission('assign_conversations'),
-    [hasPermission]
-  );
-
-  const canCloseConversation = useMemo(() =>
-    hasConversationPermission(conversation?.id || '', 'close', {
-      sector_id: conversation?.sector || null,
-      assigned_to: conversation?.assigned_to || null,
-      status: conversation?.status || 'new'
-    }) && conversation?.status !== 'finished',
-    [conversation, hasConversationPermission]
-  );
-
-  const canReopenConversation = useMemo(() =>
-    hasConversationPermission(conversation?.id || '', 'reopen', {
-      sector_id: conversation?.sector || null,
-      assigned_to: conversation?.assigned_to || null,
-      status: conversation?.status || 'new'
-    }) && conversation?.status === 'finished',
-    [conversation, hasConversationPermission]
-  );
+  // Verificações específicas simplificadas
+  const canViewConversation = conversationAccess.canView;
+  const canEditConversation = conversationAccess.canEdit;
+  const canTransferConversation = conversationAccess.canTransfer;
+  const canAssignConversation = hasPermission('assign_conversations');
+  const canCloseConversation = conversationAccess.canClose;
+  const canReopenConversation = conversationAccess.canReopen;
 
   // Helpers para UI
   const getConversationActions = useMemo(() => {
@@ -224,4 +175,4 @@ export const useConversationPermissions = (conversation?: Conversation | null) =
     isAssignedToMe: conversation?.assigned_to === userPermissions?.managedBy,
     isFromMySector: conversation?.sector === userSectorId,
   };
-}; 
+};

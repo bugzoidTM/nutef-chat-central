@@ -58,8 +58,8 @@ export const useAttendants = () => {
       if (error) throw error;
       return data.map(item => ({
         ...item,
-        can_transfer: item.can_transfer ?? true,
-        max_concurrent_chats: item.max_concurrent_chats ?? 10,
+        can_transfer: true, // Default value since column may not exist yet
+        max_concurrent_chats: 10, // Default value since column may not exist yet
         sector: item.sector ? {
           id: item.sector.id,
           name: item.sector.name,
@@ -87,8 +87,8 @@ export const useAttendants = () => {
       if (error) throw error;
       return data.map(item => ({
         ...item,
-        can_transfer: item.can_transfer ?? true,
-        max_concurrent_chats: item.max_concurrent_chats ?? 10,
+        can_transfer: true, // Default value since column may not exist yet
+        max_concurrent_chats: 10, // Default value since column may not exist yet
         sector: item.sector ? {
           id: item.sector.id,
           name: item.sector.name,

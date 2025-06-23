@@ -27,7 +27,7 @@ export const useConversationsQuery = (selectedSector: SectorType, selectedStatus
         `)
         .order('last_message_at', { ascending: false });
 
-      // ⭐ Atualizado para usar sector_id em vez de sector enum
+      // Filtrar por setor usando sector_id se não for 'all'
       if (selectedSector !== 'all') {
         // Buscar o ID do setor baseado no nome
         const { data: sectorData } = await supabase
