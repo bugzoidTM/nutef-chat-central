@@ -9,7 +9,7 @@ export const usePermissionNotifications = () => {
   const { isAdmin, isAttendant, hasPermission, sectorId } = usePermissions();
   const { pendingTransfers, pendingTransfersCount } = useConversationTransfers();
 
-  // Buscar conversas não atribuídas do setor do usuário
+  // Simplified query to avoid deep type instantiation
   const { data: unassignedConversations = [] } = useQuery({
     queryKey: ['unassigned-conversations', sectorId],
     queryFn: async () => {
@@ -24,62 +24,52 @@ export const usePermissionNotifications = () => {
         .order('created_at', { ascending: true });
       
       if (error) throw error;
-      return data;
+      return data || [];
     },
     enabled: isAttendant && !!sectorId,
-    refetchInterval: 30000, // Atualizar a cada 30 segundos
+    refetchInterval: 30000,
   });
 
-  // Buscar conversas que precisam de escalação (muito tempo sem resposta)
+  // Simplified query for escalation conversations
   const { data: conversationsNeedingEscalation = [] } = useQuery({
     queryKey: ['conversations-needing-escalation', sectorId],
     queryFn: async () => {
       if (!sectorId) return [];
       
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+      
       const { data, error } = await supabase
         .from('conversations')
-        .select(`
-          id, 
-          client_name, 
-          client_phone, 
-          last_message_at,
-          assigned_to,
-          profiles:assigned_to (name)
-        `)
+        .select('id, client_name, client_phone, last_message_at, assigned_to')
         .eq('sector_id', sectorId)
         .eq('status', 'in_progress')
         .not('assigned_to', 'is', null)
-        .lt('last_message_at', new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()) // 2 horas sem resposta
+        .lt('last_message_at', twoHoursAgo)
         .order('last_message_at', { ascending: true });
       
       if (error) throw error;
-      return data;
+      return data || [];
     },
     enabled: isAttendant && hasPermission('escalate_conversations'),
-    refetchInterval: 60000, // Atualizar a cada minuto
+    refetchInterval: 60000,
   });
 
-  // Buscar conversas com alta prioridade (para admins)
+  // Simplified query for high priority conversations (for admins)
   const { data: highPriorityConversations = [] } = useQuery({
     queryKey: ['high-priority-conversations'],
     queryFn: async () => {
+      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      
       const { data, error } = await supabase
         .from('conversations')
-        .select(`
-          id, 
-          client_name, 
-          client_phone, 
-          created_at,
-          sector_id,
-          sectors:sector_id (name, color)
-        `)
+        .select('id, client_name, client_phone, created_at, sector_id')
         .eq('status', 'new')
         .is('assigned_to', null)
-        .lt('created_at', new Date(Date.now() - 30 * 60 * 1000).toISOString()) // Mais de 30 min sem atendimento
+        .lt('created_at', thirtyMinutesAgo)
         .order('created_at', { ascending: true });
       
       if (error) throw error;
-      return data;
+      return data || [];
     },
     enabled: isAdmin && hasPermission('view_all_conversations'),
     refetchInterval: 60000,
@@ -238,4 +228,4 @@ export const usePermissionNotifications = () => {
       highPriority: highPriorityConversations.length,
     },
   };
-}; 
+};

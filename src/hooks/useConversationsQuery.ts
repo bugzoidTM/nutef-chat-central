@@ -11,25 +11,15 @@ export const useConversationsQuery = (selectedSector: SectorType, selectedStatus
     queryFn: async () => {
       console.log('📊 useConversationsQuery - Fetching conversations from Supabase...');
       
+      // Simplified query to avoid deep type instantiation
       let query = supabase
         .from('conversations')
-        .select(`
-          *,
-          instances (
-            instance_name,
-            phone
-          ),
-          sectors (
-            id,
-            name,
-            color
-          )
-        `)
+        .select('*')
         .order('last_message_at', { ascending: false });
 
-      // Filtrar por setor usando sector_id se não for 'all'
+      // Filter by sector if not 'all'
       if (selectedSector !== 'all') {
-        // Buscar o ID do setor baseado no nome
+        // Get sector data separately to avoid complex joins
         const { data: sectorData } = await supabase
           .from('sectors')
           .select('id')
@@ -47,20 +37,44 @@ export const useConversationsQuery = (selectedSector: SectorType, selectedStatus
         console.log('🔽 Filtering by status:', selectedStatus);
       }
 
-      const { data, error } = await query;
-      
-      console.log('📊 useConversationsQuery - Supabase query result:', { 
-        data: data ? `${data.length} conversations` : 'null', 
-        error: error?.message || 'none',
-        rawData: data
-      });
+      const { data: conversations, error } = await query;
       
       if (error) {
         console.error('❌ useConversationsQuery - Error fetching conversations:', error);
         throw error;
       }
+
+      // Fetch related data separately to avoid complex type intersections
+      const conversationsWithRelations = await Promise.all(
+        (conversations || []).map(async (conv: any) => {
+          // Get instance data
+          const { data: instance } = await supabase
+            .from('instances')
+            .select('instance_name, phone')
+            .eq('id', conv.instance_id)
+            .single();
+
+          // Get sector data
+          const { data: sector } = await supabase
+            .from('sectors')
+            .select('id, name, color')
+            .eq('id', conv.sector_id)
+            .single();
+
+          return {
+            ...conv,
+            instances: instance,
+            sectors: sector,
+          };
+        })
+      );
       
-      return data || [];
+      console.log('📊 useConversationsQuery - Result:', { 
+        data: conversationsWithRelations ? `${conversationsWithRelations.length} conversations` : 'null',
+        rawData: conversationsWithRelations
+      });
+      
+      return conversationsWithRelations || [];
     },
     refetchInterval: 3000,
     retry: (failureCount, error: any) => {
@@ -70,7 +84,7 @@ export const useConversationsQuery = (selectedSector: SectorType, selectedStatus
   });
 };
 
-// Helper function para converter tipos de setor
+// Helper function to convert sector types
 function getSectorNameFromType(sectorType: SectorType): string {
   switch (sectorType) {
     case 'support':
