@@ -1,3 +1,4 @@
+
 import { useEffect } from 'react';
 import { usePermissions } from './usePermissions';
 import { useConversationTransfers } from './useConversationTransfers';
@@ -9,7 +10,7 @@ export const usePermissionNotifications = () => {
   const { isAdmin, isAttendant, hasPermission, sectorId } = usePermissions();
   const { pendingTransfers, pendingTransfersCount } = useConversationTransfers();
 
-  // Simplified query to avoid deep type instantiation
+  // Query simplificada para conversas não atribuídas usando sector_id
   const { data: unassignedConversations = [] } = useQuery({
     queryKey: ['unassigned-conversations', sectorId],
     queryFn: async () => {
@@ -30,7 +31,7 @@ export const usePermissionNotifications = () => {
     refetchInterval: 30000,
   });
 
-  // Simplified query for escalation conversations
+  // Query para conversas que precisam de escalação usando sector_id
   const { data: conversationsNeedingEscalation = [] } = useQuery({
     queryKey: ['conversations-needing-escalation', sectorId],
     queryFn: async () => {
@@ -54,7 +55,7 @@ export const usePermissionNotifications = () => {
     refetchInterval: 60000,
   });
 
-  // Simplified query for high priority conversations (for admins)
+  // Query para conversas de alta prioridade (para admins)
   const { data: highPriorityConversations = [] } = useQuery({
     queryKey: ['high-priority-conversations'],
     queryFn: async () => {

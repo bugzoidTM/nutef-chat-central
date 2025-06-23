@@ -41,7 +41,7 @@ interface UserPermissions {
 export const usePermissions = () => {
   const { profile } = useAuth();
 
-  // Buscar permissões detalhadas do usuário
+  // Buscar permissões detalhadas do usuário usando os novos campos
   const { data: userPermissions } = useQuery({
     queryKey: ['user-permissions', profile?.id],
     queryFn: async () => {
@@ -49,7 +49,7 @@ export const usePermissions = () => {
       
       const { data, error } = await supabase
         .from('profiles')
-        .select('role, sector_id, managed_by, is_active')
+        .select('role, sector_id, managed_by, is_active, can_transfer, max_concurrent_chats')
         .eq('id', profile.id)
         .single();
       
@@ -57,8 +57,8 @@ export const usePermissions = () => {
       return {
         role: data.role,
         sectorId: data.sector_id,
-        canTransfer: true, // Default value until column exists
-        maxConcurrentChats: 10, // Default value until column exists
+        canTransfer: data.can_transfer || true,
+        maxConcurrentChats: data.max_concurrent_chats || 10,
         managedBy: data.managed_by,
         isActive: data.is_active,
       } as UserPermissions;

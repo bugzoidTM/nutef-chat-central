@@ -15,18 +15,21 @@ export type Database = {
           created_at: string
           id: string
           sector: Database["public"]["Enums"]["sector_type"]
+          sector_id: string | null
         }
         Insert: {
           attendant_id: string
           created_at?: string
           id?: string
           sector: Database["public"]["Enums"]["sector_type"]
+          sector_id?: string | null
         }
         Update: {
           attendant_id?: string
           created_at?: string
           id?: string
           sector?: Database["public"]["Enums"]["sector_type"]
+          sector_id?: string | null
         }
         Relationships: [
           {
@@ -36,38 +39,57 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "attendant_sectors_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
         ]
       }
       conversation_transfers: {
         Row: {
+          accepted_at: string | null
+          completed_at: string | null
           conversation_id: string | null
           created_at: string | null
           from_attendant_id: string | null
           from_sector_id: string | null
           id: string
           reason: string | null
+          status: string | null
           to_attendant_id: string | null
           to_sector_id: string | null
+          transferred_by: string | null
         }
         Insert: {
+          accepted_at?: string | null
+          completed_at?: string | null
           conversation_id?: string | null
           created_at?: string | null
           from_attendant_id?: string | null
           from_sector_id?: string | null
           id?: string
           reason?: string | null
+          status?: string | null
           to_attendant_id?: string | null
           to_sector_id?: string | null
+          transferred_by?: string | null
         }
         Update: {
+          accepted_at?: string | null
+          completed_at?: string | null
           conversation_id?: string | null
           created_at?: string | null
           from_attendant_id?: string | null
           from_sector_id?: string | null
           id?: string
           reason?: string | null
+          status?: string | null
           to_attendant_id?: string | null
           to_sector_id?: string | null
+          transferred_by?: string | null
         }
         Relationships: [
           {
@@ -105,6 +127,13 @@ export type Database = {
             referencedRelation: "sectors"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "conversation_transfers_transferred_by_fkey"
+            columns: ["transferred_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       conversations: {
@@ -117,6 +146,7 @@ export type Database = {
           instance_id: string
           last_message_at: string
           sector: Database["public"]["Enums"]["sector_type"]
+          sector_id: string | null
           status: Database["public"]["Enums"]["conversation_status"]
           updated_at: string
         }
@@ -129,6 +159,7 @@ export type Database = {
           instance_id: string
           last_message_at?: string
           sector: Database["public"]["Enums"]["sector_type"]
+          sector_id?: string | null
           status?: Database["public"]["Enums"]["conversation_status"]
           updated_at?: string
         }
@@ -141,6 +172,7 @@ export type Database = {
           instance_id?: string
           last_message_at?: string
           sector?: Database["public"]["Enums"]["sector_type"]
+          sector_id?: string | null
           status?: Database["public"]["Enums"]["conversation_status"]
           updated_at?: string
         }
@@ -157,6 +189,13 @@ export type Database = {
             columns: ["instance_id"]
             isOneToOne: false
             referencedRelation: "instances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
             referencedColumns: ["id"]
           },
         ]
@@ -263,6 +302,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          can_transfer: boolean | null
           created_at: string
           email: string
           id: string
@@ -270,6 +310,7 @@ export type Database = {
           is_active: boolean
           is_admin: boolean | null
           managed_by: string | null
+          max_concurrent_chats: number | null
           name: string
           phone: string
           role: Database["public"]["Enums"]["user_role"]
@@ -281,6 +322,7 @@ export type Database = {
           whatsapp_connected: boolean | null
         }
         Insert: {
+          can_transfer?: boolean | null
           created_at?: string
           email: string
           id?: string
@@ -288,6 +330,7 @@ export type Database = {
           is_active?: boolean
           is_admin?: boolean | null
           managed_by?: string | null
+          max_concurrent_chats?: number | null
           name: string
           phone: string
           role?: Database["public"]["Enums"]["user_role"]
@@ -299,6 +342,7 @@ export type Database = {
           whatsapp_connected?: boolean | null
         }
         Update: {
+          can_transfer?: boolean | null
           created_at?: string
           email?: string
           id?: string
@@ -306,6 +350,7 @@ export type Database = {
           is_active?: boolean
           is_admin?: boolean | null
           managed_by?: string | null
+          max_concurrent_chats?: number | null
           name?: string
           phone?: string
           role?: Database["public"]["Enums"]["user_role"]
@@ -337,6 +382,7 @@ export type Database = {
         Row: {
           color: string | null
           created_at: string | null
+          created_by: string | null
           description: string | null
           id: string
           is_active: boolean | null
@@ -346,6 +392,7 @@ export type Database = {
         Insert: {
           color?: string | null
           created_at?: string | null
+          created_by?: string | null
           description?: string | null
           id?: string
           is_active?: boolean | null
@@ -355,13 +402,22 @@ export type Database = {
         Update: {
           color?: string | null
           created_at?: string | null
+          created_by?: string | null
           description?: string | null
           id?: string
           is_active?: boolean | null
           name?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sectors_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       webhook_configs: {
         Row: {

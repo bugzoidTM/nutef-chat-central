@@ -40,7 +40,8 @@ export const useConversationPermissions = (conversation?: Conversation | null) =
     }
 
     const isAssignedToMe = conversation.assigned_to === userPermissions.managedBy;
-    const isFromMySector = conversation.sector === userSectorId;
+    // Usar sector_id em vez do enum sector
+    const isFromMySector = conversation.sector_id === userSectorId;
     const isFinished = conversation.status === 'finished';
 
     // Admin tem acesso total
@@ -173,6 +174,6 @@ export const useConversationPermissions = (conversation?: Conversation | null) =
     isReadOnly: !canEditConversation,
     isFinished: conversation?.status === 'finished',
     isAssignedToMe: conversation?.assigned_to === userPermissions?.managedBy,
-    isFromMySector: conversation?.sector === userSectorId,
+    isFromMySector: conversation?.sector_id === userSectorId,
   };
 };

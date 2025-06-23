@@ -11,28 +11,54 @@ export const useConversationsQuery = (selectedSector: SectorType, selectedStatus
     queryFn: async () => {
       console.log('📊 useConversationsQuery - Fetching conversations from Supabase...');
       
-      // Use simple base query to avoid type issues
-      const baseQuery = supabase
+      // Buscar conversas com joins otimizados
+      let query = supabase
         .from('conversations')
-        .select('*')
+        .select(`
+          id,
+          client_name,
+          client_phone,
+          status,
+          sector,
+          sector_id,
+          assigned_to,
+          created_at,
+          updated_at,
+          last_message_at,
+          instance_id,
+          instances:instance_id (
+            instance_name,
+            phone
+          ),
+          sectors:sector_id (
+            id,
+            name,
+            color
+          )
+        `)
         .order('last_message_at', { ascending: false });
 
-      // Apply filters directly without complex type inference
-      let filteredQuery = baseQuery;
-
-      // Filter by sector if not 'all' - use the sector field directly
+      // Aplicar filtros
       if (selectedSector !== 'all') {
-        filteredQuery = filteredQuery.eq('sector', selectedSector);
-        console.log('🔽 Filtering by sector:', selectedSector);
+        // Usar o campo sector_id em vez do enum
+        const { data: sectorData } = await supabase
+          .from('sectors')
+          .select('id')
+          .eq('name', getSectorNameFromType(selectedSector))
+          .single();
+        
+        if (sectorData) {
+          query = query.eq('sector_id', sectorData.id);
+          console.log('🔽 Filtering by sector_id:', sectorData.id);
+        }
       }
 
       if (selectedStatus !== 'all') {
-        filteredQuery = filteredQuery.eq('status', selectedStatus);
+        query = query.eq('status', selectedStatus);
         console.log('🔽 Filtering by status:', selectedStatus);
       }
 
-      // Execute query with explicit error handling
-      const result = await filteredQuery;
+      const result = await query;
       
       if (result.error) {
         console.error('❌ useConversationsQuery - Error fetching conversations:', result.error);
@@ -46,74 +72,29 @@ export const useConversationsQuery = (selectedSector: SectorType, selectedStatus
         return [];
       }
 
-      // Fetch related data separately with simple queries
-      const enrichedConversations = await Promise.all(
-        conversations.map(async (conv) => {
-          try {
-            // Get instance data with simple query
-            const instanceQuery = await supabase
-              .from('instances')
-              .select('instance_name, phone')
-              .eq('id', conv.instance_id)
-              .limit(1);
-
-            const instance = instanceQuery.data?.[0] || null;
-
-            // For sectors, we'll use the sector field to get additional data if needed
-            // But since we already have the sector enum, we might not need to fetch from sectors table
-            let sector = null;
-            if (conv.sector) {
-              const sectorQuery = await supabase
-                .from('sectors')
-                .select('id, name, color')
-                .eq('name', getSectorNameFromType(conv.sector))
-                .limit(1);
-
-              sector = sectorQuery.data?.[0] || null;
-            }
-
-            return {
-              id: conv.id,
-              client_name: conv.client_name,
-              client_phone: conv.client_phone,
-              status: conv.status,
-              sector: conv.sector,
-              sector_id: sector?.id || null,
-              assigned_to: conv.assigned_to,
-              created_at: conv.created_at,
-              updated_at: conv.updated_at,
-              last_message_at: conv.last_message_at,
-              instance_id: conv.instance_id,
-              instances: instance,
-              sectors: sector,
-            };
-          } catch (error) {
-            console.error('Error enriching conversation:', error);
-            return {
-              id: conv.id,
-              client_name: conv.client_name,
-              client_phone: conv.client_phone,
-              status: conv.status,
-              sector: conv.sector,
-              sector_id: null,
-              assigned_to: conv.assigned_to,
-              created_at: conv.created_at,
-              updated_at: conv.updated_at,
-              last_message_at: conv.last_message_at,
-              instance_id: conv.instance_id,
-              instances: null,
-              sectors: null,
-            };
-          }
-        })
-      );
+      // Transformar dados para o formato esperado
+      const transformedConversations = conversations.map((conv) => ({
+        id: conv.id,
+        client_name: conv.client_name,
+        client_phone: conv.client_phone,
+        status: conv.status,
+        sector: conv.sector,
+        sector_id: conv.sector_id,
+        assigned_to: conv.assigned_to,
+        created_at: conv.created_at,
+        updated_at: conv.updated_at,
+        last_message_at: conv.last_message_at,
+        instance_id: conv.instance_id,
+        instances: conv.instances,
+        sectors: conv.sectors,
+      }));
       
       console.log('📊 useConversationsQuery - Result:', { 
-        data: enrichedConversations ? `${enrichedConversations.length} conversations` : 'null',
-        rawData: enrichedConversations
+        data: transformedConversations ? `${transformedConversations.length} conversations` : 'null',
+        rawData: transformedConversations
       });
       
-      return enrichedConversations;
+      return transformedConversations;
     },
     refetchInterval: 3000,
     retry: (failureCount, error: any) => {
