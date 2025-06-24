@@ -28,24 +28,24 @@ interface TransferRecord {
   conversations?: {
     client_name: string | null;
     client_phone: string;
-  };
+  } | null;
   from_attendant?: {
     name: string;
-  };
+  } | null;
   to_attendant?: {
     name: string;
-  };
+  } | null;
   from_sector?: {
     name: string;
     color: string;
-  };
+  } | null;
   to_sector?: {
     name: string;
     color: string;
-  };
+  } | null;
   transferred_by_profile?: {
     name: string;
-  };
+  } | null;
 }
 
 export const TransferHistory = () => {
@@ -65,12 +65,12 @@ export const TransferHistory = () => {
         .from('conversation_transfers')
         .select(`
           *,
-          conversations:conversation_id (client_name, client_phone),
-          from_attendant:from_attendant_id!inner (name),
-          to_attendant:to_attendant_id!inner (name),
-          from_sector:from_sector_id (name, color),
-          to_sector:to_sector_id (name, color),
-          transferred_by_profile:transferred_by!inner (name)
+          conversations:conversation_transfers_conversation_id_fkey (client_name, client_phone),
+          from_attendant:conversation_transfers_from_attendant_id_fkey (name),
+          to_attendant:conversation_transfers_to_attendant_id_fkey (name),
+          from_sector:conversation_transfers_from_sector_id_fkey (name, color),
+          to_sector:conversation_transfers_to_sector_id_fkey (name, color),
+          transferred_by_profile:conversation_transfers_transferred_by_fkey (name)
         `)
         .gte('created_at', startDate.toISOString())
         .order('created_at', { ascending: false });
@@ -85,7 +85,7 @@ export const TransferHistory = () => {
         throw error;
       }
 
-      return data as TransferRecord[];
+      return (data || []) as TransferRecord[];
     },
     enabled: profile?.role === 'admin',
   });
