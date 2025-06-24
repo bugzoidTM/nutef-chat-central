@@ -24,28 +24,18 @@ interface TransferRecord {
   created_at: string;
   accepted_at: string | null;
   completed_at: string | null;
-  // Dados relacionados
-  conversations?: {
+  // Dados relacionados serão buscados separadamente
+  conversation?: {
     client_name: string | null;
     client_phone: string;
   } | null;
-  from_attendant?: {
-    name: string;
-  } | null;
-  to_attendant?: {
-    name: string;
-  } | null;
-  from_sector?: {
-    name: string;
-    color: string;
-  } | null;
-  to_sector?: {
-    name: string;
-    color: string;
-  } | null;
-  transferred_by_profile?: {
-    name: string;
-  } | null;
+  from_attendant_name?: string | null;
+  to_attendant_name?: string | null;
+  from_sector_name?: string | null;
+  from_sector_color?: string | null;
+  to_sector_name?: string | null;
+  to_sector_color?: string | null;
+  transferred_by_name?: string | null;
 }
 
 export const TransferHistory = () => {
@@ -63,15 +53,7 @@ export const TransferHistory = () => {
 
       let query = supabase
         .from('conversation_transfers')
-        .select(`
-          *,
-          conversations:conversation_transfers_conversation_id_fkey (client_name, client_phone),
-          from_attendant:conversation_transfers_from_attendant_id_fkey (name),
-          to_attendant:conversation_transfers_to_attendant_id_fkey (name),
-          from_sector:conversation_transfers_from_sector_id_fkey (name, color),
-          to_sector:conversation_transfers_to_sector_id_fkey (name, color),
-          transferred_by_profile:conversation_transfers_transferred_by_fkey (name)
-        `)
+        .select('*')
         .gte('created_at', startDate.toISOString())
         .order('created_at', { ascending: false });
 
@@ -79,23 +61,82 @@ export const TransferHistory = () => {
         query = query.eq('status', statusFilter);
       }
 
-      const { data, error } = await query;
+      const { data: transfersData, error } = await query;
       if (error) {
         console.error('Erro ao buscar transferências:', error);
         throw error;
       }
 
-      return (data || []) as TransferRecord[];
+      if (!transfersData || transfersData.length === 0) {
+        return [];
+      }
+
+      // Buscar dados relacionados separadamente para evitar erros de join
+      const conversationIds = transfersData.map(t => t.conversation_id).filter(Boolean);
+      const attendantIds = [
+        ...transfersData.map(t => t.from_attendant_id),
+        ...transfersData.map(t => t.to_attendant_id),
+        ...transfersData.map(t => t.transferred_by)
+      ].filter(Boolean);
+      const sectorIds = [
+        ...transfersData.map(t => t.from_sector_id),
+        ...transfersData.map(t => t.to_sector_id)
+      ].filter(Boolean);
+
+      // Buscar conversas
+      const { data: conversations } = await supabase
+        .from('conversations')
+        .select('id, client_name, client_phone')
+        .in('id', conversationIds);
+
+      // Buscar atendentes
+      const { data: attendants } = await supabase
+        .from('profiles')
+        .select('id, name')
+        .in('id', attendantIds);
+
+      // Buscar setores
+      const { data: sectors } = await supabase
+        .from('sectors')
+        .select('id, name, color')
+        .in('id', sectorIds);
+
+      // Mapear dados
+      const enrichedTransfers: TransferRecord[] = transfersData.map(transfer => {
+        const conversation = conversations?.find(c => c.id === transfer.conversation_id);
+        const fromAttendant = attendants?.find(a => a.id === transfer.from_attendant_id);
+        const toAttendant = attendants?.find(a => a.id === transfer.to_attendant_id);
+        const transferredBy = attendants?.find(a => a.id === transfer.transferred_by);
+        const fromSector = sectors?.find(s => s.id === transfer.from_sector_id);
+        const toSector = sectors?.find(s => s.id === transfer.to_sector_id);
+
+        return {
+          ...transfer,
+          conversation: conversation ? {
+            client_name: conversation.client_name,
+            client_phone: conversation.client_phone
+          } : null,
+          from_attendant_name: fromAttendant?.name || null,
+          to_attendant_name: toAttendant?.name || null,
+          from_sector_name: fromSector?.name || null,
+          from_sector_color: fromSector?.color || null,
+          to_sector_name: toSector?.name || null,
+          to_sector_color: toSector?.color || null,
+          transferred_by_name: transferredBy?.name || null,
+        };
+      });
+
+      return enrichedTransfers;
     },
     enabled: profile?.role === 'admin',
   });
 
   // Filtrar por termo de busca
   const filteredTransfers = transfers.filter(transfer =>
-    transfer.conversations?.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    transfer.conversations?.client_phone?.includes(searchTerm) ||
-    transfer.from_attendant?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    transfer.to_attendant?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    transfer.conversation?.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    transfer.conversation?.client_phone?.includes(searchTerm) ||
+    transfer.from_attendant_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    transfer.to_attendant_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     transfer.reason?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -269,26 +310,26 @@ export const TransferHistory = () => {
                     <TableCell>
                       <div>
                         <div className="font-medium">
-                          {transfer.conversations?.client_name || 'Cliente não identificado'}
+                          {transfer.conversation?.client_name || 'Cliente não identificado'}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {transfer.conversations?.client_phone}
+                          {transfer.conversation?.client_phone}
                         </div>
                       </div>
                     </TableCell>
                     
                     <TableCell>
                       <div className="space-y-1">
-                        {transfer.from_attendant && (
-                          <div className="text-sm font-medium">{transfer.from_attendant.name}</div>
+                        {transfer.from_attendant_name && (
+                          <div className="text-sm font-medium">{transfer.from_attendant_name}</div>
                         )}
-                        {transfer.from_sector && (
+                        {transfer.from_sector_name && (
                           <div className="flex items-center gap-1">
                             <div 
                               className="w-2 h-2 rounded-full" 
-                              style={{ backgroundColor: transfer.from_sector.color }}
+                              style={{ backgroundColor: transfer.from_sector_color || '#gray' }}
                             />
-                            <span className="text-xs text-gray-500">{transfer.from_sector.name}</span>
+                            <span className="text-xs text-gray-500">{transfer.from_sector_name}</span>
                           </div>
                         )}
                       </div>
@@ -296,16 +337,16 @@ export const TransferHistory = () => {
                     
                     <TableCell>
                       <div className="space-y-1">
-                        {transfer.to_attendant && (
-                          <div className="text-sm font-medium">{transfer.to_attendant.name}</div>
+                        {transfer.to_attendant_name && (
+                          <div className="text-sm font-medium">{transfer.to_attendant_name}</div>
                         )}
-                        {transfer.to_sector && (
+                        {transfer.to_sector_name && (
                           <div className="flex items-center gap-1">
                             <div 
                               className="w-2 h-2 rounded-full" 
-                              style={{ backgroundColor: transfer.to_sector.color }}
+                              style={{ backgroundColor: transfer.to_sector_color || '#gray' }}
                             />
-                            <span className="text-xs text-gray-500">{transfer.to_sector.name}</span>
+                            <span className="text-xs text-gray-500">{transfer.to_sector_name}</span>
                           </div>
                         )}
                       </div>
@@ -320,9 +361,9 @@ export const TransferHistory = () => {
                         <p className="text-sm text-gray-600 truncate" title={transfer.reason || ''}>
                           {transfer.reason || 'Sem motivo especificado'}
                         </p>
-                        {transfer.transferred_by_profile && (
+                        {transfer.transferred_by_name && (
                           <p className="text-xs text-gray-400">
-                            por {transfer.transferred_by_profile.name}
+                            por {transfer.transferred_by_name}
                           </p>
                         )}
                       </div>
