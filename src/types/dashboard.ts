@@ -1,3 +1,4 @@
+
 import type { Database } from '@/integrations/supabase/types';
 
 export type SectorType = Database['public']['Enums']['sector_type'] | 'all';
@@ -17,9 +18,23 @@ export interface Conversation {
   status: string;
   last_message_at: string;
   assigned_to: string | null;
+  sector_id: string | null; // ⭐ Added sector_id field
+  instance_id: string;
+  created_at: string;
+  updated_at: string;
   // ⭐ NOVOS CAMPOS ADICIONADOS
   last_message_content?: string;
   unread_messages?: number;
+  // Optional nested objects from joins
+  instances?: {
+    instance_name: string;
+    phone: string;
+  };
+  sectors?: {
+    id: string;
+    name: string;
+    color: string;
+  };
 }
 
 export interface Message {
