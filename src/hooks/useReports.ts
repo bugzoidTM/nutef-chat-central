@@ -15,6 +15,7 @@ export interface AttendantStats {
   total_messages_sent: number;
   avg_response_time?: number;
   last_activity?: string;
+  is_active: boolean;
 }
 
 export interface SectorStats {
@@ -44,37 +45,61 @@ export const useReports = (dateRange: { start: string; end: string }) => {
   const { data: attendantStats = [], isLoading: loadingAttendantStats } = useQuery({
     queryKey: ['reports', 'attendants', dateRange],
     queryFn: async () => {
-      // Query manual já que as funções RPC não existem
-      const { data, error } = await supabase
+      // Buscar atendentes com suas estatísticas
+      const { data: attendants, error: attendantsError } = await supabase
         .from('profiles')
         .select(`
           id,
           name,
-          sector:sectors(id, name, color),
-          conversations:conversations!assigned_to(
-            id,
-            status,
-            created_at,
-            messages:messages(id, direction, created_at)
-          )
+          is_active,
+          sector_id,
+          sectors:sector_id(id, name, color)
         `)
-        .eq('role', 'attendant')
-        .eq('is_active', true);
+        .eq('role', 'attendant');
       
-      if (error) throw error;
-      
-      return data?.map(attendant => ({
-        attendant_id: attendant.id,
-        attendant_name: attendant.name,
-        sector_name: attendant.sector?.name || 'Sem setor',
-        sector_color: attendant.sector?.color || '#6B7280',
-        total_conversations: attendant.conversations?.length || 0,
-        new_conversations: attendant.conversations?.filter((c: any) => c.status === 'new').length || 0,
-        in_progress_conversations: attendant.conversations?.filter((c: any) => c.status === 'in_progress').length || 0,
-        finished_conversations: attendant.conversations?.filter((c: any) => c.status === 'finished').length || 0,
-        total_messages_sent: attendant.conversations?.reduce((total: number, conv: any) => 
-          total + (conv.messages?.filter((m: any) => m.direction === 'outgoing').length || 0), 0) || 0,
-      })) || [];
+      if (attendantsError) throw attendantsError;
+
+      // Para cada atendente, buscar estatísticas de conversas
+      const statsPromises = attendants.map(async (attendant) => {
+        // Conversas atribuídas ao atendente no período
+        const { data: conversations, error: conversationsError } = await supabase
+          .from('conversations')
+          .select('id, status, created_at')
+          .eq('assigned_to', attendant.id)
+          .gte('created_at', dateRange.start)
+          .lte('created_at', dateRange.end);
+
+        if (conversationsError) throw conversationsError;
+
+        // Mensagens enviadas pelo atendente no período
+        const { data: messages, error: messagesError } = await supabase
+          .from('messages')
+          .select('id, created_at')
+          .eq('direction', 'outgoing')
+          .in('conversation_id', conversations?.map(c => c.id) || [])
+          .gte('created_at', dateRange.start)
+          .lte('created_at', dateRange.end);
+
+        if (messagesError) throw messagesError;
+
+        return {
+          attendant_id: attendant.id,
+          attendant_name: attendant.name,
+          sector_name: attendant.sectors?.name || 'Sem setor',
+          sector_color: attendant.sectors?.color || '#6B7280',
+          total_conversations: conversations?.length || 0,
+          new_conversations: conversations?.filter(c => c.status === 'new').length || 0,
+          in_progress_conversations: conversations?.filter(c => c.status === 'in_progress').length || 0,
+          finished_conversations: conversations?.filter(c => c.status === 'finished').length || 0,
+          total_messages_sent: messages?.length || 0,
+          is_active: attendant.is_active,
+          last_activity: messages?.length > 0 
+            ? messages[messages.length - 1]?.created_at 
+            : undefined,
+        } as AttendantStats;
+      });
+
+      return await Promise.all(statsPromises);
     },
     enabled: profile?.role === 'admin',
   });
@@ -83,31 +108,60 @@ export const useReports = (dateRange: { start: string; end: string }) => {
   const { data: sectorStats = [], isLoading: loadingSectorStats } = useQuery({
     queryKey: ['reports', 'sectors', dateRange],
     queryFn: async () => {
-      // Query manual
-      const { data, error } = await supabase
+      // Buscar setores ativos
+      const { data: sectors, error: sectorsError } = await supabase
         .from('sectors')
-        .select(`
-          id,
-          name,
-          color,
-          profiles:profiles!sector_id(id, role, is_active),
-          conversations:conversations!sector_id(id, status, created_at)
-        `)
+        .select('id, name, color')
         .eq('is_active', true);
       
-      if (error) throw error;
-      
-      return data?.map(sector => ({
-        sector_id: sector.id,
-        sector_name: sector.name,
-        sector_color: sector.color,
-        total_conversations: sector.conversations?.length || 0,
-        active_attendants: sector.profiles?.filter((p: any) => p.role === 'attendant' && p.is_active).length || 0,
-        new_conversations: sector.conversations?.filter((c: any) => c.status === 'new').length || 0,
-        in_progress_conversations: sector.conversations?.filter((c: any) => c.status === 'in_progress').length || 0,
-        finished_conversations: sector.conversations?.filter((c: any) => c.status === 'finished').length || 0,
-        total_messages: 0, // Seria necessária uma query mais complexa
-      })) || [];
+      if (sectorsError) throw sectorsError;
+
+      // Para cada setor, buscar estatísticas
+      const statsPromises = sectors.map(async (sector) => {
+        // Atendentes ativos do setor
+        const { data: attendants, error: attendantsError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('sector_id', sector.id)
+          .eq('role', 'attendant')
+          .eq('is_active', true);
+
+        if (attendantsError) throw attendantsError;
+
+        // Conversas do setor no período
+        const { data: conversations, error: conversationsError } = await supabase
+          .from('conversations')
+          .select('id, status, created_at')
+          .eq('sector_id', sector.id)
+          .gte('created_at', dateRange.start)
+          .lte('created_at', dateRange.end);
+
+        if (conversationsError) throw conversationsError;
+
+        // Mensagens das conversas do setor
+        const { data: messages, error: messagesError } = await supabase
+          .from('messages')
+          .select('id')
+          .in('conversation_id', conversations?.map(c => c.id) || [])
+          .gte('created_at', dateRange.start)
+          .lte('created_at', dateRange.end);
+
+        if (messagesError) throw messagesError;
+
+        return {
+          sector_id: sector.id,
+          sector_name: sector.name,
+          sector_color: sector.color,
+          total_conversations: conversations?.length || 0,
+          active_attendants: attendants?.length || 0,
+          new_conversations: conversations?.filter(c => c.status === 'new').length || 0,
+          in_progress_conversations: conversations?.filter(c => c.status === 'in_progress').length || 0,
+          finished_conversations: conversations?.filter(c => c.status === 'finished').length || 0,
+          total_messages: messages?.length || 0,
+        } as SectorStats;
+      });
+
+      return await Promise.all(statsPromises);
     },
     enabled: profile?.role === 'admin',
   });
@@ -116,20 +170,32 @@ export const useReports = (dateRange: { start: string; end: string }) => {
   const { data: dailyStats = [], isLoading: loadingDailyStats } = useQuery({
     queryKey: ['reports', 'daily', dateRange],
     queryFn: async () => {
-      // Query manual simplificada
-      const { data, error } = await supabase
+      // Buscar conversas no período
+      const { data: conversations, error: conversationsError } = await supabase
         .from('conversations')
         .select('created_at, status')
         .gte('created_at', dateRange.start)
         .lte('created_at', dateRange.end);
       
-      if (error) throw error;
+      if (conversationsError) throw conversationsError;
+
+      // Buscar mensagens no período
+      const { data: messages, error: messagesError } = await supabase
+        .from('messages')
+        .select('created_at')
+        .gte('created_at', dateRange.start)
+        .lte('created_at', dateRange.end);
       
+      if (messagesError) throw messagesError;
+
       // Agrupar por data
-      const groupedByDate = data?.reduce((acc: any, conv) => {
+      const dailyData: { [key: string]: DailyStats } = {};
+      
+      // Processar conversas
+      conversations?.forEach(conv => {
         const date = new Date(conv.created_at).toISOString().split('T')[0];
-        if (!acc[date]) {
-          acc[date] = {
+        if (!dailyData[date]) {
+          dailyData[date] = {
             date,
             total_conversations: 0,
             new_conversations: 0,
@@ -137,13 +203,27 @@ export const useReports = (dateRange: { start: string; end: string }) => {
             total_messages: 0,
           };
         }
-        acc[date].total_conversations++;
-        if (conv.status === 'new') acc[date].new_conversations++;
-        if (conv.status === 'finished') acc[date].finished_conversations++;
-        return acc;
-      }, {});
-      
-      return Object.values(groupedByDate || {}) as DailyStats[];
+        dailyData[date].total_conversations++;
+        if (conv.status === 'new') dailyData[date].new_conversations++;
+        if (conv.status === 'finished') dailyData[date].finished_conversations++;
+      });
+
+      // Processar mensagens
+      messages?.forEach(msg => {
+        const date = new Date(msg.created_at).toISOString().split('T')[0];
+        if (!dailyData[date]) {
+          dailyData[date] = {
+            date,
+            total_conversations: 0,
+            new_conversations: 0,
+            finished_conversations: 0,
+            total_messages: 0,
+          };
+        }
+        dailyData[date].total_messages++;
+      });
+
+      return Object.values(dailyData).sort((a, b) => a.date.localeCompare(b.date));
     },
     enabled: profile?.role === 'admin',
   });
@@ -151,11 +231,12 @@ export const useReports = (dateRange: { start: string; end: string }) => {
   // Resumo geral
   const overallStats = {
     totalAttendants: attendantStats.length,
+    activeAttendants: attendantStats.filter(a => a.is_active).length,
     totalSectors: sectorStats.length,
     totalConversations: attendantStats.reduce((sum, stat) => sum + stat.total_conversations, 0),
     totalMessagesSupport: attendantStats.reduce((sum, stat) => sum + stat.total_messages_sent, 0),
     averageConversationsPerAttendant: attendantStats.length > 0 
-      ? Math.round(attendantStats.reduce((sum, stat) => sum + stat.total_conversations, 0) / attendantStats.length)
+      ? Math.round(attendantStats.reduce((sum, stat) => sum + stat.total_conversations, 0) / attendantStats.filter(a => a.is_active).length || 1)
       : 0,
   };
 
