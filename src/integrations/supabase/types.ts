@@ -445,6 +445,108 @@ export type Database = {
           },
         ]
       }
+      quick_response_categories: {
+        Row: {
+          color: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quick_response_categories_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quick_responses: {
+        Row: {
+          category_id: string | null
+          content: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          sector_id: string | null
+          title: string
+          updated_at: string
+          usage_count: number
+        }
+        Insert: {
+          category_id?: string | null
+          content: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          sector_id?: string | null
+          title: string
+          updated_at?: string
+          usage_count?: number
+        }
+        Update: {
+          category_id?: string | null
+          content?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          sector_id?: string | null
+          title?: string
+          updated_at?: string
+          usage_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quick_responses_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "quick_response_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quick_responses_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quick_responses_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       satisfaction_survey_requests: {
         Row: {
           conversation_id: string
@@ -660,6 +762,10 @@ export type Database = {
           p_attendant_id?: string
         }
         Returns: Json
+      }
+      increment_quick_response_usage: {
+        Args: { response_id: string }
+        Returns: undefined
       }
       is_admin: {
         Args: Record<PropertyKey, never>

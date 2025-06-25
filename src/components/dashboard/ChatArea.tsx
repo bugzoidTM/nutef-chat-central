@@ -6,6 +6,7 @@ import { Send, Phone, MoreVertical } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
+import QuickResponseSelector from './QuickResponseSelector';
 
 interface Message {
   id: string;
@@ -103,6 +104,11 @@ const ChatArea = ({ conversation, messages, onSendMessage, isLoading = false }: 
       default:
         return status;
     }
+  };
+
+  const handleQuickResponseSelect = (content: string, responseId: string) => {
+    console.log('📝 Quick response selected:', { responseId, content: content.substring(0, 50) + '...' });
+    setMessageText(content);
   };
 
   if (!conversation) {
@@ -214,6 +220,9 @@ const ChatArea = ({ conversation, messages, onSendMessage, isLoading = false }: 
 
       {/* Message Input */}
       <div className="p-4 border-t border-gray-200 bg-white">
+        <div className="flex gap-2 mb-2">
+          <QuickResponseSelector onSelectResponse={handleQuickResponseSelect} />
+        </div>
         <form onSubmit={handleSendMessage} className="flex space-x-2">
           <Input
             value={messageText}

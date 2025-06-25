@@ -1,135 +1,178 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Calendar, Download, TrendingUp, Users, MessageSquare, Star, Clock } from 'lucide-react';
-import { useReports } from '@/hooks/useReports';
-import { useSectors } from '@/hooks/useSectors';
-import { useAttendants } from '@/hooks/useAttendants';
-import { SatisfactionDashboard } from '../SatisfactionDashboard';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { MessageSquare, Users, Clock, TrendingUp } from 'lucide-react';
+import QuickResponseManagement from './QuickResponseManagement';
+
+interface ReportData {
+  name: string;
+  value: number;
+}
+
+const mockReportData: ReportData[] = [
+  { name: 'Jan', value: 4000 },
+  { name: 'Fev', value: 3000 },
+  { name: 'Mar', value: 2000 },
+  { name: 'Abr', value: 2780 },
+  { name: 'Mai', value: 1890 },
+  { name: 'Jun', value: 2390 },
+  { name: 'Jul', value: 3490 },
+];
+
+interface PerformanceData {
+  name: string;
+  chats: number;
+  responseTime: number;
+}
+
+const mockPerformanceData: PerformanceData[] = [
+  { name: 'Atendente 1', chats: 120, responseTime: 15 },
+  { name: 'Atendente 2', chats: 150, responseTime: 12 },
+  { name: 'Atendente 3', chats: 90, responseTime: 18 },
+  { name: 'Atendente 4', chats: 110, responseTime: 14 },
+];
 
 const Reports = () => {
-  const [activeTab, setActiveTab] = useState('overview');
-
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Relatórios</h1>
-          <p className="text-gray-600">Análise detalhada de performance e métricas</p>
-        </div>
-        <Button className="flex items-center gap-2">
-          <Download className="h-4 w-4" />
-          Exportar Relatório
-        </Button>
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Relatórios e Configurações</h1>
+        <p className="text-muted-foreground">
+          Visualize métricas, relatórios e gerencie configurações do sistema
+        </p>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList>
           <TabsTrigger value="overview">Visão Geral</TabsTrigger>
           <TabsTrigger value="conversations">Conversas</TabsTrigger>
-          <TabsTrigger value="attendants">Atendentes</TabsTrigger>
-          <TabsTrigger value="satisfaction">Satisfação</TabsTrigger>
+          <TabsTrigger value="performance">Performance</TabsTrigger>
+          <TabsTrigger value="quick-responses">Respostas Rápidas</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="overview">
-          <div className="grid gap-4 md:grid-cols-4">
+        <TabsContent value="overview" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-lg">
-                    <MessageSquare className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Total de Conversas</p>
-                    <p className="text-2xl font-bold text-gray-900">1,234</p>
-                    <p className="text-xs text-gray-500">Este mês</p>
-                  </div>
-                </div>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Novas Conversas
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">45</div>
+                <p className="text-sm text-muted-foreground">
+                  Novas conversas abertas hoje
+                </p>
               </CardContent>
             </Card>
 
             <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-lg">
-                    <Users className="h-6 w-6 text-green-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Atendentes Ativos</p>
-                    <p className="text-2xl font-bold text-gray-900">12</p>
-                    <p className="text-xs text-gray-500">Online agora</p>
-                  </div>
-                </div>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-4 w-4 mr-2" />
+                  Atendentes Online
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">12</div>
+                <p className="text-sm text-muted-foreground">
+                  Atendentes ativos no momento
+                </p>
               </CardContent>
             </Card>
 
             <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="flex items-center justify-center w-12 h-12 bg-yellow-100 rounded-lg">
-                    <Clock className="h-6 w-6 text-yellow-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Tempo Médio</p>
-                    <p className="text-2xl font-bold text-gray-900">5.2min</p>
-                    <p className="text-xs text-gray-500">De resposta</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="flex items-center">
-                  <div className="flex items-center justify-center w-12 h-12 bg-purple-100 rounded-lg">
-                    <TrendingUp className="h-6 w-6 text-purple-600" />
-                  </div>
-                  <div className="ml-4">
-                    <p className="text-sm font-medium text-gray-600">Taxa de Resolução</p>
-                    <p className="text-2xl font-bold text-gray-900">94%</p>
-                    <p className="text-xs text-gray-500">Primeiro contato</p>
-                  </div>
-                </div>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 mr-2" />
+                  Tempo Médio de Resposta
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">5m 30s</div>
+                <p className="text-sm text-muted-foreground">
+                  Tempo médio para primeira resposta
+                </p>
               </CardContent>
             </Card>
           </div>
-        </TabsContent>
 
-        <TabsContent value="conversations">
           <Card>
             <CardHeader>
-              <CardTitle>Análise de Conversas</CardTitle>
-              <CardDescription>
-                Métricas detalhadas sobre as conversas
-              </CardDescription>
+              <CardTitle>Visitas Mensais</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Número de visitas ao longo dos meses
+              </p>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600">Dados de conversas em desenvolvimento...</p>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={mockReportData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#8884d8" />
+                </BarChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="attendants">
+        <TabsContent value="conversations" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Performance dos Atendentes</CardTitle>
-              <CardDescription>
-                Análise individual de cada atendente
-              </CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 mr-2" />
+                Volume de Conversas
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Distribuição do volume de conversas por dia
+              </p>
             </CardHeader>
             <CardContent>
-              <p className="text-gray-600">Dados de atendentes em desenvolvimento...</p>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={mockReportData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="value" fill="#82ca9d" />
+                </BarChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="satisfaction">
-          <SatisfactionDashboard />
+        <TabsContent value="performance" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-4 w-4 mr-2" />
+                Performance dos Atendentes
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Métricas de performance individual dos atendentes
+              </p>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={mockPerformanceData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Bar dataKey="chats" fill="#fbb45c" name="Conversas" />
+                  <Bar dataKey="responseTime" fill="#c58940" name="Tempo de Resposta" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="quick-responses" className="space-y-4">
+          <QuickResponseManagement />
         </TabsContent>
       </Tabs>
     </div>
