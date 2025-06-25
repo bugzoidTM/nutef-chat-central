@@ -4,15 +4,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { TrendingUp, Users, MessageSquare, Clock, Brain, Zap } from 'lucide-react';
-import { QuickResponseManagement } from './QuickResponseManagement';
+import QuickResponseManagement from './QuickResponseManagement';
 import { ChatbotManagement } from './ChatbotManagement';
 import { useReports } from '@/hooks/useReports';
 
 export const Reports = () => {
   const { 
-    conversationStats, 
-    messageStats, 
-    attendantPerformance,
+    overallStats,
+    attendantStats,
+    sectorStats,
+    dailyStats,
     isLoading 
   } = useReports();
 
@@ -53,9 +54,9 @@ export const Reports = () => {
                 <MessageSquare className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{conversationStats?.total || 0}</div>
+                <div className="text-2xl font-bold">{overallStats?.totalConversations || 0}</div>
                 <p className="text-xs text-muted-foreground">
-                  +{conversationStats?.growth || 0}% desde ontem
+                  Total de conversas no sistema
                 </p>
               </CardContent>
             </Card>
@@ -68,9 +69,9 @@ export const Reports = () => {
                 <Zap className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{messageStats?.total || 0}</div>
+                <div className="text-2xl font-bold">{overallStats?.totalMessagesSupport || 0}</div>
                 <p className="text-xs text-muted-foreground">
-                  +{messageStats?.growth || 0}% desde ontem
+                  Total de mensagens de suporte
                 </p>
               </CardContent>
             </Card>
@@ -78,16 +79,16 @@ export const Reports = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">
-                  Tempo Médio de Resposta
+                  Conversas por Atendente
                 </CardTitle>
                 <Clock className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {attendantPerformance?.avgResponseTime || 0}min
+                  {overallStats?.averageConversationsPerAttendant?.toFixed(1) || 0}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  -5% desde ontem
+                  Média de conversas por atendente
                 </p>
               </CardContent>
             </Card>
@@ -101,10 +102,10 @@ export const Reports = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {attendantPerformance?.activeAttendants || 0}
+                  {overallStats?.activeAttendants || 0}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  +2 novos esta semana
+                  de {overallStats?.totalAttendants || 0} atendentes
                 </p>
               </CardContent>
             </Card>
@@ -121,7 +122,7 @@ export const Reports = () => {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={conversationStats?.dailyData || []}>
+                  <LineChart data={dailyStats || []}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="date" />
                     <YAxis />
@@ -141,7 +142,7 @@ export const Reports = () => {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={attendantPerformance?.attendantData || []}>
+                  <BarChart data={attendantStats || []}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis />

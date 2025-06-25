@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { ConversationList } from './ConversationList';
+import ConversationList from './ConversationList';
 import { ChatArea } from './ChatArea';
 import { QueueManagement } from './QueueManagement';
 import { useConversations } from '@/hooks/useConversations';
@@ -11,17 +11,21 @@ import { MessageSquare } from 'lucide-react';
 import type { Conversation } from '@/types/dashboard';
 
 export const Dashboard = () => {
-  const { conversations, isLoading } = useConversations();
-  const { selectedConversation, selectConversation } = useConversationSelection();
+  const { conversations, conversationsLoading } = useConversations();
+  const { selectedConversation, handleSelectConversation } = useConversationSelection();
+  const [searchTerm, setSearchTerm] = useState('');
   
   // Initialize chatbot integration
   useChatbotIntegration();
 
-  const handleSelectConversation = (conversation: Conversation) => {
-    selectConversation(conversation);
+  const handleConversationSelect = (conversationId: string) => {
+    const conversation = conversations.find(c => c.id === conversationId);
+    if (conversation) {
+      handleSelectConversation(conversationId);
+    }
   };
 
-  if (isLoading) {
+  if (conversationsLoading) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
@@ -32,6 +36,8 @@ export const Dashboard = () => {
     );
   }
 
+  const selectedConversationData = conversations.find(c => c.id === selectedConversation);
+
   return (
     <div className="flex gap-6 h-[calc(100vh-12rem)]">
       {/* Left Sidebar - Conversations and Queue */}
@@ -40,13 +46,15 @@ export const Dashboard = () => {
         <ConversationList
           conversations={conversations}
           selectedConversation={selectedConversation}
-          onSelectConversation={handleSelectConversation}
+          onSelectConversation={handleConversationSelect}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
         />
       </div>
 
       {/* Main Chat Area */}
-      {selectedConversation ? (
-        <ChatArea conversation={selectedConversation} />
+      {selectedConversationData ? (
+        <ChatArea conversation={selectedConversationData} />
       ) : (
         <Card className="flex-1">
           <CardContent className="flex items-center justify-center h-full">

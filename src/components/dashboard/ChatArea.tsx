@@ -11,7 +11,7 @@ import { Send, Phone, User, Clock, MessageSquare, Zap } from 'lucide-react';
 import { useMessages } from '@/hooks/useMessages';
 import { useSendMessage } from '@/hooks/useSendMessage';
 import { useAuth } from '@/hooks/useAuth';
-import { QuickResponseSelector } from './QuickResponseSelector';
+import QuickResponseSelector from './QuickResponseSelector';
 import { ChatbotIndicator } from './ChatbotIndicator';
 import { ConversationContextPanel } from './ConversationContextPanel';
 import { format } from 'date-fns';
@@ -24,8 +24,8 @@ interface ChatAreaProps {
 
 export const ChatArea: React.FC<ChatAreaProps> = ({ conversation }) => {
   const { profile } = useAuth();
-  const { messages, isLoading } = useMessages(conversation.id);
-  const { sendMessage, isLoading: isSending } = useSendMessage();
+  const { messages, messagesLoading } = useMessages(conversation.id);
+  const sendMessageMutation = useSendMessage([conversation]);
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -38,16 +38,12 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ conversation }) => {
   }, [messages]);
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || isSending) return;
+    if (!newMessage.trim() || sendMessageMutation.isPending) return;
 
     try {
-      await sendMessage.mutateAsync({
+      await sendMessageMutation.mutateAsync({
         conversationId: conversation.id,
         content: newMessage,
-        toPhone: conversation.client_phone,
-        fromPhone: conversation.instance?.phone || '',
-        senderName: profile?.name || '',
-        senderSector: profile?.sector_id || '',
       });
       setNewMessage('');
     } catch (error) {
@@ -63,7 +59,7 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ conversation }) => {
     return format(new Date(timestamp), 'HH:mm', { locale: ptBR });
   };
 
-  if (isLoading) {
+  if (messagesLoading) {
     return (
       <Card className="flex-1">
         <CardContent className="flex items-center justify-center h-96">
@@ -165,11 +161,11 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ conversation }) => {
                   onChange={(e) => setNewMessage(e.target.value)}
                   placeholder="Digite sua mensagem..."
                   onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                  disabled={isSending}
+                  disabled={sendMessageMutation.isPending}
                 />
                 <Button 
                   onClick={handleSendMessage} 
-                  disabled={!newMessage.trim() || isSending}
+                  disabled={!newMessage.trim() || sendMessageMutation.isPending}
                   size="icon"
                 >
                   <Send className="h-4 w-4" />

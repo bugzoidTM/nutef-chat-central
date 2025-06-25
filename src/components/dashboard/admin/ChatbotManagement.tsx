@@ -1,30 +1,56 @@
-
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Brain, Settings, Plus, Edit, Trash2, Clock, Users, MessageSquare } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Label } from '@/components/ui/label';
+import { Plus, Edit, Trash2, MessageSquare, Brain, Settings } from 'lucide-react';
 import { useChatbot } from '@/hooks/useChatbot';
 import { useSectors } from '@/hooks/useSectors';
-import type { CreateKnowledgeData, UpdateKnowledgeData, UpdateConfigData } from '@/types/chatbot';
+import type { ChatbotKnowledge, ChatbotConfig, CreateKnowledgeData, UpdateKnowledgeData, UpdateConfigData } from '@/types/chatbot';
 
-export const ChatbotManagement = () => {
-  const { knowledge, configs, createKnowledge, updateKnowledge, deleteKnowledge, updateConfig } = useChatbot();
-  const { sectors } = useSectors();
-  const [selectedKnowledge, setSelectedKnowledge] = useState<any>(null);
-  const [selectedConfig, setSelectedConfig] = useState<any>(null);
+const ChatbotManagement = () => {
+  const [selectedSector, setSelectedSector] = useState<string>('');
+  const [editingKnowledge, setEditingKnowledge] = useState<string | null>(null);
+  const [editingConfig, setEditingConfig] = useState<string | null>(null);
   const [isKnowledgeDialogOpen, setIsKnowledgeDialogOpen] = useState(false);
-  const [isConfigDialogOpen, setIsConfigDialogOpen] = useState(false);
+  
+  const { 
+    knowledge, 
+    config, 
+    isLoading,
+    createKnowledge,
+    updateKnowledge,
+    deleteKnowledge,
+    updateConfig
+  } = useChatbot();
+  
+  const { sectors } = useSectors();
 
-  const [knowledgeForm, setKnowledgeForm] = useState<CreateKnowledgeData>({
+  const [knowledgeFormData, setKnowledgeFormData] = useState<CreateKnowledgeData>({
     question: '',
     answer: '',
     keywords: [],
@@ -33,7 +59,7 @@ export const ChatbotManagement = () => {
     confidence_threshold: 0.7,
   });
 
-  const [configForm, setConfigForm] = useState<UpdateConfigData>({
+  const [configFormData, setConfigFormData] = useState<UpdateConfigData>({
     is_enabled: true,
     welcome_message: '',
     escalation_message: '',
@@ -41,64 +67,18 @@ export const ChatbotManagement = () => {
     working_hours_end: '18:00',
     working_days: [1, 2, 3, 4, 5],
     max_interaction_attempts: 3,
-    auto_escalation_keywords: ['atendente', 'humano', 'pessoa'],
+    auto_escalation_keywords: [],
   });
 
-  const handleCreateKnowledge = async () => {
-    const keywords = typeof knowledgeForm.keywords === 'string' 
-      ? (knowledgeForm.keywords as string).split(',').map(k => k.trim())
-      : knowledgeForm.keywords;
+  const handleCreateKnowledge = () => {
+    if (!knowledgeFormData.question.trim() || !knowledgeFormData.answer.trim()) return;
     
-    await createKnowledge.mutateAsync({
-      ...knowledgeForm,
-      keywords: keywords || [],
+    createKnowledge.mutate({
+      ...knowledgeFormData,
+      sector_id: selectedSector || undefined,
     });
     
-    setIsKnowledgeDialogOpen(false);
-    resetKnowledgeForm();
-  };
-
-  const handleUpdateKnowledge = async () => {
-    if (!selectedKnowledge) return;
-    
-    const keywords = typeof knowledgeForm.keywords === 'string' 
-      ? (knowledgeForm.keywords as string).split(',').map(k => k.trim())
-      : knowledgeForm.keywords;
-    
-    await updateKnowledge.mutateAsync({
-      id: selectedKnowledge.id,
-      data: {
-        ...knowledgeForm,
-        keywords: keywords || [],
-      },
-    });
-    
-    setIsKnowledgeDialogOpen(false);
-    setSelectedKnowledge(null);
-    resetKnowledgeForm();
-  };
-
-  const handleUpdateConfig = async () => {
-    if (!selectedConfig) return;
-    
-    const keywords = typeof configForm.auto_escalation_keywords === 'string' 
-      ? (configForm.auto_escalation_keywords as string).split(',').map(k => k.trim())
-      : configForm.auto_escalation_keywords;
-    
-    await updateConfig.mutateAsync({
-      sectorId: selectedConfig.sector_id,
-      data: {
-        ...configForm,
-        auto_escalation_keywords: keywords || [],
-      },
-    });
-    
-    setIsConfigDialogOpen(false);
-    setSelectedConfig(null);
-  };
-
-  const resetKnowledgeForm = () => {
-    setKnowledgeForm({
+    setKnowledgeFormData({
       question: '',
       answer: '',
       keywords: [],
@@ -106,380 +86,383 @@ export const ChatbotManagement = () => {
       sector_id: '',
       confidence_threshold: 0.7,
     });
+    setIsKnowledgeDialogOpen(false);
   };
 
-  const openKnowledgeDialog = (knowledge?: any) => {
-    if (knowledge) {
-      setSelectedKnowledge(knowledge);
-      setKnowledgeForm({
-        question: knowledge.question,
-        answer: knowledge.answer,
-        keywords: knowledge.keywords?.join(', ') || '',
-        intent: knowledge.intent || '',
-        sector_id: knowledge.sector_id || '',
-        confidence_threshold: knowledge.confidence_threshold,
-      });
-    } else {
-      setSelectedKnowledge(null);
-      resetKnowledgeForm();
+  const handleUpdateKnowledge = (id: string, data: UpdateKnowledgeData) => {
+    updateKnowledge.mutate({ id, data });
+    setEditingKnowledge(null);
+  };
+
+  const handleDeleteKnowledge = (id: string) => {
+    if (confirm('Tem certeza que deseja remover este conhecimento?')) {
+      deleteKnowledge.mutate(id);
     }
-    setIsKnowledgeDialogOpen(true);
   };
 
-  const openConfigDialog = (config: any) => {
-    setSelectedConfig(config);
-    setConfigForm({
-      is_enabled: config.is_enabled,
-      welcome_message: config.welcome_message || '',
-      escalation_message: config.escalation_message || '',
-      working_hours_start: config.working_hours_start || '08:00',
-      working_hours_end: config.working_hours_end || '18:00',
-      working_days: config.working_days || [1, 2, 3, 4, 5],
-      max_interaction_attempts: config.max_interaction_attempts || 3,
-      auto_escalation_keywords: config.auto_escalation_keywords?.join(', ') || '',
-    });
-    setIsConfigDialogOpen(true);
+  const handleUpdateConfig = (id: string, data: UpdateConfigData) => {
+    updateConfig.mutate({ id, data });
+    setEditingConfig(null);
+  };
+
+  const getSectorName = (sectorId: string | null) => {
+    if (!sectorId) return 'Global';
+    const sector = sectors.find(s => s.id === sectorId);
+    return sector?.name || 'Setor desconhecido';
+  };
+
+  const handleAddKeyword = (value: string) => {
+    if (value.trim() && !knowledgeFormData.keywords?.includes(value.trim())) {
+      setKnowledgeFormData(prev => ({
+        ...prev,
+        keywords: [...(prev.keywords || []), value.trim()]
+      }));
+    }
+  };
+
+  const handleRemoveKeyword = (keyword: string) => {
+    setKnowledgeFormData(prev => ({
+      ...prev,
+      keywords: prev.keywords?.filter(k => k !== keyword) || []
+    }));
+  };
+
+  const handleAddEscalationKeyword = (value: string) => {
+    if (value.trim() && !configFormData.auto_escalation_keywords?.includes(value.trim())) {
+      setConfigFormData(prev => ({
+        ...prev,
+        auto_escalation_keywords: [...(prev.auto_escalation_keywords || []), value.trim()]
+      }));
+    }
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Brain className="h-6 w-6 text-primary" />
-        <h2 className="text-2xl font-bold">Gerenciamento do Chatbot</h2>
-      </div>
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Brain className="h-5 w-5" />
+              Gerenciamento do Chatbot
+            </CardTitle>
+            <Select value={selectedSector} onValueChange={setSelectedSector}>
+              <SelectTrigger>
+                <SelectValue placeholder="Todos os Setores" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Todos os Setores</SelectItem>
+                {sectors.map(sector => (
+                  <SelectItem key={sector.id} value={sector.id}>
+                    {sector.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <CardDescription>
+            Configure o comportamento e o conhecimento do chatbot para cada setor.
+          </CardDescription>
+        </CardHeader>
+      </Card>
 
-      <Tabs defaultValue="knowledge" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="knowledge">Base de Conhecimento</TabsTrigger>
-          <TabsTrigger value="configs">Configurações</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="knowledge" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <MessageSquare className="h-5 w-5" />
-                    Base de Conhecimento
-                  </CardTitle>
-                  <CardDescription>
-                    Gerencie as perguntas e respostas que o chatbot pode usar para atender os clientes
-                  </CardDescription>
-                </div>
-                <Button onClick={() => openKnowledgeDialog()}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Adicionar Conhecimento
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Brain className="h-5 w-5" />
+              Base de Conhecimento
+            </CardTitle>
+            <Dialog open={isKnowledgeDialogOpen} onOpenChange={setIsKnowledgeDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Novo Conhecimento
                 </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Pergunta</TableHead>
-                    <TableHead>Resposta</TableHead>
-                    <TableHead>Intent</TableHead>
-                    <TableHead>Setor</TableHead>
-                    <TableHead>Confiança</TableHead>
-                    <TableHead>Uso</TableHead>
-                    <TableHead>Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {knowledge.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.question}</TableCell>
-                      <TableCell className="max-w-xs truncate">{item.answer}</TableCell>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Adicionar Novo Conhecimento</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="question">Pergunta</Label>
+                    <Input
+                      id="question"
+                      value={knowledgeFormData.question}
+                      onChange={(e) => setKnowledgeFormData({ ...knowledgeFormData, question: e.target.value })}
+                      placeholder="Ex: Como funciona o suporte?"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="answer">Resposta</Label>
+                    <Textarea
+                      id="answer"
+                      value={knowledgeFormData.answer}
+                      onChange={(e) => setKnowledgeFormData({ ...knowledgeFormData, answer: e.target.value })}
+                      placeholder="Digite a resposta..."
+                      rows={4}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="keywords">Palavras-chave</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="keywords"
+                        placeholder="Adicionar palavra-chave"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && e.target.value.trim()) {
+                            handleAddKeyword(e.target.value);
+                            (e.target as HTMLInputElement).value = '';
+                          }
+                        }}
+                      />
+                      <Button type="button" size="sm" onClick={() => {
+                        const input = document.getElementById('keywords') as HTMLInputElement;
+                        if (input && input.value.trim()) {
+                          handleAddKeyword(input.value);
+                          input.value = '';
+                        }
+                      }}>
+                        Adicionar
+                      </Button>
+                    </div>
+                    <div className="flex gap-1 mt-1">
+                      {knowledgeFormData.keywords?.map((keyword, index) => (
+                        <Badge key={index} variant="secondary" className="gap-0.5">
+                          {keyword}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="-mr-1"
+                            onClick={() => handleRemoveKeyword(keyword)}
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="intent">Intenção</Label>
+                    <Input
+                      id="intent"
+                      value={knowledgeFormData.intent}
+                      onChange={(e) => setKnowledgeFormData({ ...knowledgeFormData, intent: e.target.value })}
+                      placeholder="Ex: suporte_funcionalidade"
+                    />
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <Button variant="outline" onClick={() => setIsKnowledgeDialogOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleCreateKnowledge} disabled={!knowledgeFormData.question.trim() || !knowledgeFormData.answer.trim()}>
+                      Criar Conhecimento
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Pergunta</TableHead>
+                <TableHead>Setor</TableHead>
+                <TableHead>Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center py-8">
+                    Carregando conhecimentos...
+                  </TableCell>
+                </TableRow>
+              ) : (
+                knowledge
+                  .filter(k => selectedSector ? k.sector_id === selectedSector : true)
+                  .map(k => (
+                    <TableRow key={k.id}>
                       <TableCell>
-                        {item.intent && <Badge variant="secondary">{item.intent}</Badge>}
+                        <div>
+                          <div className="font-medium">{k.question}</div>
+                          <div className="text-sm text-muted-foreground line-clamp-1">
+                            {k.answer}
+                          </div>
+                        </div>
                       </TableCell>
                       <TableCell>
-                        {item.sector_id ? (
-                          sectors.find(s => s.id === item.sector_id)?.name || 'Setor não encontrado'
-                        ) : (
-                          <Badge variant="outline">Global</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>{(item.confidence_threshold * 100).toFixed(0)}%</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{item.usage_count}</Badge>
+                        <Badge variant="outline">
+                          {getSectorName(k.sector_id)}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-2">
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
-                            onClick={() => openKnowledgeDialog(item)}
+                            onClick={() => setEditingKnowledge(k.id)}
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
-                            onClick={() => deleteKnowledge.mutate(item.id)}
+                            onClick={() => handleDeleteKnowledge(k.id)}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                  ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
-        <TabsContent value="configs" className="space-y-4">
-          <div className="grid gap-6">
-            {configs.map((config) => (
-              <Card key={config.id}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <Settings className="h-5 w-5" />
-                        {sectors.find(s => s.id === config.sector_id)?.name || 'Configuração Global'}
-                      </CardTitle>
-                      <CardDescription>
-                        Configurações do chatbot para este setor
-                      </CardDescription>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Switch
-                        checked={config.is_enabled}
-                        onCheckedChange={(enabled) => 
-                          updateConfig.mutate({
-                            sectorId: config.sector_id!,
-                            data: { is_enabled: enabled }
-                          })
-                        }
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Configurações do Chatbot
+            </CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8">
+              Carregando configurações...
+            </div>
+          ) : (
+            config
+              .filter(c => selectedSector ? c.sector_id === selectedSector : true)
+              .map(c => (
+                <div key={c.id} className="space-y-4">
+                  <div>
+                    <Label htmlFor="is_enabled">Ativar Chatbot</Label>
+                    <Input
+                      type="checkbox"
+                      id="is_enabled"
+                      checked={c.is_enabled}
+                      onChange={(e) => handleUpdateConfig(c.id, { is_enabled: e.target.checked })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="welcome_message">Mensagem de Boas-Vindas</Label>
+                    <Textarea
+                      id="welcome_message"
+                      value={c.welcome_message || ''}
+                      onChange={(e) => handleUpdateConfig(c.id, { welcome_message: e.target.value })}
+                      placeholder="Digite a mensagem de boas-vindas..."
+                      rows={2}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="escalation_message">Mensagem de Transferência</Label>
+                    <Textarea
+                      id="escalation_message"
+                      value={c.escalation_message || ''}
+                      onChange={(e) => handleUpdateConfig(c.id, { escalation_message: e.target.value })}
+                      placeholder="Digite a mensagem de transferência..."
+                      rows={2}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="working_hours_start">Horário de Início</Label>
+                    <Input
+                      type="time"
+                      id="working_hours_start"
+                      value={c.working_hours_start || ''}
+                      onChange={(e) => handleUpdateConfig(c.id, { working_hours_start: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="working_hours_end">Horário de Fim</Label>
+                    <Input
+                      type="time"
+                      id="working_hours_end"
+                      value={c.working_hours_end || ''}
+                      onChange={(e) => handleUpdateConfig(c.id, { working_hours_end: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="working_days">Dias de Funcionamento</Label>
+                    <Select
+                      multiple
+                      value={c.working_days?.map(String) || []}
+                      onValueChange={(values) => handleUpdateConfig(c.id, { working_days: values.map(Number) })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione os dias" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[1, 2, 3, 4, 5, 6, 7].map(day => (
+                          <SelectItem key={day} value={String(day)}>
+                            {new Date(2023, 0, day).toLocaleDateString('pt-BR', { weekday: 'long' })}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="max_interaction_attempts">Máximo de Tentativas</Label>
+                    <Input
+                      type="number"
+                      id="max_interaction_attempts"
+                      value={String(c.max_interaction_attempts || 3)}
+                      onChange={(e) => handleUpdateConfig(c.id, { max_interaction_attempts: Number(e.target.value) })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="auto_escalation_keywords">Palavras-chave de Transferência</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="auto_escalation_keywords"
+                        placeholder="Adicionar palavra-chave"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && e.target.value.trim()) {
+                            handleAddEscalationKeyword(e.target.value);
+                            (e.target as HTMLInputElement).value = '';
+                          }
+                        }}
                       />
-                      <Button
-                        variant="outline"
-                        onClick={() => openConfigDialog(config)}
-                      >
-                        <Edit className="h-4 w-4 mr-2" />
-                        Editar
+                      <Button type="button" size="sm" onClick={() => {
+                        const input = document.getElementById('auto_escalation_keywords') as HTMLInputElement;
+                        if (input && input.value.trim()) {
+                          handleAddEscalationKeyword(input.value);
+                          input.value = '';
+                        }
+                      }}>
+                        Adicionar
                       </Button>
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <Label className="font-medium">Horário de Funcionamento</Label>
-                      <div className="flex items-center gap-1 text-muted-foreground">
-                        <Clock className="h-4 w-4" />
-                        {config.working_hours_start} - {config.working_hours_end}
-                      </div>
-                    </div>
-                    <div>
-                      <Label className="font-medium">Tentativas Máximas</Label>
-                      <div className="text-muted-foreground">
-                        {config.max_interaction_attempts} tentativas
-                      </div>
-                    </div>
-                    <div className="col-span-2">
-                      <Label className="font-medium">Mensagem de Boas-vindas</Label>
-                      <p className="text-muted-foreground text-sm">
-                        {config.welcome_message}
-                      </p>
+                    <div className="flex gap-1 mt-1">
+                      {c.auto_escalation_keywords?.map((keyword, index) => (
+                        <Badge key={index} variant="secondary" className="gap-0.5">
+                          {keyword}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="-mr-1"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </Badge>
+                      ))}
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      {/* Knowledge Dialog */}
-      <Dialog open={isKnowledgeDialogOpen} onOpenChange={setIsKnowledgeDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {selectedKnowledge ? 'Editar Conhecimento' : 'Adicionar Conhecimento'}
-            </DialogTitle>
-            <DialogDescription>
-              Configure uma nova pergunta e resposta para o chatbot
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4">
-            <div>
-              <Label htmlFor="question">Pergunta</Label>
-              <Input
-                id="question"
-                value={knowledgeForm.question}
-                onChange={(e) => setKnowledgeForm(prev => ({ ...prev, question: e.target.value }))}
-                placeholder="Como posso ajudá-lo?"
-              />
-            </div>
-            <div>
-              <Label htmlFor="answer">Resposta</Label>
-              <Textarea
-                id="answer"
-                value={knowledgeForm.answer}
-                onChange={(e) => setKnowledgeForm(prev => ({ ...prev, answer: e.target.value }))}
-                placeholder="Esta é a resposta que o chatbot dará..."
-              />
-            </div>
-            <div>
-              <Label htmlFor="keywords">Palavras-chave (separadas por vírgula)</Label>
-              <Input
-                id="keywords"
-                value={knowledgeForm.keywords}
-                onChange={(e) => setKnowledgeForm(prev => ({ ...prev, keywords: e.target.value }))}
-                placeholder="ajuda, suporte, problema"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="intent">Intenção</Label>
-                <Input
-                  id="intent"
-                  value={knowledgeForm.intent}
-                  onChange={(e) => setKnowledgeForm(prev => ({ ...prev, intent: e.target.value }))}
-                  placeholder="greeting, support, etc."
-                />
-              </div>
-              <div>
-                <Label htmlFor="confidence">Confiança Mínima (%)</Label>
-                <Input
-                  id="confidence"
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={(knowledgeForm.confidence_threshold || 0.7) * 100}
-                  onChange={(e) => setKnowledgeForm(prev => ({ 
-                    ...prev, 
-                    confidence_threshold: parseInt(e.target.value) / 100 
-                  }))}
-                />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="sector">Setor (deixe vazio para global)</Label>
-              <Select
-                value={knowledgeForm.sector_id}
-                onValueChange={(value) => setKnowledgeForm(prev => ({ ...prev, sector_id: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione um setor" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Global (todos os setores)</SelectItem>
-                  {sectors.map((sector) => (
-                    <SelectItem key={sector.id} value={sector.id}>
-                      {sector.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsKnowledgeDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={selectedKnowledge ? handleUpdateKnowledge : handleCreateKnowledge}>
-              {selectedKnowledge ? 'Atualizar' : 'Criar'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Config Dialog */}
-      <Dialog open={isConfigDialogOpen} onOpenChange={setIsConfigDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Configurar Chatbot</DialogTitle>
-            <DialogDescription>
-              Configure o comportamento do chatbot para este setor
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4">
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="enabled"
-                checked={configForm.is_enabled}
-                onCheckedChange={(checked) => setConfigForm(prev => ({ ...prev, is_enabled: checked }))}
-              />
-              <Label htmlFor="enabled">Chatbot Ativo</Label>
-            </div>
-            <div>
-              <Label htmlFor="welcome">Mensagem de Boas-vindas</Label>
-              <Textarea
-                id="welcome"
-                value={configForm.welcome_message}
-                onChange={(e) => setConfigForm(prev => ({ ...prev, welcome_message: e.target.value }))}
-                placeholder="Olá! Sou o assistente virtual..."
-              />
-            </div>
-            <div>
-              <Label htmlFor="escalation">Mensagem de Escalação</Label>
-              <Textarea
-                id="escalation"
-                value={configForm.escalation_message}
-                onChange={(e) => setConfigForm(prev => ({ ...prev, escalation_message: e.target.value }))}
-                placeholder="Vou transferir você para um atendente humano..."
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="start-time">Horário Inicial</Label>
-                <Input
-                  id="start-time"
-                  type="time"
-                  value={configForm.working_hours_start}
-                  onChange={(e) => setConfigForm(prev => ({ ...prev, working_hours_start: e.target.value }))}
-                />
-              </div>
-              <div>
-                <Label htmlFor="end-time">Horário Final</Label>
-                <Input
-                  id="end-time"
-                  type="time"
-                  value={configForm.working_hours_end}
-                  onChange={(e) => setConfigForm(prev => ({ ...prev, working_hours_end: e.target.value }))}
-                />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="max-attempts">Tentativas Máximas</Label>
-              <Input
-                id="max-attempts"
-                type="number"
-                min="1"
-                max="10"
-                value={configForm.max_interaction_attempts}
-                onChange={(e) => setConfigForm(prev => ({ 
-                  ...prev, 
-                  max_interaction_attempts: parseInt(e.target.value) 
-                }))}
-              />
-            </div>
-            <div>
-              <Label htmlFor="escalation-keywords">Palavras de Escalação (separadas por vírgula)</Label>
-              <Input
-                id="escalation-keywords"
-                value={configForm.auto_escalation_keywords}
-                onChange={(e) => setConfigForm(prev => ({ ...prev, auto_escalation_keywords: e.target.value }))}
-                placeholder="atendente, humano, pessoa"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsConfigDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleUpdateConfig}>
-              Salvar Configurações
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                </div>
+              ))
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
+
+export { ChatbotManagement };
