@@ -1,6 +1,9 @@
-import { useState } from 'react';
+
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { usePermissions } from './usePermissions';
+import { toast } from 'sonner';
 
 export interface QueueItem {
   id: string;
@@ -41,53 +44,247 @@ export interface QueueStats {
 export const useQueueSystem = (sectorId?: string) => {
   const { profile } = useAuth();
   const { isAdmin, isAttendant, sectorId: userSectorId, maxConcurrentChats } = usePermissions();
-  const [autoAssignEnabled, setAutoAssignEnabled] = useState(true);
+  const queryClient = useQueryClient();
 
-  // Placeholder data until queue system is implemented
-  const queueItems: QueueItem[] = [];
-  const queueStats: QueueStats = {
-    waiting: 0,
-    assigned: 0,
-    timeout: 0,
-    averageWaitTime: 0,
-    totalProcessed: 0
-  };
-  const pendingConversations: any[] = [];
+  // Buscar itens da fila
+  const { data: queueItems = [], isLoading: loadingQueue, refetch } = useQuery({
+    queryKey: ['queue-items', sectorId || userSectorId],
+    queryFn: async () => {
+      const targetSectorId = sectorId || userSectorId;
+      
+      let query = supabase
+        .from('conversation_queue')
+        .select(`
+          *,
+          conversation:conversation_id (
+            id,
+            client_name,
+            client_phone,
+            last_message_at
+          ),
+          sector:sector_id (
+            id,
+            name,
+            color
+          ),
+          attendant:assigned_to (
+            id,
+            name
+          )
+        `);
 
-  const addToQueue = (conversationId: string) => {
-    console.log('Add to queue placeholder:', conversationId);
-  };
+      if (targetSectorId && !isAdmin) {
+        query = query.eq('sector_id', targetSectorId);
+      }
 
-  const assignFromQueue = ({ queueId, attendantId }: { queueId: string; attendantId?: string }) => {
-    console.log('Assign from queue placeholder:', { queueId, attendantId });
-  };
+      query = query.order('priority', { ascending: false })
+                  .order('created_at', { ascending: true });
 
-  const removeFromQueue = (queueId: string) => {
-    console.log('Remove from queue placeholder:', queueId);
-  };
+      const { data, error } = await query;
+      if (error) throw error;
+
+      return data as QueueItem[];
+    },
+    enabled: !!(profile && (isAdmin || isAttendant)),
+    refetchInterval: 10000, // Atualizar a cada 10 segundos
+  });
+
+  // Buscar estatísticas da fila
+  const { data: queueStats } = useQuery({
+    queryKey: ['queue-stats', sectorId || userSectorId],
+    queryFn: async () => {
+      const targetSectorId = sectorId || userSectorId;
+      
+      const { data, error } = await supabase.rpc('get_queue_stats', {
+        p_sector_id: targetSectorId
+      });
+
+      if (error) throw error;
+      return data as QueueStats;
+    },
+    enabled: !!(profile && (isAdmin || isAttendant)),
+    refetchInterval: 30000, // Atualizar a cada 30 segundos
+  });
+
+  // Buscar conversas pendentes para atribuição
+  const { data: pendingConversations = [] } = useQuery({
+    queryKey: ['pending-conversations', sectorId || userSectorId],
+    queryFn: async () => {
+      const targetSectorId = sectorId || userSectorId;
+      
+      let query = supabase
+        .from('conversations')
+        .select(`
+          id,
+          client_name,
+          client_phone,
+          created_at,
+          last_message_at,
+          sector_id,
+          sectors:sector_id (name, color)
+        `)
+        .eq('status', 'new')
+        .is('assigned_to', null);
+
+      if (targetSectorId && !isAdmin) {
+        query = query.eq('sector_id', targetSectorId);
+      }
+
+      query = query.order('created_at', { ascending: true });
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      return data;
+    },
+    enabled: !!(profile && (isAdmin || isAttendant)),
+    refetchInterval: 15000,
+  });
+
+  // Adicionar à fila
+  const addToQueueMutation = useMutation({
+    mutationFn: async (conversationId: string) => {
+      const { error } = await supabase
+        .from('conversation_queue')
+        .insert({
+          conversation_id: conversationId,
+          sector_id: sectorId || userSectorId,
+          priority: 1,
+          status: 'waiting'
+        });
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['queue-items'] });
+      queryClient.invalidateQueries({ queryKey: ['queue-stats'] });
+      toast.success('Conversa adicionada à fila');
+    },
+    onError: (error: any) => {
+      toast.error(`Erro ao adicionar à fila: ${error.message}`);
+    },
+  });
+
+  // Atribuir da fila
+  const assignFromQueueMutation = useMutation({
+    mutationFn: async ({ queueId, attendantId }: { queueId: string; attendantId?: string }) => {
+      const targetAttendantId = attendantId || profile?.id;
+      
+      if (!targetAttendantId) {
+        throw new Error('ID do atendente não encontrado');
+      }
+
+      // Buscar o item da fila
+      const { data: queueItem, error: queueError } = await supabase
+        .from('conversation_queue')
+        .select('conversation_id, sector_id')
+        .eq('id', queueId)
+        .single();
+
+      if (queueError) throw queueError;
+
+      // Atualizar a conversa
+      const { error: conversationError } = await supabase
+        .from('conversations')
+        .update({
+          assigned_to: targetAttendantId,
+          status: 'in_progress',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', queueItem.conversation_id);
+
+      if (conversationError) throw conversationError;
+
+      // Atualizar o item da fila
+      const { error: queueUpdateError } = await supabase
+        .from('conversation_queue')
+        .update({
+          assigned_to: targetAttendantId,
+          status: 'assigned',
+          assigned_at: new Date().toISOString()
+        })
+        .eq('id', queueId);
+
+      if (queueUpdateError) throw queueUpdateError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['queue-items'] });
+      queryClient.invalidateQueries({ queryKey: ['queue-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      toast.success('Conversa atribuída com sucesso');
+    },
+    onError: (error: any) => {
+      toast.error(`Erro ao atribuir conversa: ${error.message}`);
+    },
+  });
+
+  // Remover da fila
+  const removeFromQueueMutation = useMutation({
+    mutationFn: async (queueId: string) => {
+      const { error } = await supabase
+        .from('conversation_queue')
+        .update({
+          status: 'completed',
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', queueId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['queue-items'] });
+      queryClient.invalidateQueries({ queryKey: ['queue-stats'] });
+      toast.success('Item removido da fila');
+    },
+    onError: (error: any) => {
+      toast.error(`Erro ao remover da fila: ${error.message}`);
+    },
+  });
+
+  // Processar timeouts
+  const processTimeoutsMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc('process_queue_timeouts');
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['queue-items'] });
+      queryClient.invalidateQueries({ queryKey: ['queue-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      toast.success('Timeouts processados');
+    },
+    onError: (error: any) => {
+      toast.error(`Erro ao processar timeouts: ${error.message}`);
+    },
+  });
 
   return {
     // Dados
     queueItems,
-    queueStats,
+    queueStats: queueStats || {
+      waiting: 0,
+      assigned: 0,
+      timeout: 0,
+      averageWaitTime: 0,
+      totalProcessed: 0
+    },
     pendingConversations,
     
     // Estados de loading
-    loadingQueue: false,
+    loadingQueue,
     
     // Ações
-    addToQueue,
-    assignFromQueue,
-    removeFromQueue,
+    addToQueue: addToQueueMutation.mutate,
+    assignFromQueue: assignFromQueueMutation.mutate,
+    removeFromQueue: removeFromQueueMutation.mutate,
+    processTimeouts: processTimeoutsMutation.mutate,
+    refetchQueue: refetch,
     
     // Estados das mutações
-    isAddingToQueue: false,
-    isAssigningFromQueue: false,
-    isRemovingFromQueue: false,
-    
-    // Configurações
-    autoAssignEnabled,
-    setAutoAssignEnabled,
+    isAddingToQueue: addToQueueMutation.isPending,
+    isAssigningFromQueue: assignFromQueueMutation.isPending,
+    isRemovingFromQueue: removeFromQueueMutation.isPending,
+    isProcessingTimeouts: processTimeoutsMutation.isPending,
     
     // Helpers
     getQueuePosition: (conversationId: string) => {
@@ -111,6 +308,26 @@ export const useQueueSystem = (sectorId?: string) => {
       ).length;
       
       return currentAssigned < maxConcurrentChats;
+    },
+
+    // Filtrar itens por status
+    getItemsByStatus: (status: QueueItem['status']) => {
+      return queueItems.filter(item => item.status === status);
+    },
+
+    // Obter próximo item da fila
+    getNextInQueue: () => {
+      const waitingItems = queueItems
+        .filter(item => item.status === 'waiting')
+        .sort((a, b) => {
+          // Ordenar por prioridade (desc) e depois por data de criação (asc)
+          if (a.priority !== b.priority) {
+            return b.priority - a.priority;
+          }
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        });
+      
+      return waitingItems[0] || null;
     },
   };
 };

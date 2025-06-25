@@ -1,137 +1,37 @@
 
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
-import { useSectors } from '@/hooks/useSectors';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Clock, Users, ArrowRight, RefreshCw } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RefreshCw, Settings, Play, Pause } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { useSectors } from '@/hooks/useSectors';
+import { useQueueSystem } from '@/hooks/useQueueSystem';
+import QueueStats from './QueueStats';
+import QueueItemCard from './QueueItemCard';
 import { toast } from 'sonner';
-
-interface QueueConversation {
-  id: string;
-  client_name: string | null;
-  client_phone: string;
-  sector_id: string | null;
-  status: string;
-  created_at: string;
-  last_message_at: string;
-  waiting_time: number;
-  sectors?: {
-    name: string;
-    color: string;
-  };
-}
 
 export const QueueManagement = () => {
   const { profile } = useAuth();
   const { activeSectors } = useSectors();
-  const queryClient = useQueryClient();
   const [selectedSector, setSelectedSector] = useState<string>('all');
+  const [autoRefresh, setAutoRefresh] = useState(true);
 
-  // Buscar conversas na fila (status = 'new')
-  const { data: queueConversations = [], isLoading, refetch } = useQuery({
-    queryKey: ['queue-conversations', selectedSector],
-    queryFn: async () => {
-      let query = supabase
-        .from('conversations')
-        .select(`
-          id,
-          client_name,
-          client_phone,
-          sector_id,
-          status,
-          created_at,
-          last_message_at,
-          sectors:sector_id (name, color)
-        `)
-        .eq('status', 'new')
-        .order('created_at', { ascending: true });
-
-      if (selectedSector !== 'all') {
-        query = query.eq('sector_id', selectedSector);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      return data.map(conv => ({
-        ...conv,
-        waiting_time: Math.floor((new Date().getTime() - new Date(conv.created_at).getTime()) / (1000 * 60))
-      })) as QueueConversation[];
-    },
-    refetchInterval: 5000, // Atualizar a cada 5 segundos
-    enabled: profile?.role === 'admin',
-  });
-
-  // Buscar atendentes disponíveis
-  const { data: availableAttendants = [] } = useQuery({
-    queryKey: ['available-attendants'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select(`
-          id,
-          name,
-          sector_id,
-          sectors:sector_id (name, color)
-        `)
-        .eq('role', 'attendant')
-        .eq('is_active', true);
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: profile?.role === 'admin',
-  });
-
-  // Atribuir conversa a um atendente
-  const assignConversationMutation = useMutation({
-    mutationFn: async ({ conversationId, attendantId }: { conversationId: string; attendantId: string }) => {
-      const { error } = await supabase
-        .from('conversations')
-        .update({
-          assigned_to: attendantId,
-          status: 'in_progress',
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', conversationId);
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['queue-conversations'] });
-      toast.success('Conversa atribuída com sucesso!');
-    },
-    onError: (error: any) => {
-      toast.error(`Erro ao atribuir conversa: ${error.message}`);
-    },
-  });
-
-  const handleAssignConversation = (conversationId: string, attendantId: string) => {
-    assignConversationMutation.mutate({ conversationId, attendantId });
-  };
-
-  const getWaitingTimeColor = (minutes: number) => {
-    if (minutes < 5) return 'text-green-600';
-    if (minutes < 15) return 'text-yellow-600';
-    return 'text-red-600';
-  };
-
-  const stats = {
-    totalInQueue: queueConversations.length,
-    avgWaitingTime: queueConversations.length > 0 
-      ? Math.round(queueConversations.reduce((sum, conv) => sum + conv.waiting_time, 0) / queueConversations.length)
-      : 0,
-    longestWaiting: queueConversations.length > 0 
-      ? Math.max(...queueConversations.map(conv => conv.waiting_time))
-      : 0,
-    availableAttendants: availableAttendants.length,
-  };
+  const {
+    queueItems,
+    queueStats,
+    loadingQueue,
+    assignFromQueue,
+    removeFromQueue,
+    processTimeouts,
+    refetchQueue,
+    isAssigningFromQueue,
+    isRemovingFromQueue,
+    isProcessingTimeouts,
+    canTakeFromQueue,
+    getItemsByStatus,
+  } = useQueueSystem(selectedSector === 'all' ? undefined : selectedSector);
 
   if (profile?.role !== 'admin') {
     return (
@@ -141,12 +41,29 @@ export const QueueManagement = () => {
     );
   }
 
+  const handleAssignToMe = (queueId: string) => {
+    if (!canTakeFromQueue()) {
+      toast.warning('Você já atingiu o limite de conversas simultâneas');
+      return;
+    }
+    assignFromQueue({ queueId });
+  };
+
+  const handleProcessTimeouts = () => {
+    processTimeouts();
+  };
+
+  const waitingItems = getItemsByStatus('waiting');
+  const assignedItems = getItemsByStatus('assigned');
+  const timeoutItems = getItemsByStatus('timeout');
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Fila de Atendimento</h2>
-          <p className="text-gray-600">Gerencie as conversas aguardando atendimento</p>
+          <p className="text-gray-600">Sistema avançado de gerenciamento de filas</p>
         </div>
         
         <div className="flex items-center gap-4">
@@ -170,157 +87,159 @@ export const QueueManagement = () => {
             </SelectContent>
           </Select>
           
-          <Button variant="outline" onClick={() => refetch()} disabled={isLoading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setAutoRefresh(!autoRefresh)}
+          >
+            {autoRefresh ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+          </Button>
+          
+          <Button variant="outline" onClick={() => refetchQueue()} disabled={loadingQueue}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loadingQueue ? 'animate-spin' : ''}`} />
             Atualizar
           </Button>
         </div>
       </div>
 
       {/* Estatísticas */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <Clock className="h-8 w-8 text-blue-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Na Fila</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalInQueue}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <QueueStats stats={queueStats} isLoading={loadingQueue} />
 
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <Clock className="h-8 w-8 text-yellow-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Tempo Médio</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.avgWaitingTime}min</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <Clock className="h-8 w-8 text-red-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Maior Espera</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.longestWaiting}min</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center">
-              <Users className="h-8 w-8 text-green-600" />
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Atendentes</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.availableAttendants}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Tabela da Fila */}
+      {/* Controles de Administração */}
       <Card>
         <CardHeader>
-          <CardTitle>Conversas na Fila</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Settings className="h-5 w-5" />
+            Controles do Sistema
+          </CardTitle>
           <CardDescription>
-            {queueConversations.length} conversa{queueConversations.length !== 1 ? 's' : ''} aguardando atendimento
+            Ferramentas administrativas para gerenciar a fila
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {queueConversations.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Setor</TableHead>
-                  <TableHead>Tempo de Espera</TableHead>
-                  <TableHead>Iniciado em</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {queueConversations.map((conversation) => (
-                  <TableRow key={conversation.id}>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">
-                          {conversation.client_name || 'Cliente não identificado'}
-                        </div>
-                        <div className="text-sm text-gray-500">{conversation.client_phone}</div>
-                      </div>
-                    </TableCell>
-                    
-                    <TableCell>
-                      {conversation.sectors ? (
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-3 h-3 rounded-full" 
-                            style={{ backgroundColor: conversation.sectors.color }}
-                          />
-                          <span className="text-sm">{conversation.sectors.name}</span>
-                        </div>
-                      ) : (
-                        <Badge variant="outline">Sem setor</Badge>
-                      )}
-                    </TableCell>
-                    
-                    <TableCell>
-                      <span className={`font-medium ${getWaitingTimeColor(conversation.waiting_time)}`}>
-                        {conversation.waiting_time} min
-                      </span>
-                    </TableCell>
-                    
-                    <TableCell>
-                      <div className="text-sm text-gray-500">
-                        {new Date(conversation.created_at).toLocaleString('pt-BR')}
-                      </div>
-                    </TableCell>
-                    
-                    <TableCell className="text-right">
-                      <Select onValueChange={(attendantId) => handleAssignConversation(conversation.id, attendantId)}>
-                        <SelectTrigger className="w-40">
-                          <SelectValue placeholder="Atribuir para..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableAttendants
-                            .filter(att => !conversation.sector_id || att.sector_id === conversation.sector_id)
-                            .map((attendant) => (
-                            <SelectItem key={attendant.id} value={attendant.id}>
-                              <div className="flex items-center gap-2">
-                                {attendant.sectors && (
-                                  <div 
-                                    className="w-2 h-2 rounded-full" 
-                                    style={{ backgroundColor: attendant.sectors.color }}
-                                  />
-                                )}
-                                {attendant.name}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="text-center py-8">
-              <Clock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhuma conversa na fila</h3>
-              <p className="text-gray-600">Todas as conversas estão sendo atendidas ou foram finalizadas.</p>
-            </div>
-          )}
+          <div className="flex gap-4">
+            <Button
+              onClick={handleProcessTimeouts}
+              disabled={isProcessingTimeouts}
+              variant="outline"
+            >
+              {isProcessingTimeouts ? 'Processando...' : 'Processar Timeouts'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Lista de Itens da Fila */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Itens da Fila</CardTitle>
+          <CardDescription>
+            {queueItems.length} item{queueItems.length !== 1 ? 's' : ''} na fila
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="waiting" className="w-full">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="waiting">
+                Aguardando ({waitingItems.length})
+              </TabsTrigger>
+              <TabsTrigger value="assigned">
+                Atribuídas ({assignedItems.length})
+              </TabsTrigger>
+              <TabsTrigger value="timeout">
+                Timeout ({timeoutItems.length})
+              </TabsTrigger>
+              <TabsTrigger value="all">
+                Todas ({queueItems.length})
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="waiting" className="space-y-4">
+              {waitingItems.length > 0 ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {waitingItems.map((item) => (
+                    <QueueItemCard
+                      key={item.id}
+                      item={item}
+                      onAssign={handleAssignToMe}
+                      canAssign={true}
+                      isAssigning={isAssigningFromQueue}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  Nenhum item aguardando na fila
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="assigned" className="space-y-4">
+              {assignedItems.length > 0 ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {assignedItems.map((item) => (
+                    <QueueItemCard
+                      key={item.id}
+                      item={item}
+                      onRemove={removeFromQueue}
+                      canRemove={true}
+                      isRemoving={isRemovingFromQueue}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  Nenhum item atribuído
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="timeout" className="space-y-4">
+              {timeoutItems.length > 0 ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {timeoutItems.map((item) => (
+                    <QueueItemCard
+                      key={item.id}
+                      item={item}
+                      onAssign={handleAssignToMe}
+                      onRemove={removeFromQueue}
+                      canAssign={true}
+                      canRemove={true}
+                      isAssigning={isAssigningFromQueue}
+                      isRemoving={isRemovingFromQueue}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  Nenhum item com timeout
+                </div>
+              )}
+            </TabsContent>
+            
+            <TabsContent value="all" className="space-y-4">
+              {queueItems.length > 0 ? (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {queueItems.map((item) => (
+                    <QueueItemCard
+                      key={item.id}
+                      item={item}
+                      onAssign={item.status === 'waiting' ? handleAssignToMe : undefined}
+                      onRemove={item.status !== 'completed' ? removeFromQueue : undefined}
+                      canAssign={item.status === 'waiting'}
+                      canRemove={item.status !== 'completed'}
+                      isAssigning={isAssigningFromQueue}
+                      isRemoving={isRemovingFromQueue}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  Nenhum item na fila
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </div>

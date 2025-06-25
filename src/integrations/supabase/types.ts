@@ -48,6 +48,67 @@ export type Database = {
           },
         ]
       }
+      conversation_queue: {
+        Row: {
+          assigned_at: string | null
+          assigned_to: string | null
+          completed_at: string | null
+          conversation_id: string
+          created_at: string | null
+          id: string
+          priority: number
+          sector_id: string
+          status: string
+          timeout_at: string | null
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_to?: string | null
+          completed_at?: string | null
+          conversation_id: string
+          created_at?: string | null
+          id?: string
+          priority?: number
+          sector_id: string
+          status?: string
+          timeout_at?: string | null
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_to?: string | null
+          completed_at?: string | null
+          conversation_id?: string
+          created_at?: string | null
+          id?: string
+          priority?: number
+          sector_id?: string
+          status?: string
+          timeout_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_queue_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_queue_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: true
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_queue_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversation_transfers: {
         Row: {
           accepted_at: string | null
@@ -57,8 +118,10 @@ export type Database = {
           from_attendant_id: string | null
           from_sector_id: string | null
           id: string
+          is_automatic: boolean | null
           reason: string | null
           status: string | null
+          timeout_reason: string | null
           to_attendant_id: string | null
           to_sector_id: string | null
           transferred_by: string | null
@@ -71,8 +134,10 @@ export type Database = {
           from_attendant_id?: string | null
           from_sector_id?: string | null
           id?: string
+          is_automatic?: boolean | null
           reason?: string | null
           status?: string | null
+          timeout_reason?: string | null
           to_attendant_id?: string | null
           to_sector_id?: string | null
           transferred_by?: string | null
@@ -85,8 +150,10 @@ export type Database = {
           from_attendant_id?: string | null
           from_sector_id?: string | null
           id?: string
+          is_automatic?: boolean | null
           reason?: string | null
           status?: string | null
+          timeout_reason?: string | null
           to_attendant_id?: string | null
           to_sector_id?: string | null
           transferred_by?: string | null
@@ -466,6 +533,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      cleanup_queue_items: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -477,9 +548,17 @@ export type Database = {
           count: number
         }[]
       }
+      get_queue_stats: {
+        Args: { p_sector_id?: string }
+        Returns: Json
+      }
       is_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      process_queue_timeouts: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
     }
     Enums: {
