@@ -9,13 +9,19 @@ import { ChatbotManagement } from './ChatbotManagement';
 import { useReports } from '@/hooks/useReports';
 
 export const Reports = () => {
+  // Define a default date range (last 7 days)
+  const [dateRange] = useState({
+    start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    end: new Date().toISOString()
+  });
+
   const { 
     overallStats,
     attendantStats,
     sectorStats,
     dailyStats,
     isLoading 
-  } = useReports();
+  } = useReports(dateRange);
 
   if (isLoading) {
     return (
@@ -127,7 +133,7 @@ export const Reports = () => {
                     <XAxis dataKey="date" />
                     <YAxis />
                     <Tooltip />
-                    <Line type="monotone" dataKey="conversations" stroke="#8884d8" />
+                    <Line type="monotone" dataKey="total_conversations" stroke="#8884d8" />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -144,10 +150,10 @@ export const Reports = () => {
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={attendantStats || []}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
+                    <XAxis dataKey="attendant_name" />
                     <YAxis />
                     <Tooltip />
-                    <Bar dataKey="conversations" fill="#8884d8" />
+                    <Bar dataKey="total_conversations" fill="#8884d8" />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
