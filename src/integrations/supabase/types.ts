@@ -454,6 +454,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_access_conversation: {
+        Args: { conversation_id: string }
+        Returns: boolean
+      }
+      can_edit_conversation: {
+        Args: { conversation_id: string }
+        Returns: boolean
+      }
+      can_transfer_conversations: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -464,6 +476,10 @@ export type Database = {
           conversation_id: string
           count: number
         }[]
+      }
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
       }
     }
     Enums: {

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { usePermissions } from '@/hooks/usePermissions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowRightLeft, Search, Clock, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 interface TransferRecord {
   id: string;
@@ -24,7 +25,6 @@ interface TransferRecord {
   created_at: string;
   accepted_at: string | null;
   completed_at: string | null;
-  // Dados relacionados serão buscados separadamente
   conversation?: {
     client_name: string | null;
     client_phone: string;
@@ -40,14 +40,16 @@ interface TransferRecord {
 
 export const TransferHistory = () => {
   const { profile } = useAuth();
+  const { hasPermission, isAdmin } = usePermissions();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [dateRange, setDateRange] = useState('7'); // dias
+  const [dateRange, setDateRange] = useState('7');
 
-  // Buscar histórico de transferências
   const { data: transfers = [], isLoading, refetch } = useQuery({
-    queryKey: ['transfer-history', statusFilter, dateRange],
+    queryKey: ['transfer-history', statusFilter, dateRange, profile?.id],
     queryFn: async () => {
+      if (!profile?.id) return [];
+
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - parseInt(dateRange));
 
@@ -56,6 +58,11 @@ export const TransferHistory = () => {
         .select('*')
         .gte('created_at', startDate.toISOString())
         .order('created_at', { ascending: false });
+
+      // Se não for admin, filtrar apenas transferências relacionadas ao usuário
+      if (!isAdmin) {
+        query = query.or(`from_attendant_id.eq.${profile.id},to_attendant_id.eq.${profile.id},transferred_by.eq.${profile.id}`);
+      }
 
       if (statusFilter !== 'all') {
         query = query.eq('status', statusFilter);
@@ -71,7 +78,7 @@ export const TransferHistory = () => {
         return [];
       }
 
-      // Buscar dados relacionados separadamente para evitar erros de join
+      // Buscar dados relacionados separadamente
       const conversationIds = transfersData.map(t => t.conversation_id).filter(Boolean);
       const attendantIds = [
         ...transfersData.map(t => t.from_attendant_id),
@@ -128,7 +135,7 @@ export const TransferHistory = () => {
 
       return enrichedTransfers;
     },
-    enabled: profile?.role === 'admin',
+    enabled: !!profile?.id && (hasPermission('view_reports') || hasPermission('transfer_conversations')),
   });
 
   // Filtrar por termo de busca
@@ -163,10 +170,11 @@ export const TransferHistory = () => {
     rejected: transfers.filter(t => t.status === 'rejected').length,
   };
 
-  if (profile?.role !== 'admin') {
+  // Verificar permissões
+  if (!hasPermission('view_reports') && !hasPermission('transfer_conversations')) {
     return (
       <div className="text-center py-8">
-        <p className="text-gray-500">Acesso restrito a administradores.</p>
+        <p className="text-gray-500">Você não tem permissão para visualizar o histórico de transferências.</p>
       </div>
     );
   }
@@ -176,7 +184,12 @@ export const TransferHistory = () => {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Histórico de Transferências</h2>
-          <p className="text-gray-600">Acompanhe todas as transferências de conversas</p>
+          <p className="text-gray-600">
+            {isAdmin 
+              ? 'Acompanhe todas as transferências de conversas' 
+              : 'Suas transferências de conversas'
+            }
+          </p>
         </div>
         
         <Button variant="outline" onClick={() => refetch()} disabled={isLoading}>
