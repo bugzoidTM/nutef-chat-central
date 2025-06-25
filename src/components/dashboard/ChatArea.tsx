@@ -1,41 +1,32 @@
+
 import React, { useState, useRef, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Send, Phone, MoreVertical } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import { Badge } from '@/components/ui/badge';
-import QuickResponseSelector from './QuickResponseSelector';
-
-interface Message {
-  id: string;
-  content: string;
-  direction: 'incoming' | 'outgoing';
-  timestamp: string;
-  from_phone: string;
-  to_phone: string;
-  sender_name?: string;
-  sender_sector?: string;
-}
-
-interface Conversation {
-  id: string;
-  client_name: string | null;
-  client_phone: string;
-  sector: string;
-  status: string;
-}
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Send, Phone, User, Clock, MessageSquare, Zap } from 'lucide-react';
+import { useMessages } from '@/hooks/useMessages';
+import { useSendMessage } from '@/hooks/useSendMessage';
+import { useAuth } from '@/hooks/useAuth';
+import { QuickResponseSelector } from './QuickResponseSelector';
+import { ChatbotIndicator } from './ChatbotIndicator';
+import { ConversationContextPanel } from './ConversationContextPanel';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import type { Conversation } from '@/types/dashboard';
 
 interface ChatAreaProps {
-  conversation: Conversation | null;
-  messages: Message[];
-  onSendMessage: (message: string) => void;
-  isLoading?: boolean;
+  conversation: Conversation;
 }
 
-const ChatArea = ({ conversation, messages, onSendMessage, isLoading = false }: ChatAreaProps) => {
-  const [messageText, setMessageText] = useState('');
+export const ChatArea: React.FC<ChatAreaProps> = ({ conversation }) => {
+  const { profile } = useAuth();
+  const { messages, isLoading } = useMessages(conversation.id);
+  const { sendMessage, isLoading: isSending } = useSendMessage();
+  const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -46,198 +37,153 @@ const ChatArea = ({ conversation, messages, onSendMessage, isLoading = false }: 
     scrollToBottom();
   }, [messages]);
 
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (messageText.trim() && !isLoading) {
-      onSendMessage(messageText.trim());
-      setMessageText('');
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || isSending) return;
+
+    try {
+      await sendMessage.mutateAsync({
+        conversationId: conversation.id,
+        content: newMessage,
+        toPhone: conversation.client_phone,
+        fromPhone: conversation.instance?.phone || '',
+        senderName: profile?.name || '',
+        senderSector: profile?.sector_id || '',
+      });
+      setNewMessage('');
+    } catch (error) {
+      console.error('Error sending message:', error);
     }
   };
 
-  const getSectorColor = (sector: string) => {
-    switch (sector) {
-      case 'support':
-        return 'bg-blue-100 text-blue-800';
-      case 'financial':
-        return 'bg-purple-100 text-purple-800';
-      case 'sales':
-        return 'bg-orange-100 text-orange-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+  const handleQuickResponse = (content: string) => {
+    setNewMessage(content);
   };
 
-  const getSectorLabel = (sector: string) => {
-    switch (sector) {
-      case 'support':
-        return 'Suporte';
-      case 'financial':
-        return 'Financeiro';
-      case 'sales':
-        return 'Vendas';
-      default:
-        return sector;
-    }
+  const formatMessageTime = (timestamp: string) => {
+    return format(new Date(timestamp), 'HH:mm', { locale: ptBR });
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'new':
-        return 'bg-red-100 text-red-800';
-      case 'in_progress':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'finished':
-        return 'bg-green-100 text-green-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'new':
-        return 'Nova';
-      case 'in_progress':
-        return 'Em andamento';
-      case 'finished':
-        return 'Finalizada';
-      default:
-        return status;
-    }
-  };
-
-  const handleQuickResponseSelect = (content: string, responseId: string) => {
-    console.log('📝 Quick response selected:', { responseId, content: content.substring(0, 50) + '...' });
-    setMessageText(content);
-  };
-
-  if (!conversation) {
+  if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="w-24 h-24 mx-auto mb-4 bg-gray-200 rounded-full flex items-center justify-center">
-            <Phone className="w-12 h-12 text-gray-400" />
+      <Card className="flex-1">
+        <CardContent className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <MessageSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground">Carregando mensagens...</p>
           </div>
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            Bem-vindo ao NutefTalk
-          </h3>
-          <p className="text-gray-500">
-            Selecione uma conversa para começar o atendimento
-          </p>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-white">
-      {/* Chat Header */}
-      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Avatar className="h-10 w-10">
-              <AvatarFallback className="bg-green-100 text-green-600">
-                {conversation.client_name?.charAt(0) || conversation.client_phone.slice(-2)}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">
-                {conversation.client_name || 'Cliente'}
-              </h2>
-              <div className="flex items-center space-x-2">
-                <span className="text-sm text-gray-500">{conversation.client_phone}</span>
-                <Badge 
-                  variant="secondary" 
-                  className={`text-xs ${getSectorColor(conversation.sector)}`}
-                >
-                  {getSectorLabel(conversation.sector)}
-                </Badge>
-                <Badge 
-                  variant="secondary" 
-                  className={`text-xs ${getStatusColor(conversation.status)}`}
-                >
-                  {getStatusLabel(conversation.status)}
-                </Badge>
+    <div className="flex-1 flex flex-col gap-4">
+      {/* Conversation Header */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Avatar>
+                <AvatarFallback>
+                  <User className="h-4 w-4" />
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <CardTitle className="text-lg">
+                  {conversation.client_name || 'Cliente sem nome'}
+                </CardTitle>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Phone className="h-4 w-4" />
+                  {conversation.client_phone}
+                  <Separator orientation="vertical" className="h-4" />
+                  <Clock className="h-4 w-4" />
+                  {format(new Date(conversation.last_message_at), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                </div>
               </div>
             </div>
+            <div className="flex items-center gap-2">
+              <ChatbotIndicator 
+                conversationId={conversation.id} 
+                sectorId={conversation.sector_id || ''} 
+              />
+              <Badge variant={conversation.status === 'new' ? 'default' : 'secondary'}>
+                {conversation.status === 'new' ? 'Nova' : 
+                 conversation.status === 'in_progress' ? 'Em Andamento' : 'Finalizada'}
+              </Badge>
+            </div>
           </div>
-          <Button variant="ghost" size="sm">
-            <MoreVertical className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+        </CardHeader>
+      </Card>
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
-        {messages.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-500">Nenhuma mensagem ainda</p>
-            <p className="text-sm text-gray-400 mt-1">
-              {conversation.client_name || conversation.client_phone} ainda não enviou mensagens
-            </p>
-          </div>
-        ) : (
-          messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${message.direction === 'outgoing' ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                  message.direction === 'outgoing'
-                    ? 'bg-green-500 text-white'
-                    : 'bg-white text-gray-900 border border-gray-200'
-                }`}
-              >
-                {/* ⭐ Mostrar nome e setor do atendente nas mensagens enviadas */}
-                {message.direction === 'outgoing' && message.sender_name && (
-                  <div className="flex items-center space-x-1 mb-1">
-                    <p className="text-xs font-medium text-green-100">
-                      {message.sender_name}
-                      {message.sender_sector && (
-                        <span className="ml-1">({getSectorLabel(message.sender_sector)}):</span>
-                      )}
-                    </p>
+      <div className="flex gap-4 flex-1">
+        {/* Messages Area */}
+        <Card className="flex-1 flex flex-col">
+          <CardContent className="flex-1 flex flex-col p-0">
+            <ScrollArea className="flex-1 p-4">
+              <div className="space-y-4">
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${message.direction === 'outgoing' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`max-w-[70%] rounded-lg px-3 py-2 ${
+                        message.direction === 'outgoing'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'bg-muted'
+                      }`}
+                    >
+                      <p className="text-sm">{message.content}</p>
+                      <div className="flex items-center justify-between mt-1 gap-2">
+                        <p className="text-xs opacity-70">
+                          {formatMessageTime(message.timestamp)}
+                        </p>
+                        {message.direction === 'outgoing' && message.sender_name && (
+                          <div className="flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            <span className="text-xs opacity-70">{message.sender_name}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                )}
-                <p className="text-sm">{message.content}</p>
-                <p
-                  className={`text-xs mt-1 ${
-                    message.direction === 'outgoing' ? 'text-green-100' : 'text-gray-500'
-                  }`}
+                ))}
+                <div ref={messagesEndRef} />
+              </div>
+            </ScrollArea>
+
+            {/* Quick Responses */}
+            <div className="border-t p-4">
+              <QuickResponseSelector onSelectResponse={handleQuickResponse} />
+            </div>
+
+            {/* Message Input */}
+            <div className="border-t p-4">
+              <div className="flex gap-2">
+                <Input
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Digite sua mensagem..."
+                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                  disabled={isSending}
+                />
+                <Button 
+                  onClick={handleSendMessage} 
+                  disabled={!newMessage.trim() || isSending}
+                  size="icon"
                 >
-                  {formatDistanceToNow(new Date(message.timestamp), {
-                    addSuffix: true,
-                    locale: ptBR,
-                  })}
-                </p>
+                  <Send className="h-4 w-4" />
+                </Button>
               </div>
             </div>
-          ))
-        )}
-        <div ref={messagesEndRef} />
-      </div>
+          </CardContent>
+        </Card>
 
-      {/* Message Input */}
-      <div className="p-4 border-t border-gray-200 bg-white">
-        <div className="flex gap-2 mb-2">
-          <QuickResponseSelector onSelectResponse={handleQuickResponseSelect} />
+        {/* Context Panel */}
+        <div className="w-80">
+          <ConversationContextPanel conversationId={conversation.id} />
         </div>
-        <form onSubmit={handleSendMessage} className="flex space-x-2">
-          <Input
-            value={messageText}
-            onChange={(e) => setMessageText(e.target.value)}
-            placeholder="Digite sua mensagem..."
-            className="flex-1"
-            disabled={isLoading}
-          />
-          <Button type="submit" disabled={!messageText.trim() || isLoading}>
-            <Send className="h-4 w-4" />
-          </Button>
-        </form>
       </div>
     </div>
   );
 };
-
-export default ChatArea;

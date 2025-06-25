@@ -48,6 +48,233 @@ export type Database = {
           },
         ]
       }
+      chatbot_configs: {
+        Row: {
+          auto_escalation_keywords: string[] | null
+          created_at: string
+          escalation_message: string | null
+          id: string
+          is_enabled: boolean
+          max_interaction_attempts: number | null
+          sector_id: string | null
+          updated_at: string
+          welcome_message: string | null
+          working_days: number[] | null
+          working_hours_end: string | null
+          working_hours_start: string | null
+        }
+        Insert: {
+          auto_escalation_keywords?: string[] | null
+          created_at?: string
+          escalation_message?: string | null
+          id?: string
+          is_enabled?: boolean
+          max_interaction_attempts?: number | null
+          sector_id?: string | null
+          updated_at?: string
+          welcome_message?: string | null
+          working_days?: number[] | null
+          working_hours_end?: string | null
+          working_hours_start?: string | null
+        }
+        Update: {
+          auto_escalation_keywords?: string[] | null
+          created_at?: string
+          escalation_message?: string | null
+          id?: string
+          is_enabled?: boolean
+          max_interaction_attempts?: number | null
+          sector_id?: string | null
+          updated_at?: string
+          welcome_message?: string | null
+          working_days?: number[] | null
+          working_hours_end?: string | null
+          working_hours_start?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chatbot_configs_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: true
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chatbot_interactions: {
+        Row: {
+          bot_response: string
+          confidence_score: number | null
+          conversation_id: string | null
+          created_at: string
+          escalated_to_human: boolean | null
+          escalation_reason: string | null
+          id: string
+          intent_detected: string | null
+          knowledge_used_id: string | null
+          message_id: string | null
+          user_input: string
+        }
+        Insert: {
+          bot_response: string
+          confidence_score?: number | null
+          conversation_id?: string | null
+          created_at?: string
+          escalated_to_human?: boolean | null
+          escalation_reason?: string | null
+          id?: string
+          intent_detected?: string | null
+          knowledge_used_id?: string | null
+          message_id?: string | null
+          user_input: string
+        }
+        Update: {
+          bot_response?: string
+          confidence_score?: number | null
+          conversation_id?: string | null
+          created_at?: string
+          escalated_to_human?: boolean | null
+          escalation_reason?: string | null
+          id?: string
+          intent_detected?: string | null
+          knowledge_used_id?: string | null
+          message_id?: string | null
+          user_input?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chatbot_interactions_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chatbot_interactions_knowledge_used_id_fkey"
+            columns: ["knowledge_used_id"]
+            isOneToOne: false
+            referencedRelation: "chatbot_knowledge"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chatbot_interactions_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chatbot_knowledge: {
+        Row: {
+          answer: string
+          confidence_threshold: number | null
+          created_at: string
+          created_by: string | null
+          id: string
+          intent: string | null
+          is_active: boolean
+          keywords: string[] | null
+          question: string
+          sector_id: string | null
+          updated_at: string
+          usage_count: number
+        }
+        Insert: {
+          answer: string
+          confidence_threshold?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          intent?: string | null
+          is_active?: boolean
+          keywords?: string[] | null
+          question: string
+          sector_id?: string | null
+          updated_at?: string
+          usage_count?: number
+        }
+        Update: {
+          answer?: string
+          confidence_threshold?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          intent?: string | null
+          is_active?: boolean
+          keywords?: string[] | null
+          question?: string
+          sector_id?: string | null
+          updated_at?: string
+          usage_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chatbot_knowledge_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chatbot_knowledge_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversation_context: {
+        Row: {
+          bot_interaction_summary: string | null
+          client_email: string | null
+          client_issue_category: string | null
+          client_name: string | null
+          collected_data: Json | null
+          conversation_id: string | null
+          created_at: string
+          escalation_reason: string | null
+          id: string
+          issue_description: string | null
+          updated_at: string
+        }
+        Insert: {
+          bot_interaction_summary?: string | null
+          client_email?: string | null
+          client_issue_category?: string | null
+          client_name?: string | null
+          collected_data?: Json | null
+          conversation_id?: string | null
+          created_at?: string
+          escalation_reason?: string | null
+          id?: string
+          issue_description?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bot_interaction_summary?: string | null
+          client_email?: string | null
+          client_issue_category?: string | null
+          client_name?: string | null
+          collected_data?: Json | null
+          conversation_id?: string | null
+          created_at?: string
+          escalation_reason?: string | null
+          id?: string
+          issue_description?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_context_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: true
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversation_queue: {
         Row: {
           assigned_at: string | null
@@ -739,6 +966,15 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      find_chatbot_response: {
+        Args: { p_user_input: string; p_sector_id: string }
+        Returns: {
+          knowledge_id: string
+          answer: string
+          intent: string
+          confidence: number
+        }[]
+      }
       get_current_user_role: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -769,6 +1005,10 @@ export type Database = {
       }
       is_admin: {
         Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_chatbot_active: {
+        Args: { p_sector_id: string }
         Returns: boolean
       }
       process_queue_timeouts: {
