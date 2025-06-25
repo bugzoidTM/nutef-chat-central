@@ -3,7 +3,7 @@ import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 import ConversationList from './ConversationList';
-import ChatArea from './ChatArea';
+import { ChatArea } from './ChatArea';
 import { QueueManagement } from './QueueManagement';
 import { TransferNotifications } from './TransferNotifications';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -107,11 +107,15 @@ export const DashboardContent = () => {
 
         {/* Área principal - Chat */}
         <div className="flex-1 flex flex-col">
-          <ChatArea 
-            conversation={null}
-            messages={[]}
-            onSendMessage={() => {}}
-          />
+          <div className="flex-1 flex items-center justify-center">
+            <div className="text-center">
+              <MessageSquare className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Selecione uma conversa</h3>
+              <p className="text-muted-foreground">
+                Escolha uma conversa da lista à esquerda para começar a atender
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Sidebar direita - Gerenciamento de fila (apenas para admins) */}

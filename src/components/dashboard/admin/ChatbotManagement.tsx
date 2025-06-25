@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,8 +41,9 @@ const ChatbotManagement = () => {
   
   const { 
     knowledge, 
-    config, 
-    isLoading,
+    configs, 
+    isLoadingKnowledge,
+    isLoadingConfigs,
     createKnowledge,
     updateKnowledge,
     deleteKnowledge,
@@ -100,8 +102,8 @@ const ChatbotManagement = () => {
     }
   };
 
-  const handleUpdateConfig = (id: string, data: UpdateConfigData) => {
-    updateConfig.mutate({ id, data });
+  const handleUpdateConfig = (sectorId: string, data: UpdateConfigData) => {
+    updateConfig.mutate({ sectorId, data });
     setEditingConfig(null);
   };
 
@@ -135,6 +137,8 @@ const ChatbotManagement = () => {
       }));
     }
   };
+
+  const isLoading = isLoadingKnowledge || isLoadingConfigs;
 
   return (
     <div className="space-y-6">
@@ -210,8 +214,8 @@ const ChatbotManagement = () => {
                         id="keywords"
                         placeholder="Adicionar palavra-chave"
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter' && e.target.value.trim()) {
-                            handleAddKeyword(e.target.value);
+                          if (e.key === 'Enter' && (e.target as HTMLInputElement).value.trim()) {
+                            handleAddKeyword((e.target as HTMLInputElement).value);
                             (e.target as HTMLInputElement).value = '';
                           }
                         }}
@@ -339,25 +343,26 @@ const ChatbotManagement = () => {
               Carregando configurações...
             </div>
           ) : (
-            config
+            configs
               .filter(c => selectedSector ? c.sector_id === selectedSector : true)
               .map(c => (
                 <div key={c.id} className="space-y-4">
-                  <div>
-                    <Label htmlFor="is_enabled">Ativar Chatbot</Label>
-                    <Input
+                  <div className="flex items-center space-x-2">
+                    <input
                       type="checkbox"
                       id="is_enabled"
                       checked={c.is_enabled}
-                      onChange={(e) => handleUpdateConfig(c.id, { is_enabled: e.target.checked })}
+                      onChange={(e) => handleUpdateConfig(c.sector_id || '', { is_enabled: e.target.checked })}
+                      className="rounded"
                     />
+                    <Label htmlFor="is_enabled">Ativar Chatbot</Label>
                   </div>
                   <div>
                     <Label htmlFor="welcome_message">Mensagem de Boas-Vindas</Label>
                     <Textarea
                       id="welcome_message"
                       value={c.welcome_message || ''}
-                      onChange={(e) => handleUpdateConfig(c.id, { welcome_message: e.target.value })}
+                      onChange={(e) => handleUpdateConfig(c.sector_id || '', { welcome_message: e.target.value })}
                       placeholder="Digite a mensagem de boas-vindas..."
                       rows={2}
                     />
@@ -367,7 +372,7 @@ const ChatbotManagement = () => {
                     <Textarea
                       id="escalation_message"
                       value={c.escalation_message || ''}
-                      onChange={(e) => handleUpdateConfig(c.id, { escalation_message: e.target.value })}
+                      onChange={(e) => handleUpdateConfig(c.sector_id || '', { escalation_message: e.target.value })}
                       placeholder="Digite a mensagem de transferência..."
                       rows={2}
                     />
@@ -378,7 +383,7 @@ const ChatbotManagement = () => {
                       type="time"
                       id="working_hours_start"
                       value={c.working_hours_start || ''}
-                      onChange={(e) => handleUpdateConfig(c.id, { working_hours_start: e.target.value })}
+                      onChange={(e) => handleUpdateConfig(c.sector_id || '', { working_hours_start: e.target.value })}
                     />
                   </div>
                   <div>
@@ -387,27 +392,17 @@ const ChatbotManagement = () => {
                       type="time"
                       id="working_hours_end"
                       value={c.working_hours_end || ''}
-                      onChange={(e) => handleUpdateConfig(c.id, { working_hours_end: e.target.value })}
+                      onChange={(e) => handleUpdateConfig(c.sector_id || '', { working_hours_end: e.target.value })}
                     />
                   </div>
                   <div>
                     <Label htmlFor="working_days">Dias de Funcionamento</Label>
-                    <Select
-                      multiple
-                      value={c.working_days?.map(String) || []}
-                      onValueChange={(values) => handleUpdateConfig(c.id, { working_days: values.map(Number) })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione os dias" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[1, 2, 3, 4, 5, 6, 7].map(day => (
-                          <SelectItem key={day} value={String(day)}>
-                            {new Date(2023, 0, day).toLocaleDateString('pt-BR', { weekday: 'long' })}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="text-sm text-muted-foreground">
+                      Dias: {c.working_days?.map(day => {
+                        const dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+                        return dayNames[day] || day;
+                      }).join(', ')}
+                    </div>
                   </div>
                   <div>
                     <Label htmlFor="max_interaction_attempts">Máximo de Tentativas</Label>
@@ -415,7 +410,7 @@ const ChatbotManagement = () => {
                       type="number"
                       id="max_interaction_attempts"
                       value={String(c.max_interaction_attempts || 3)}
-                      onChange={(e) => handleUpdateConfig(c.id, { max_interaction_attempts: Number(e.target.value) })}
+                      onChange={(e) => handleUpdateConfig(c.sector_id || '', { max_interaction_attempts: Number(e.target.value) })}
                     />
                   </div>
                   <div>
@@ -425,8 +420,8 @@ const ChatbotManagement = () => {
                         id="auto_escalation_keywords"
                         placeholder="Adicionar palavra-chave"
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter' && e.target.value.trim()) {
-                            handleAddEscalationKeyword(e.target.value);
+                          if (e.key === 'Enter' && (e.target as HTMLInputElement).value.trim()) {
+                            handleAddEscalationKeyword((e.target as HTMLInputElement).value);
                             (e.target as HTMLInputElement).value = '';
                           }
                         }}
