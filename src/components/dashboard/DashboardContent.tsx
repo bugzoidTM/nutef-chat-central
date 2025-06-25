@@ -2,8 +2,8 @@
 import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
-import { ConversationList } from './ConversationList';
-import { ChatArea } from './ChatArea';
+import ConversationList from './ConversationList';
+import ChatArea from './ChatArea';
 import { QueueManagement } from './QueueManagement';
 import { TransferNotifications } from './TransferNotifications';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -95,13 +95,23 @@ export const DashboardContent = () => {
           
           {/* Lista de conversas */}
           <div className="flex-1 overflow-hidden">
-            <ConversationList />
+            <ConversationList 
+              conversations={[]}
+              selectedConversation={null}
+              onSelectConversation={() => {}}
+              searchTerm=""
+              onSearchChange={() => {}}
+            />
           </div>
         </div>
 
         {/* Área principal - Chat */}
         <div className="flex-1 flex flex-col">
-          <ChatArea />
+          <ChatArea 
+            conversation={null}
+            messages={[]}
+            onSendMessage={() => {}}
+          />
         </div>
 
         {/* Sidebar direita - Gerenciamento de fila (apenas para admins) */}

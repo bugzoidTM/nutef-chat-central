@@ -1,4 +1,3 @@
-
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -76,7 +75,7 @@ export const useConversationTransfers = () => {
         .select('id, name')
         .in('id', attendantIds);
 
-      // Enriquecer dados
+      // Enriquecer dados e garantir tipagem correta
       const enrichedTransfers: TransferRequest[] = transfers.map(transfer => {
         const conversation = conversations?.find(c => c.id === transfer.conversation_id);
         const fromAttendant = attendants?.find(a => a.id === transfer.from_attendant_id);
@@ -84,6 +83,7 @@ export const useConversationTransfers = () => {
 
         return {
           ...transfer,
+          status: transfer.status as 'pending' | 'accepted' | 'rejected' | 'completed',
           conversation: conversation ? {
             client_name: conversation.client_name,
             client_phone: conversation.client_phone
@@ -305,5 +305,8 @@ export const useConversationTransfers = () => {
     isAcceptingTransfer: acceptTransferMutation.isPending,
     isRejectingTransfer: rejectTransferMutation.isPending,
     isCancelingTransfer: cancelTransferMutation.isPending,
+    
+    // Contador de transferências pendentes
+    pendingTransfersCount: pendingTransfers.length,
   };
 };
