@@ -445,6 +445,102 @@ export type Database = {
           },
         ]
       }
+      satisfaction_survey_requests: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          sent_at: string
+          status: string
+          token: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          sent_at?: string
+          status?: string
+          token?: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          sent_at?: string
+          status?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "satisfaction_survey_requests_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: true
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      satisfaction_surveys: {
+        Row: {
+          attendant_id: string | null
+          client_phone: string
+          comment: string | null
+          conversation_id: string
+          created_at: string
+          id: string
+          rating: number
+          sector_id: string | null
+          submitted_at: string
+        }
+        Insert: {
+          attendant_id?: string | null
+          client_phone: string
+          comment?: string | null
+          conversation_id: string
+          created_at?: string
+          id?: string
+          rating: number
+          sector_id?: string | null
+          submitted_at?: string
+        }
+        Update: {
+          attendant_id?: string | null
+          client_phone?: string
+          comment?: string | null
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          rating?: number
+          sector_id?: string | null
+          submitted_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "satisfaction_surveys_attendant_id_fkey"
+            columns: ["attendant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "satisfaction_surveys_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: true
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "satisfaction_surveys_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sectors: {
         Row: {
           color: string | null
@@ -533,6 +629,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      cleanup_expired_survey_requests: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
       cleanup_queue_items: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -550,6 +650,15 @@ export type Database = {
       }
       get_queue_stats: {
         Args: { p_sector_id?: string }
+        Returns: Json
+      }
+      get_satisfaction_stats: {
+        Args: {
+          p_start_date?: string
+          p_end_date?: string
+          p_sector_id?: string
+          p_attendant_id?: string
+        }
         Returns: Json
       }
       is_admin: {
