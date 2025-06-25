@@ -1,20 +1,10 @@
+
 import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { useDashboardState } from '@/hooks/useDashboardState';
 import DashboardContent from './DashboardContent';
 
 const Dashboard = () => {
   const { profile } = useAuth();
-  const {
-    selectedSector,
-    setSelectedSector,
-    selectedStatus,
-    setSelectedStatus,
-    searchTerm,
-    setSearchTerm,
-    currentView,
-    setCurrentView,
-  } = useDashboardState();
 
   if (!profile) {
     return (
@@ -27,18 +17,7 @@ const Dashboard = () => {
     );
   }
 
-  return (
-    <DashboardContent
-      selectedSector={selectedSector}
-      selectedStatus={selectedStatus}
-      onSectorChange={setSelectedSector}
-      onStatusChange={setSelectedStatus}
-      searchTerm={searchTerm}
-      onSearchChange={setSearchTerm}
-      currentView={currentView}
-      onViewChange={setCurrentView}
-    />
-  );
+  return <DashboardContent />;
 };
 
 export default Dashboard;
