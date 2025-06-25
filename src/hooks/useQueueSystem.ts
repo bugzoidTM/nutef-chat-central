@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -100,7 +99,30 @@ export const useQueueSystem = (sectorId?: string) => {
       });
 
       if (error) throw error;
-      return data as QueueStats;
+      
+      // Properly handle the Json type conversion
+      const stats = data as unknown;
+      
+      // Validate that the data has the expected structure
+      if (stats && typeof stats === 'object' && stats !== null) {
+        const statsObj = stats as Record<string, unknown>;
+        return {
+          waiting: Number(statsObj.waiting) || 0,
+          assigned: Number(statsObj.assigned) || 0,
+          timeout: Number(statsObj.timeout) || 0,
+          averageWaitTime: Number(statsObj.averageWaitTime) || 0,
+          totalProcessed: Number(statsObj.totalProcessed) || 0,
+        } as QueueStats;
+      }
+      
+      // Return default stats if data is invalid
+      return {
+        waiting: 0,
+        assigned: 0,
+        timeout: 0,
+        averageWaitTime: 0,
+        totalProcessed: 0,
+      } as QueueStats;
     },
     enabled: !!(profile && (isAdmin || isAttendant)),
     refetchInterval: 30000, // Atualizar a cada 30 segundos
