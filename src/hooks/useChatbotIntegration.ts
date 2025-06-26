@@ -45,7 +45,7 @@ export const useChatbotIntegration = () => {
 
           // Check working hours for this sector
           const { data: workingHours } = await supabase
-            .from('working_hours')
+            .from('working_hours' as any)
             .select('*')
             .eq('sector_id', conversation.sectors.id)
             .single();
@@ -74,7 +74,7 @@ export const useChatbotIntegration = () => {
 
             // Add to off-hours queue if enabled
             if (workingHours.queue_enabled) {
-              await supabase.from('off_hours_queue').insert({
+              await supabase.from('off_hours_queue' as any).insert({
                 conversation_id: conversation.id,
                 sector_id: conversation.sectors.id,
                 client_phone: message.from_phone,

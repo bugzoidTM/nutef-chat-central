@@ -594,6 +594,76 @@ export type Database = {
           },
         ]
       }
+      off_hours_queue: {
+        Row: {
+          client_name: string | null
+          client_phone: string
+          contacted_at: string | null
+          contacted_by: string | null
+          conversation_id: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          priority: number
+          received_at: string
+          sector_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          client_name?: string | null
+          client_phone: string
+          contacted_at?: string | null
+          contacted_by?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          priority?: number
+          received_at?: string
+          sector_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          client_name?: string | null
+          client_phone?: string
+          contacted_at?: string | null
+          contacted_by?: string | null
+          conversation_id?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          priority?: number
+          received_at?: string
+          sector_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "off_hours_queue_contacted_by_fkey"
+            columns: ["contacted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "off_hours_queue_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: true
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "off_hours_queue_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           can_transfer: boolean | null
@@ -940,6 +1010,62 @@ export type Database = {
           webhook_url?: string
         }
         Relationships: []
+      }
+      working_hours: {
+        Row: {
+          auto_response_enabled: boolean
+          auto_response_message: string
+          created_at: string
+          end_time: string
+          id: string
+          is_enabled: boolean
+          queue_enabled: boolean
+          queue_message: string
+          sector_id: string | null
+          start_time: string
+          timezone: string
+          updated_at: string
+          working_days: number[]
+        }
+        Insert: {
+          auto_response_enabled?: boolean
+          auto_response_message?: string
+          created_at?: string
+          end_time?: string
+          id?: string
+          is_enabled?: boolean
+          queue_enabled?: boolean
+          queue_message?: string
+          sector_id?: string | null
+          start_time?: string
+          timezone?: string
+          updated_at?: string
+          working_days?: number[]
+        }
+        Update: {
+          auto_response_enabled?: boolean
+          auto_response_message?: string
+          created_at?: string
+          end_time?: string
+          id?: string
+          is_enabled?: boolean
+          queue_enabled?: boolean
+          queue_message?: string
+          sector_id?: string | null
+          start_time?: string
+          timezone?: string
+          updated_at?: string
+          working_days?: number[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "working_hours_sector_id_fkey"
+            columns: ["sector_id"]
+            isOneToOne: true
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

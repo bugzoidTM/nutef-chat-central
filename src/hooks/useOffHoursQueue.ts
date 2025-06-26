@@ -42,7 +42,7 @@ export const useOffHoursQueue = (sectorId?: string) => {
     queryKey: ['off-hours-queue', sectorId],
     queryFn: async () => {
       let query = supabase
-        .from('off_hours_queue')
+        .from('off_hours_queue' as any)
         .select(`
           *,
           conversation:conversation_id (
@@ -90,7 +90,7 @@ export const useOffHoursQueue = (sectorId?: string) => {
       notes?: string;
     }) => {
       const { error } = await supabase
-        .from('off_hours_queue')
+        .from('off_hours_queue' as any)
         .insert({
           conversation_id: conversationId,
           sector_id: sectorId,
@@ -112,7 +112,7 @@ export const useOffHoursQueue = (sectorId?: string) => {
   const markAsContacted = useMutation({
     mutationFn: async (queueId: string) => {
       const { error } = await supabase
-        .from('off_hours_queue')
+        .from('off_hours_queue' as any)
         .update({
           status: 'contacted',
           contacted_at: new Date().toISOString(),
@@ -143,7 +143,7 @@ export const useOffHoursQueue = (sectorId?: string) => {
   const markAsResolved = useMutation({
     mutationFn: async (queueId: string) => {
       const { error } = await supabase
-        .from('off_hours_queue')
+        .from('off_hours_queue' as any)
         .update({
           status: 'resolved',
           updated_at: new Date().toISOString()
@@ -172,7 +172,7 @@ export const useOffHoursQueue = (sectorId?: string) => {
   const updateNotes = useMutation({
     mutationFn: async ({ queueId, notes }: { queueId: string; notes: string }) => {
       const { error } = await supabase
-        .from('off_hours_queue')
+        .from('off_hours_queue' as any)
         .update({
           notes,
           updated_at: new Date().toISOString()

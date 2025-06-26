@@ -42,7 +42,7 @@ export const useWorkingHours = (sectorId: string) => {
       if (!sectorId) return null;
 
       const { data, error } = await supabase
-        .from('working_hours')
+        .from('working_hours' as any)
         .select('*')
         .eq('sector_id', sectorId)
         .single();
@@ -61,14 +61,14 @@ export const useWorkingHours = (sectorId: string) => {
     mutationFn: async ({ sectorId, data }: { sectorId: string; data: UpdateWorkingHoursData }) => {
       // First try to update, if not found, insert
       const { data: existing } = await supabase
-        .from('working_hours')
+        .from('working_hours' as any)
         .select('id')
         .eq('sector_id', sectorId)
         .single();
 
       if (existing) {
         const { error } = await supabase
-          .from('working_hours')
+          .from('working_hours' as any)
           .update({
             ...data,
             updated_at: new Date().toISOString()
@@ -78,7 +78,7 @@ export const useWorkingHours = (sectorId: string) => {
         if (error) throw error;
       } else {
         const { error } = await supabase
-          .from('working_hours')
+          .from('working_hours' as any)
           .insert({
             sector_id: sectorId,
             ...data
