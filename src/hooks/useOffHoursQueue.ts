@@ -18,7 +18,7 @@ export interface OffHoursQueueItem {
   contacted_by: string | null;
   created_at: string;
   updated_at: string;
-  // Related data
+  // Related data (will be fetched separately if needed)
   conversation?: {
     client_name: string | null;
     last_message_at: string;
@@ -42,21 +42,8 @@ export const useOffHoursQueue = (sectorId?: string) => {
     queryKey: ['off-hours-queue', sectorId],
     queryFn: async () => {
       let query = supabase
-        .from('off_hours_queue' as any)
-        .select(`
-          *,
-          conversation:conversation_id (
-            client_name,
-            last_message_at
-          ),
-          sector:sector_id (
-            name,
-            color
-          ),
-          attendant:contacted_by (
-            name
-          )
-        `)
+        .from('off_hours_queue')
+        .select('*')
         .order('priority', { ascending: false })
         .order('received_at', { ascending: true });
 
@@ -65,9 +52,12 @@ export const useOffHoursQueue = (sectorId?: string) => {
       }
 
       const { data, error } = await query;
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching off-hours queue:', error);
+        throw error;
+      }
 
-      return data as OffHoursQueueItem[];
+      return (data || []) as OffHoursQueueItem[];
     },
     refetchInterval: 30000, // Refresh every 30 seconds
   });
@@ -90,7 +80,7 @@ export const useOffHoursQueue = (sectorId?: string) => {
       notes?: string;
     }) => {
       const { error } = await supabase
-        .from('off_hours_queue' as any)
+        .from('off_hours_queue')
         .insert({
           conversation_id: conversationId,
           sector_id: sectorId,
@@ -112,7 +102,7 @@ export const useOffHoursQueue = (sectorId?: string) => {
   const markAsContacted = useMutation({
     mutationFn: async (queueId: string) => {
       const { error } = await supabase
-        .from('off_hours_queue' as any)
+        .from('off_hours_queue')
         .update({
           status: 'contacted',
           contacted_at: new Date().toISOString(),
@@ -143,7 +133,7 @@ export const useOffHoursQueue = (sectorId?: string) => {
   const markAsResolved = useMutation({
     mutationFn: async (queueId: string) => {
       const { error } = await supabase
-        .from('off_hours_queue' as any)
+        .from('off_hours_queue')
         .update({
           status: 'resolved',
           updated_at: new Date().toISOString()
@@ -172,7 +162,7 @@ export const useOffHoursQueue = (sectorId?: string) => {
   const updateNotes = useMutation({
     mutationFn: async ({ queueId, notes }: { queueId: string; notes: string }) => {
       const { error } = await supabase
-        .from('off_hours_queue' as any)
+        .from('off_hours_queue')
         .update({
           notes,
           updated_at: new Date().toISOString()

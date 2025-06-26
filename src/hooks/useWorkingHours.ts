@@ -42,12 +42,13 @@ export const useWorkingHours = (sectorId: string) => {
       if (!sectorId) return null;
 
       const { data, error } = await supabase
-        .from('working_hours' as any)
+        .from('working_hours')
         .select('*')
         .eq('sector_id', sectorId)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 = not found
+      if (error) {
+        console.error('Error fetching working hours:', error);
         throw error;
       }
 
@@ -61,14 +62,14 @@ export const useWorkingHours = (sectorId: string) => {
     mutationFn: async ({ sectorId, data }: { sectorId: string; data: UpdateWorkingHoursData }) => {
       // First try to update, if not found, insert
       const { data: existing } = await supabase
-        .from('working_hours' as any)
+        .from('working_hours')
         .select('id')
         .eq('sector_id', sectorId)
-        .single();
+        .maybeSingle();
 
       if (existing) {
         const { error } = await supabase
-          .from('working_hours' as any)
+          .from('working_hours')
           .update({
             ...data,
             updated_at: new Date().toISOString()
@@ -78,7 +79,7 @@ export const useWorkingHours = (sectorId: string) => {
         if (error) throw error;
       } else {
         const { error } = await supabase
-          .from('working_hours' as any)
+          .from('working_hours')
           .insert({
             sector_id: sectorId,
             ...data
