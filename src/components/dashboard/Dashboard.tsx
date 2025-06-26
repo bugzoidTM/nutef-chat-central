@@ -12,7 +12,7 @@ import type { Conversation } from '@/types/dashboard';
 
 export const Dashboard = () => {
   const { conversations, conversationsLoading } = useConversations('all', 'all');
-  const { selectedConversation, handleSelectConversation } = useConversationSelection('', '', '');
+  const { selectedConversation, handleSelectConversation } = useConversationSelection(conversations, 'all', 'all');
   const [searchTerm, setSearchTerm] = useState('');
   
   // Initialize chatbot integration
