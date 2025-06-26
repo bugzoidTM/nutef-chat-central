@@ -74,7 +74,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         email: user.email || '',
         name: user.user_metadata?.name || user.email?.split('@')[0] || 'Usuário',
         phone: user.user_metadata?.phone || '',
-        role: isFirstUser ? 'admin' : 'attendant',
+        role: (isFirstUser ? 'admin' : 'attendant') as 'admin' | 'attendant',
         is_active: true,
         setup_completed: false,
         whatsapp_connected: false,
