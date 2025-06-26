@@ -12,7 +12,14 @@ const Index = () => {
   try {
     const { user, loading, profile } = useAuth();
 
-    console.log('Index.tsx - Auth state:', { user: !!user, loading, profile });
+    console.log('Index.tsx - Auth state:', { 
+      hasUser: !!user, 
+      loading, 
+      hasProfile: !!profile,
+      profileSetupCompleted: profile?.setup_completed,
+      whatsappConnected: profile?.whatsapp_connected,
+      userRole: profile?.role
+    });
 
     if (loading) {
       console.log('Index.tsx - Showing loading state');
@@ -32,10 +39,9 @@ const Index = () => {
       return <AuthPage />;
     }
 
-    // Se não tem perfil, pode ser que ainda não foi criado ou não foi carregado
+    // Se não tem perfil, mostrar setup inicial
     if (!profile) {
-      console.log('Index.tsx - No profile found');
-      // Se é um usuário logado mas sem perfil, mostrar setup inicial
+      console.log('Index.tsx - No profile found, showing InitialSetup');
       return <InitialSetup />;
     }
 
@@ -45,13 +51,13 @@ const Index = () => {
       whatsapp_connected: profile.whatsapp_connected
     });
 
-    // Se é admin e ainda não completou o setup inicial
-    if (profile.role === 'admin' && !profile.setup_completed) {
-      console.log('Index.tsx - Admin needs initial setup');
+    // Se o usuário tem perfil mas o setup não foi completado
+    if (!profile.setup_completed) {
+      console.log('Index.tsx - User needs to complete setup');
       return <InitialSetup />;
     }
 
-    // Se é admin, completou o setup mas ainda não conectou o WhatsApp
+    // Se é admin, setup completado mas ainda não conectou o WhatsApp
     if (profile.role === 'admin' && profile.setup_completed && !profile.whatsapp_connected) {
       console.log('Index.tsx - Admin needs QR code setup');
       return <QRCodeSetup />;
