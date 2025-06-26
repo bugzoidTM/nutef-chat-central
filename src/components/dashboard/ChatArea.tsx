@@ -7,13 +7,16 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Send, Phone, User, Clock, MessageSquare, Zap } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Send, Phone, User, Clock, MessageSquare, Zap, Users, CheckSquare } from 'lucide-react';
 import { useMessages } from '@/hooks/useMessages';
 import { useSendMessage } from '@/hooks/useSendMessage';
 import { useAuth } from '@/hooks/useAuth';
 import QuickResponseSelector from './QuickResponseSelector';
 import { ChatbotIndicator } from './ChatbotIndicator';
 import { ConversationContextPanel } from './ConversationContextPanel';
+import { InternalCommentsPanel } from './InternalCommentsPanel';
+import { InternalTasksPanel } from './InternalTasksPanel';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import type { Conversation } from '@/types/dashboard';
@@ -175,9 +178,36 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ conversation }) => {
           </CardContent>
         </Card>
 
-        {/* Context Panel */}
+        {/* Side Panel with Tabs */}
         <div className="w-80">
-          <ConversationContextPanel conversationId={conversation.id} />
+          <Tabs defaultValue="context" className="h-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="context" className="text-xs">
+                <User className="h-4 w-4 mr-1" />
+                Contexto
+              </TabsTrigger>
+              <TabsTrigger value="comments" className="text-xs">
+                <Users className="h-4 w-4 mr-1" />
+                Comentários
+              </TabsTrigger>
+              <TabsTrigger value="tasks" className="text-xs">
+                <CheckSquare className="h-4 w-4 mr-1" />
+                Tarefas
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="context" className="h-full mt-4">
+              <ConversationContextPanel conversationId={conversation.id} />
+            </TabsContent>
+            
+            <TabsContent value="comments" className="h-full mt-4">
+              <InternalCommentsPanel conversationId={conversation.id} />
+            </TabsContent>
+            
+            <TabsContent value="tasks" className="h-full mt-4">
+              <InternalTasksPanel conversationId={conversation.id} />
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>

@@ -538,6 +538,173 @@ export type Database = {
           },
         ]
       }
+      internal_comments: {
+        Row: {
+          author_id: string
+          content: string
+          conversation_id: string
+          created_at: string
+          edited_at: string | null
+          id: string
+          is_edited: boolean | null
+          mentioned_user_ids: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          content: string
+          conversation_id: string
+          created_at?: string
+          edited_at?: string | null
+          id?: string
+          is_edited?: boolean | null
+          mentioned_user_ids?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          edited_at?: string | null
+          id?: string
+          is_edited?: boolean | null
+          mentioned_user_ids?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_comments_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      internal_task_comments: {
+        Row: {
+          author_id: string
+          content: string
+          created_at: string
+          id: string
+          task_id: string
+        }
+        Insert: {
+          author_id: string
+          content: string
+          created_at?: string
+          id?: string
+          task_id: string
+        }
+        Update: {
+          author_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          task_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_task_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_task_comments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "internal_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      internal_tasks: {
+        Row: {
+          assigned_to_sector: string | null
+          assigned_to_user: string | null
+          completed_at: string | null
+          conversation_id: string
+          created_at: string
+          created_by: string
+          description: string | null
+          due_date: string | null
+          id: string
+          priority: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to_sector?: string | null
+          assigned_to_user?: string | null
+          completed_at?: string | null
+          conversation_id: string
+          created_at?: string
+          created_by: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to_sector?: string | null
+          assigned_to_user?: string | null
+          completed_at?: string | null
+          conversation_id?: string
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_tasks_assigned_to_sector_fkey"
+            columns: ["assigned_to_sector"]
+            isOneToOne: false
+            referencedRelation: "sectors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_tasks_assigned_to_user_fkey"
+            columns: ["assigned_to_user"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_tasks_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "internal_tasks_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string
