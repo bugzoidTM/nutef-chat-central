@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import AuthPage from '@/components/auth/AuthPage';
+import { AuthPage } from '@/components/auth/AuthPage';
 import { Dashboard } from '@/components/dashboard/Dashboard';
 import InitialSetup from '@/components/setup/InitialSetup';
 import QRCodeSetup from '@/components/setup/QRCodeSetup';

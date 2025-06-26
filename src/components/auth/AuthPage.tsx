@@ -9,7 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Mail, Lock, User, Phone } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Logo } from '@/components/Logo';
+import Logo from '@/components/Logo';
 
 export const AuthPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
