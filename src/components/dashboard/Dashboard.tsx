@@ -11,8 +11,8 @@ import { MessageSquare } from 'lucide-react';
 import type { Conversation } from '@/types/dashboard';
 
 export const Dashboard = () => {
-  const { conversations, conversationsLoading } = useConversations();
-  const { selectedConversation, handleSelectConversation } = useConversationSelection();
+  const { conversations, conversationsLoading } = useConversations('all', 'all');
+  const { selectedConversation, handleSelectConversation } = useConversationSelection('', '', '');
   const [searchTerm, setSearchTerm] = useState('');
   
   // Initialize chatbot integration
