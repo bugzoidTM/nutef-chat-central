@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -6,6 +5,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { TrendingUp, Users, MessageSquare, Clock, Brain, Zap } from 'lucide-react';
 import QuickResponseManagement from './QuickResponseManagement';
 import { ChatbotManagement } from './ChatbotManagement';
+import { WorkingHoursConfig } from './WorkingHoursConfig';
+import { OffHoursQueueManagement } from './OffHoursQueueManagement';
 import { useReports } from '@/hooks/useReports';
 
 export const Reports = () => {
@@ -47,6 +48,8 @@ export const Reports = () => {
           <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           <TabsTrigger value="quick-responses">Respostas Rápidas</TabsTrigger>
           <TabsTrigger value="chatbot">Chatbot IA</TabsTrigger>
+          <TabsTrigger value="working-hours">Horários</TabsTrigger>
+          <TabsTrigger value="off-hours-queue">Fila Fora do Horário</TabsTrigger>
         </TabsList>
 
         <TabsContent value="dashboard" className="space-y-6">
@@ -167,6 +170,14 @@ export const Reports = () => {
 
         <TabsContent value="chatbot">
           <ChatbotManagement />
+        </TabsContent>
+
+        <TabsContent value="working-hours">
+          <WorkingHoursConfig />
+        </TabsContent>
+
+        <TabsContent value="off-hours-queue">
+          <OffHoursQueueManagement />
         </TabsContent>
       </Tabs>
     </div>

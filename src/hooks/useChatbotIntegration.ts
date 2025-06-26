@@ -43,6 +43,68 @@ export const useChatbotIntegration = () => {
             return;
           }
 
+          // Check working hours for this sector
+          const { data: workingHours } = await supabase
+            .from('working_hours')
+            .select('*')
+            .eq('sector_id', conversation.sectors.id)
+            .single();
+
+          // Check if we're within working hours
+          const isWithinWorkingHours = checkWorkingHours(workingHours);
+          
+          if (!isWithinWorkingHours && workingHours?.auto_response_enabled) {
+            console.log('⏰ Outside working hours, sending auto response');
+            
+            // Send automatic response
+            const autoMessage = workingHours.auto_response_message
+              .replace('{start_time}', workingHours.start_time)
+              .replace('{end_time}', workingHours.end_time);
+
+            await supabase.from('messages').insert({
+              conversation_id: conversation.id,
+              from_phone: 'SYSTEM',
+              to_phone: message.from_phone,
+              content: autoMessage,
+              message_type: 'text',
+              direction: 'outgoing',
+              sender_name: 'Sistema Automático',
+              sender_sector: 'Sistema'
+            });
+
+            // Add to off-hours queue if enabled
+            if (workingHours.queue_enabled) {
+              await supabase.from('off_hours_queue').insert({
+                conversation_id: conversation.id,
+                sector_id: conversation.sectors.id,
+                client_phone: message.from_phone,
+                client_name: conversation.client_name,
+                priority: 1,
+                status: 'waiting'
+              });
+
+              // Send queue confirmation message
+              if (workingHours.queue_message) {
+                await supabase.from('messages').insert({
+                  conversation_id: conversation.id,
+                  from_phone: 'SYSTEM',
+                  to_phone: message.from_phone,
+                  content: workingHours.queue_message,
+                  message_type: 'text',
+                  direction: 'outgoing',
+                  sender_name: 'Sistema Automático',
+                  sender_sector: 'Sistema'
+                });
+              }
+            }
+
+            // Invalidate queries to refresh UI
+            queryClient.invalidateQueries({ queryKey: ['messages', conversation.id] });
+            queryClient.invalidateQueries({ queryKey: ['off-hours-queue'] });
+            return;
+          }
+
+          // If within working hours, proceed with normal chatbot processing
           try {
             // Call chatbot processor
             const response = await supabase.functions.invoke('chatbot-processor', {
@@ -88,4 +150,25 @@ export const useChatbotIntegration = () => {
       supabase.removeChannel(channel);
     };
   }, [queryClient]);
+
+  // Helper function to check working hours
+  const checkWorkingHours = (workingHours: any): boolean => {
+    if (!workingHours || !workingHours.is_enabled) return true;
+
+    const now = new Date();
+    const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
+
+    // Check if current day is a working day
+    if (!workingHours.working_days.includes(currentDay)) {
+      return false;
+    }
+
+    // Check if current time is within working hours
+    if (currentTime < workingHours.start_time || currentTime > workingHours.end_time) {
+      return false;
+    }
+
+    return true;
+  };
 };
