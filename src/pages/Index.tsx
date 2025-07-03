@@ -10,18 +10,21 @@ const Index = () => {
   console.log('Index.tsx - Component rendering');
   
   try {
-    const { user, loading, profile } = useAuth();
+    const { user, loading, profile, isInitialized } = useAuth();
 
     console.log('Index.tsx - Auth state:', { 
       hasUser: !!user, 
       loading, 
+      isInitialized,
       hasProfile: !!profile,
       profileSetupCompleted: profile?.setup_completed,
       whatsappConnected: profile?.whatsapp_connected,
-      userRole: profile?.role
+      userRole: profile?.role,
+      userName: profile?.name
     });
 
-    if (loading) {
+    // Aguardar inicialização
+    if (!isInitialized || loading) {
       console.log('Index.tsx - Showing loading state');
       return (
         <div className="min-h-screen flex items-center justify-center">
@@ -46,6 +49,8 @@ const Index = () => {
     }
 
     console.log('Index.tsx - Profile loaded:', {
+      id: profile.id,
+      name: profile.name,
       role: profile.role,
       setup_completed: profile.setup_completed,
       whatsapp_connected: profile.whatsapp_connected
@@ -53,7 +58,7 @@ const Index = () => {
 
     // Se o usuário tem perfil mas o setup não foi completado
     if (!profile.setup_completed) {
-      console.log('Index.tsx - User needs to complete setup');
+      console.log('Index.tsx - User needs to complete setup, showing InitialSetup');
       return <InitialSetup />;
     }
 
@@ -64,7 +69,7 @@ const Index = () => {
     }
 
     // Se chegou até aqui, mostrar o dashboard
-    console.log('Index.tsx - Showing dashboard');
+    console.log('Index.tsx - All conditions met, showing dashboard');
     return <Dashboard />;
     
   } catch (error) {
