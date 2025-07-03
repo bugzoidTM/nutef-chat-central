@@ -15,7 +15,7 @@ export const useMessages = (selectedConversation: string | null) => {
         return [];
       }
       
-      console.log('🔍 useMessages - Fetching messages from Supabase for conversation:', selectedConversation);
+      console.log('🔍 useMessages - Fetching messages for conversation:', selectedConversation);
       
       const { data, error } = await supabase
         .from('messages')
@@ -28,16 +28,16 @@ export const useMessages = (selectedConversation: string | null) => {
         throw error;
       }
 
-      console.log('📝 useMessages - Supabase returned:', data?.length || 0, 'messages');
+      console.log('📝 useMessages - Messages loaded:', data?.length || 0);
       return data || [];
     },
     enabled: !!selectedConversation,
-    refetchInterval: 5000, // Reduced from 2s to 5s for better performance
+    refetchInterval: false, // Disable automatic refetching, rely on realtime
     retry: (failureCount, error: any) => {
       console.log(`🔄 useMessages - Retry attempt ${failureCount}:`, error?.message);
-      return failureCount < 2;
+      return failureCount < 3;
     },
-    staleTime: 2000, // Consider data fresh for 2 seconds
+    staleTime: 0, // Always consider data stale to refetch when needed
   });
 
   // Set up real-time subscription for messages
@@ -57,7 +57,12 @@ export const useMessages = (selectedConversation: string | null) => {
     const channelName = `messages-${selectedConversation}`;
     
     const channel = supabase
-      .channel(channelName)
+      .channel(channelName, {
+        config: {
+          broadcast: { self: false },
+          presence: { key: selectedConversation }
+        }
+      })
       .on(
         'postgres_changes',
         {
@@ -68,14 +73,27 @@ export const useMessages = (selectedConversation: string | null) => {
         },
         (payload) => {
           console.log('📨 Real-time message update:', payload);
-          // Invalidate queries specifically for this conversation
+          // Invalidate and refetch messages for this conversation
           queryClient.invalidateQueries({ queryKey: ['messages', selectedConversation] });
+          // Also invalidate related queries
           queryClient.invalidateQueries({ queryKey: ['last-messages'] });
           queryClient.invalidateQueries({ queryKey: ['message-counts'] });
         }
       )
       .subscribe((status) => {
         console.log(`📡 Messages channel (${channelName}) status:`, status);
+        if (status === 'SUBSCRIBED') {
+          console.log('✅ Successfully subscribed to messages channel');
+        } else if (status === 'TIMED_OUT' || status === 'CLOSED') {
+          console.warn('⚠️ Messages channel connection issue:', status);
+          // Try to reconnect after a delay
+          setTimeout(() => {
+            if (selectedConversation) {
+              console.log('🔄 Attempting to reconnect messages channel...');
+              queryClient.invalidateQueries({ queryKey: ['messages', selectedConversation] });
+            }
+          }, 2000);
+        }
       });
 
     channelRef.current = channel;
