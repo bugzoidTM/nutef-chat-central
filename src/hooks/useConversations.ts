@@ -15,8 +15,13 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
     profile: profile ? { id: profile.id, role: profile.role } : null 
   });
 
-  // Fetch raw conversations
-  const { data: rawConversations = [], isLoading: conversationsLoading, error: conversationsError } = useConversationsQuery(selectedSector, selectedStatus);
+  // Fetch raw conversations with better error handling
+  const { 
+    data: rawConversations = [], 
+    isLoading: conversationsLoading, 
+    error: conversationsError,
+    refetch: refetchConversations
+  } = useConversationsQuery(selectedSector, selectedStatus);
 
   // Fetch last messages for these conversations
   const { data: lastMessages = [] } = useLastMessages(rawConversations);
@@ -28,18 +33,6 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
   const conversations = rawConversations.map(conversation => {
     const lastMessage = lastMessages.find(msg => msg.conversation_id === conversation.id);
     const messageCount = messageCounts.find(count => count.conversation_id === conversation.id);
-    
-    // Debug log for specific conversation (Nutef)
-    if (conversation.client_phone?.includes('551193247')) {
-      console.log('🎯 DEBUG NUTEF - Conversation data:', {
-        id: conversation.id,
-        phone: conversation.client_phone,
-        status: conversation.status,
-        lastMessage: lastMessage?.content,
-        unreadCount: messageCount?.count || 0,
-        messageCountData: messageCount
-      });
-    }
     
     return {
       ...conversation,
@@ -63,12 +56,12 @@ export const useConversations = (selectedSector: SectorType, selectedStatus: Sta
   };
 
   console.log('📈 useConversations - Conversation counts:', conversationCounts);
-  console.log('📋 useConversations - All conversations:', conversations);
 
   return {
     conversations,
     conversationsLoading,
     conversationCounts,
     sendMessageMutation,
+    refetchConversations,
   };
 };

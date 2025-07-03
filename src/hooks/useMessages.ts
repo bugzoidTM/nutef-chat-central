@@ -1,3 +1,4 @@
+
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect, useRef } from 'react';
@@ -28,15 +29,15 @@ export const useMessages = (selectedConversation: string | null) => {
       }
 
       console.log('📝 useMessages - Supabase returned:', data?.length || 0, 'messages');
-      console.log('📝 useMessages - Raw messages data:', data);
       return data || [];
     },
     enabled: !!selectedConversation,
-    refetchInterval: 2000, // Refresh every 2 seconds
+    refetchInterval: 5000, // Reduced from 2s to 5s for better performance
     retry: (failureCount, error: any) => {
       console.log(`🔄 useMessages - Retry attempt ${failureCount}:`, error?.message);
       return failureCount < 2;
     },
+    staleTime: 2000, // Consider data fresh for 2 seconds
   });
 
   // Set up real-time subscription for messages
@@ -67,7 +68,7 @@ export const useMessages = (selectedConversation: string | null) => {
         },
         (payload) => {
           console.log('📨 Real-time message update:', payload);
-          // ⭐ Invalidar queries específicas para esta conversa
+          // Invalidate queries specifically for this conversation
           queryClient.invalidateQueries({ queryKey: ['messages', selectedConversation] });
           queryClient.invalidateQueries({ queryKey: ['last-messages'] });
           queryClient.invalidateQueries({ queryKey: ['message-counts'] });

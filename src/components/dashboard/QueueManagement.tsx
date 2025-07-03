@@ -1,9 +1,9 @@
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { RefreshCw, Settings, Clock } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useSectors } from '@/hooks/useSectors';
@@ -34,11 +34,11 @@ export const QueueManagement = () => {
 
   if (profile?.role !== 'admin') {
     return (
-      <div className="p-6">
+      <div className="h-full flex items-center justify-center p-4">
         <div className="text-center">
           <Clock className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-          <h3 className="text-lg font-semibold mb-2">Fila de Atendimento</h3>
-          <p className="text-gray-500">Acesso restrito a administradores.</p>
+          <h3 className="text-base font-semibold mb-2">Fila de Atendimento</h3>
+          <p className="text-sm text-gray-500">Acesso restrito a administradores.</p>
         </div>
       </div>
     );
@@ -63,11 +63,11 @@ export const QueueManagement = () => {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200 bg-white">
-        <div className="flex items-center justify-between mb-4">
+      <div className="p-3 border-b border-gray-200 bg-white flex-shrink-0">
+        <div className="flex items-center justify-between mb-3">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900">Fila de Atendimento</h2>
-            <p className="text-sm text-gray-600">Gerenciamento de filas</p>
+            <h2 className="text-base font-semibold text-gray-900">Fila</h2>
+            <p className="text-xs text-gray-600">Gerenciamento</p>
           </div>
           
           <Button variant="outline" size="sm" onClick={() => refetchQueue()} disabled={loadingQueue}>
@@ -76,7 +76,7 @@ export const QueueManagement = () => {
         </div>
         
         <Select value={selectedSector} onValueChange={setSelectedSector}>
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="w-full h-8">
             <SelectValue placeholder="Filtrar por setor" />
           </SelectTrigger>
           <SelectContent>
@@ -85,10 +85,10 @@ export const QueueManagement = () => {
               <SelectItem key={sector.id} value={sector.id}>
                 <div className="flex items-center gap-2">
                   <div 
-                    className="w-3 h-3 rounded-full" 
+                    className="w-2 h-2 rounded-full" 
                     style={{ backgroundColor: sector.color }}
                   />
-                  {sector.name}
+                  <span className="text-xs">{sector.name}</span>
                 </div>
               </SelectItem>
             ))}
@@ -97,29 +97,31 @@ export const QueueManagement = () => {
       </div>
 
       {/* Stats */}
-      <div className="p-4 border-b border-gray-200 bg-white">
+      <div className="p-3 border-b border-gray-200 bg-white flex-shrink-0">
         <QueueStats stats={queueStats} isLoading={loadingQueue} />
       </div>
 
       {/* Controls */}
-      <div className="p-4 border-b border-gray-200 bg-white">
+      <div className="p-3 border-b border-gray-200 bg-white flex-shrink-0">
         <Button
           onClick={handleProcessTimeouts}
           disabled={isProcessingTimeouts}
           variant="outline"
           size="sm"
-          className="w-full"
+          className="w-full h-8"
         >
-          <Settings className="h-4 w-4 mr-2" />
-          {isProcessingTimeouts ? 'Processando...' : 'Processar Timeouts'}
+          <Settings className="h-3 w-3 mr-2" />
+          <span className="text-xs">
+            {isProcessingTimeouts ? 'Processando...' : 'Processar Timeouts'}
+          </span>
         </Button>
       </div>
 
       {/* Queue Items */}
-      <div className="flex-1 overflow-y-auto bg-gray-50">
-        <Tabs defaultValue="waiting" className="h-full">
-          <div className="sticky top-0 bg-white border-b border-gray-200 p-4">
-            <TabsList className="grid w-full grid-cols-3">
+      <div className="flex-1 overflow-hidden bg-gray-50">
+        <Tabs defaultValue="waiting" className="h-full flex flex-col">
+          <div className="bg-white border-b border-gray-200 p-2 flex-shrink-0">
+            <TabsList className="grid w-full grid-cols-3 h-8">
               <TabsTrigger value="waiting" className="text-xs">
                 Aguardando ({waitingItems.length})
               </TabsTrigger>
@@ -132,71 +134,83 @@ export const QueueManagement = () => {
             </TabsList>
           </div>
           
-          <div className="p-4">
-            <TabsContent value="waiting" className="mt-0">
-              {waitingItems.length > 0 ? (
-                <div className="space-y-3">
-                  {waitingItems.map((item) => (
-                    <QueueItemCard
-                      key={item.id}
-                      item={item}
-                      onAssign={handleAssignToMe}
-                      canAssign={true}
-                      isAssigning={isAssigningFromQueue}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Clock className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                  <p className="text-sm">Nenhum item aguardando na fila</p>
-                </div>
-              )}
+          <div className="flex-1 overflow-hidden">
+            <TabsContent value="waiting" className="h-full mt-0">
+              <ScrollArea className="h-full">
+                {waitingItems.length > 0 ? (
+                  <div className="p-3 space-y-3">
+                    {waitingItems.map((item) => (
+                      <QueueItemCard
+                        key={item.id}
+                        item={item}
+                        onAssign={handleAssignToMe}
+                        canAssign={true}
+                        isAssigning={isAssigningFromQueue}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-gray-500 p-4">
+                    <div className="text-center">
+                      <Clock className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                      <p className="text-sm">Nenhum item aguardando</p>
+                    </div>
+                  </div>
+                )}
+              </ScrollArea>
             </TabsContent>
             
-            <TabsContent value="assigned" className="mt-0">
-              {assignedItems.length > 0 ? (
-                <div className="space-y-3">
-                  {assignedItems.map((item) => (
-                    <QueueItemCard
-                      key={item.id}
-                      item={item}
-                      onRemove={removeFromQueue}
-                      canRemove={true}
-                      isRemoving={isRemovingFromQueue}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Clock className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                  <p className="text-sm">Nenhum item atribuído</p>
-                </div>
-              )}
+            <TabsContent value="assigned" className="h-full mt-0">
+              <ScrollArea className="h-full">
+                {assignedItems.length > 0 ? (
+                  <div className="p-3 space-y-3">
+                    {assignedItems.map((item) => (
+                      <QueueItemCard
+                        key={item.id}
+                        item={item}
+                        onRemove={removeFromQueue}
+                        canRemove={true}
+                        isRemoving={isRemovingFromQueue}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-gray-500 p-4">
+                    <div className="text-center">
+                      <Clock className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                      <p className="text-sm">Nenhum item atribuído</p>
+                    </div>
+                  </div>
+                )}
+              </ScrollArea>
             </TabsContent>
             
-            <TabsContent value="timeout" className="mt-0">
-              {timeoutItems.length > 0 ? (
-                <div className="space-y-3">
-                  {timeoutItems.map((item) => (
-                    <QueueItemCard
-                      key={item.id}
-                      item={item}
-                      onAssign={handleAssignToMe}
-                      onRemove={removeFromQueue}
-                      canAssign={true}
-                      canRemove={true}
-                      isAssigning={isAssigningFromQueue}
-                      isRemoving={isRemovingFromQueue}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Clock className="h-8 w-8 mx-auto mb-2 text-gray-300" />
-                  <p className="text-sm">Nenhum item com timeout</p>
-                </div>
-              )}
+            <TabsContent value="timeout" className="h-full mt-0">
+              <ScrollArea className="h-full">
+                {timeoutItems.length > 0 ? (
+                  <div className="p-3 space-y-3">
+                    {timeoutItems.map((item) => (
+                      <QueueItemCard
+                        key={item.id}
+                        item={item}
+                        onAssign={handleAssignToMe}
+                        onRemove={removeFromQueue}
+                        canAssign={true}
+                        canRemove={true}
+                        isAssigning={isAssigningFromQueue}
+                        isRemoving={isRemovingFromQueue}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-gray-500 p-4">
+                    <div className="text-center">
+                      <Clock className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                      <p className="text-sm">Nenhum item com timeout</p>
+                    </div>
+                  </div>
+                )}
+              </ScrollArea>
             </TabsContent>
           </div>
         </Tabs>
