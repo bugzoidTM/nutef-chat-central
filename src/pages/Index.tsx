@@ -20,7 +20,8 @@ const Index = () => {
       profileSetupCompleted: profile?.setup_completed,
       whatsappConnected: profile?.whatsapp_connected,
       userRole: profile?.role,
-      userName: profile?.name
+      userName: profile?.name,
+      userId: user?.id
     });
 
     // Aguardar inicialização
@@ -79,6 +80,12 @@ const Index = () => {
         <div className="text-center">
           <p className="text-red-600">Erro ao carregar a aplicação</p>
           <p className="text-gray-600 text-sm mt-2">Verifique o console para mais detalhes</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Recarregar página
+          </button>
         </div>
       </div>
     );

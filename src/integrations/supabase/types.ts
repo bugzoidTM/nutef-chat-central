@@ -1304,6 +1304,10 @@ export type Database = {
         Args: { p_sector_id: string }
         Returns: boolean
       }
+      is_current_user_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
       process_queue_timeouts: {
         Args: Record<PropertyKey, never>
         Returns: undefined

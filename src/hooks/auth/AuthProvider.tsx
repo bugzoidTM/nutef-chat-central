@@ -28,7 +28,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('AuthProvider - Error fetching profile:', error);
-        return null;
+        // Se for erro de recursão, retornar null em vez de throw
+        if (error.code === '42P17') {
+          console.warn('AuthProvider - RLS recursion detected, returning null');
+          return null;
+        }
+        throw error;
       }
 
       if (!profile) {
@@ -57,11 +62,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('AuthProvider - Creating initial profile for user:', user.id);
       
       // Verificar se é o primeiro usuário (deve ser admin)
-      const { count } = await supabase
-        .from('profiles')
-        .select('*', { count: 'exact', head: true });
-
-      const isFirstUser = count === 0;
+      let isFirstUser = false;
+      try {
+        const { count } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true });
+        isFirstUser = count === 0;
+      } catch (countError) {
+        console.warn('AuthProvider - Could not check user count, assuming not first user:', countError);
+        isFirstUser = false;
+      }
       
       const profileData = {
         user_id: user.id,
@@ -82,6 +92,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('AuthProvider - Error creating profile:', error);
+        // Se for erro de duplicata, tentar buscar o perfil existente
+        if (error.code === '23505') {
+          console.log('AuthProvider - Profile already exists, trying to fetch...');
+          return await fetchProfile(user.id);
+        }
         return null;
       }
 
