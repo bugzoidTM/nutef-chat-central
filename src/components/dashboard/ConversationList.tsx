@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -14,7 +15,6 @@ interface Conversation {
   status: string;
   last_message_at: string;
   assigned_to: string | null;
-  // ⭐ NOVOS CAMPOS
   last_message_content?: string;
   unread_messages?: number;
 }
@@ -86,7 +86,6 @@ const ConversationList = ({
     }
   };
 
-  // ⭐ FUNÇÃO PARA TRUNCAR MENSAGEM (IGUAL WHATSAPP)
   const truncateMessage = (message: string | null | undefined, maxLength: number = 35) => {
     if (!message) return 'Nenhuma mensagem';
     if (message.length <= maxLength) return message;
@@ -99,9 +98,10 @@ const ConversationList = ({
   );
 
   return (
-    <div className="w-96 bg-white border-r border-gray-200 flex flex-col h-full">
-      {/* Search */}
-      <div className="p-4 border-b border-gray-200">
+    <div className="h-full flex flex-col">
+      {/* Header */}
+      <div className="p-4 border-b border-gray-200 bg-white">
+        <h2 className="text-lg font-semibold text-gray-900 mb-3">Conversas</h2>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
@@ -113,74 +113,75 @@ const ConversationList = ({
         </div>
       </div>
 
-      {/* Conversations */}
-      <div className="flex-1 overflow-y-auto">
+      {/* Conversations List */}
+      <div className="flex-1 overflow-y-auto bg-white">
         {filteredConversations.length === 0 ? (
           <div className="p-4 text-center text-gray-500">
-            Nenhuma conversa encontrada
+            <MessageCircle className="h-12 w-12 mx-auto mb-2 text-gray-300" />
+            <p>Nenhuma conversa encontrada</p>
           </div>
         ) : (
-          filteredConversations.map((conversation) => (
-            <div
-              key={conversation.id}
-              onClick={() => onSelectConversation(conversation.id)}
-              className={`p-4 border-b border-gray-100 cursor-pointer hover:bg-gray-50 transition-colors ${
-                selectedConversation === conversation.id ? 'bg-green-50 border-green-200' : ''
-              }`}
-            >
-              <div className="flex items-start space-x-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarFallback className="bg-green-100 text-green-600">
-                    {conversation.client_name?.charAt(0) || conversation.client_phone.slice(-2)}
-                  </AvatarFallback>
-                </Avatar>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-medium text-gray-900 truncate">
-                      {conversation.client_name || 'Cliente'}
-                    </h3>
-                    <span className="text-xs text-gray-500">
-                      {formatDistanceToNow(new Date(conversation.last_message_at), {
-                        addSuffix: true,
-                        locale: ptBR,
-                      })}
-                    </span>
-                  </div>
+          <div className="divide-y divide-gray-100">
+            {filteredConversations.map((conversation) => (
+              <div
+                key={conversation.id}
+                onClick={() => onSelectConversation(conversation.id)}
+                className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
+                  selectedConversation === conversation.id ? 'bg-green-50 border-r-4 border-green-500' : ''
+                }`}
+              >
+                <div className="flex items-start space-x-3">
+                  <Avatar className="h-10 w-10 flex-shrink-0">
+                    <AvatarFallback className="bg-green-100 text-green-600">
+                      {conversation.client_name?.charAt(0) || conversation.client_phone.slice(-2)}
+                    </AvatarFallback>
+                  </Avatar>
                   
-                  <p className="text-sm text-gray-500 truncate">
-                    {conversation.client_phone}
-                  </p>
-                  
-                  {/* ⭐ NOVA SEÇÃO: ÚLTIMA MENSAGEM + CONTADOR */}
-                  <div className="flex items-center justify-between mt-1 mb-2">
-                    <p className="text-xs text-gray-600 truncate flex-1 pr-2">
-                      {truncateMessage(conversation.last_message_content)}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <h3 className="text-sm font-medium text-gray-900 truncate">
+                        {conversation.client_name || 'Cliente'}
+                      </h3>
+                      <span className="text-xs text-gray-500 flex-shrink-0">
+                        {formatDistanceToNow(new Date(conversation.last_message_at), {
+                          addSuffix: true,
+                          locale: ptBR,
+                        })}
+                      </span>
+                    </div>
+                    
+                    <p className="text-sm text-gray-500 truncate mb-1">
+                      {conversation.client_phone}
                     </p>
-                    {conversation.unread_messages && conversation.unread_messages > 0 && (
-                      <div className="flex items-center space-x-1 text-xs text-gray-500 flex-shrink-0">
-                        <MessageCircle className="h-3 w-3" />
-                        <span>{conversation.unread_messages}</span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex items-center space-x-2">
-                    <Badge 
-                      className={`text-xs ${getSectorColor(conversation.sector)}`}
-                    >
-                      {getSectorLabel(conversation.sector)}
-                    </Badge>
-                    <Badge 
-                      className={`text-xs ${getStatusColor(conversation.status)}`}
-                    >
-                      {getStatusLabel(conversation.status)}
-                    </Badge>
+                    
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs text-gray-600 truncate flex-1 pr-2">
+                        {truncateMessage(conversation.last_message_content)}
+                      </p>
+                      {conversation.unread_messages && conversation.unread_messages > 0 && (
+                        <div className="flex items-center space-x-1 text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full flex-shrink-0">
+                          <span>{conversation.unread_messages}</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center space-x-2">
+                      <Badge 
+                        className={`text-xs ${getSectorColor(conversation.sector)}`}
+                      >
+                        {getSectorLabel(conversation.sector)}
+                      </Badge>
+                      <Badge 
+                        className={`text-xs ${getStatusColor(conversation.status)}`}
+                      >
+                        {getStatusLabel(conversation.status)}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </div>
     </div>
