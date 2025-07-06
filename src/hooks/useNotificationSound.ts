@@ -1,3 +1,4 @@
+
 import { useCallback, useRef, useState } from 'react';
 
 // Função para criar som usando Web Audio API
@@ -21,20 +22,9 @@ const createNotificationSound = (audioContext: AudioContext, frequency: number =
 export const useNotificationSound = () => {
   const audioContextRef = useRef<AudioContext | null>(null);
   
-  const [isSoundEnabled, setIsSoundEnabled] = useState(() => {
-    const stored = localStorage.getItem('notifications_sound_enabled');
-    return stored ? JSON.parse(stored) : true;
-  });
-  
-  const [volume, setVolume] = useState(() => {
-    const stored = localStorage.getItem('notifications_volume');
-    return stored ? parseFloat(stored) : 0.7;
-  });
-  
-  const [soundType, setSoundType] = useState<'beep' | 'notification' | 'whatsapp'>(() => {
-    const stored = localStorage.getItem('notifications_sound_type');
-    return (stored as 'beep' | 'notification' | 'whatsapp') || 'beep';
-  });
+  const [isSoundEnabled, setIsSoundEnabled] = useState(true);
+  const [volume, setVolume] = useState(0.7);
+  const [soundType, setSoundType] = useState<'beep' | 'notification' | 'whatsapp'>('beep');
 
   const initializeAudioContext = useCallback(() => {
     if (!audioContextRef.current) {
@@ -99,45 +89,26 @@ export const useNotificationSound = () => {
 
     try {
       console.log('🔊 Tocando som de notificação:', soundType);
-      
-      switch (soundType) {
-        case 'beep':
-          await playBeepSound();
-          break;
-        case 'notification':
-          // Som simples gerado por oscillator
-          await playBeepSound();
-          break;
-        case 'whatsapp':
-          // Som duplo como WhatsApp
-          await playBeepSound();
-          break;
-        default:
-          await playBeepSound();
-      }
+      await playBeepSound();
     } catch (error) {
       console.error('❌ Erro ao tocar notificação:', error);
-      // Fallback sempre para beep
       await playBeepSound();
     }
   }, [isSoundEnabled, soundType, playBeepSound]);
 
   const toggleSound = useCallback((enabled: boolean) => {
     setIsSoundEnabled(enabled);
-    localStorage.setItem('notifications_sound_enabled', JSON.stringify(enabled));
     console.log('🔊 Som de notificação:', enabled ? 'ativado' : 'desativado');
   }, []);
 
   const setNotificationVolume = useCallback((newVolume: number) => {
     const clampedVolume = Math.max(0, Math.min(1, newVolume));
     setVolume(clampedVolume);
-    localStorage.setItem('notifications_volume', clampedVolume.toString());
     console.log('🔊 Volume definido:', Math.round(clampedVolume * 100) + '%');
   }, []);
 
   const setSoundTypeCallback = useCallback((type: 'beep' | 'notification' | 'whatsapp') => {
     setSoundType(type);
-    localStorage.setItem('notifications_sound_type', type);
     console.log('🔊 Tipo de som alterado para:', type);
   }, []);
 

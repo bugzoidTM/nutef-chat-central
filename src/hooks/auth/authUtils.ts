@@ -7,10 +7,6 @@ export const cleanupAuthState = async () => {
     // Limpar qualquer sessão local corrompida
     await supabase.auth.signOut();
     
-    // Limpar localStorage se necessário
-    localStorage.removeItem('supabase.auth.token');
-    localStorage.removeItem('sb-ojfdzfgcysxoxzszhbzr-auth-token');
-    
     // Reload para garantir estado limpo
     window.location.reload();
   } catch (error) {

@@ -2,15 +2,12 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Smartphone, User, ArrowLeft } from 'lucide-react';
+import { Smartphone, ArrowLeft } from 'lucide-react';
 
 const InitialSetup = () => {
-  const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const { user, profile, signOut } = useAuth();
@@ -25,13 +22,12 @@ const InitialSetup = () => {
     e.preventDefault();
     if (!user) return;
 
-    console.log('InitialSetup - Starting setup with data:', { name });
+    console.log('InitialSetup - Completing setup for user:', user.id);
 
     setLoading(true);
 
     try {
-      let profileData = {
-        name,
+      const profileData = {
         setup_completed: true,
       };
 
@@ -69,6 +65,7 @@ const InitialSetup = () => {
             email: user.email,
             role: 'admin',
             phone: '',
+            name: user.user_metadata?.name || user.email?.split('@')[0] || 'Usuário',
             ...profileData,
           });
 
@@ -133,26 +130,11 @@ const InitialSetup = () => {
           </div>
           <CardTitle className="text-2xl">Configuração Inicial</CardTitle>
           <CardDescription>
-            Complete seus dados para configurar o WhatsApp
+            Complete a configuração para usar o WhatsApp
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSetup} className="space-y-4">
-            <div>
-              <Label htmlFor="name" className="flex items-center space-x-2">
-                <User className="h-4 w-4" />
-                <span>Nome completo</span>
-              </Label>
-              <Input
-                id="name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Seu nome completo"
-                required
-              />
-            </div>
-            
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Configurando...' : 'Continuar'}
             </Button>
