@@ -53,7 +53,7 @@ export const useAttendants = () => {
         .from('profiles')
         .select(`
           *,
-          sectors (
+          sectors!profiles_sector_id_fkey (
             id,
             name,
             color
@@ -101,7 +101,7 @@ export const useAttendants = () => {
         .from('profiles')
         .select(`
           *,
-          sectors (
+          sectors!profiles_sector_id_fkey (
             id,
             name,
             color
