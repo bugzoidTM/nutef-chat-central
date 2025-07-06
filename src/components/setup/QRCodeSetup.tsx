@@ -7,15 +7,16 @@ import { useEvolutionInstance } from '@/hooks/useEvolutionInstance';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { PhoneNumberInput } from './PhoneNumberInput';
 import { ConnectionStatus } from './ConnectionStatus';
 import { QRCodeDisplay } from './QRCodeDisplay';
 
 const QRCodeSetup = () => {
   const { profile, user } = useAuth();
   const { toast } = useToast();
-  const [phoneNumber, setPhoneNumber] = useState('');
   const [instanceCreated, setInstanceCreated] = useState(false);
+  
+  // Use o número do telefone já cadastrado no perfil
+  const phoneNumber = profile?.phone || '';
   
   const {
     qrCode,
@@ -37,6 +38,13 @@ const QRCodeSetup = () => {
     }
   }, [connectionState?.state, instanceCreated, profile, instanceName]);
 
+  useEffect(() => {
+    // Criar instância automaticamente quando o componente carrega
+    if (phoneNumber && profile && !instanceCreated) {
+      handleCreateInstance();
+    }
+  }, [phoneNumber, profile]);
+
   const handleSetupComplete = async () => {
     if (!profile || !instanceName) return;
 
@@ -45,7 +53,6 @@ const QRCodeSetup = () => {
         .from('profiles')
         .update({
           whatsapp_connected: true,
-          phone: phoneNumber,
           instance_name: instanceName,
         })
         .eq('id', profile.id);
@@ -71,8 +78,8 @@ const QRCodeSetup = () => {
   const handleCreateInstance = async () => {
     if (!phoneNumber.trim()) {
       toast({
-        title: "Número obrigatório",
-        description: "Por favor, insira o número do WhatsApp.",
+        title: "Número não encontrado",
+        description: "Número do WhatsApp não encontrado no perfil.",
         variant: "destructive",
       });
       return;
@@ -104,35 +111,36 @@ const QRCodeSetup = () => {
     }
   };
 
-  const handleChangeNumber = () => {
-    setInstanceCreated(false);
-    clearQrCode();
-    setPhoneNumber('');
-  };
-
   const handleGenerateQRCode = () => {
     clearQrCode();
     getQRCode();
   };
 
-  const formatPhoneNumber = (value: string) => {
-    const numbers = value.replace(/\D/g, '');
-    
-    if (numbers.length <= 2) {
-      return numbers;
-    } else if (numbers.length <= 7) {
-      return `(${numbers.slice(0, 2)}) ${numbers.slice(2)}`;
-    } else if (numbers.length <= 11) {
-      return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7)}`;
-    } else {
-      return `(${numbers.slice(0, 2)}) ${numbers.slice(2, 7)}-${numbers.slice(7, 11)}`;
-    }
-  };
-
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatPhoneNumber(e.target.value);
-    setPhoneNumber(formatted);
-  };
+  if (!phoneNumber) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <AlertCircle className="h-16 w-16 text-red-500" />
+            </div>
+            <CardTitle className="text-2xl">Número não encontrado</CardTitle>
+            <CardDescription>
+              Não foi possível encontrar o número do WhatsApp no seu perfil.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button 
+              onClick={() => window.location.reload()} 
+              className="w-full"
+            >
+              Recarregar página
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 flex items-center justify-center p-4">
@@ -143,100 +151,77 @@ const QRCodeSetup = () => {
           </div>
           <CardTitle className="text-2xl">Conectar WhatsApp</CardTitle>
           <CardDescription>
-            {!instanceCreated 
-              ? "Informe o número do WhatsApp para conectar"
-              : "Escaneie o QR Code para conectar seu WhatsApp"
-            }
+            Escaneie o QR Code para conectar seu WhatsApp
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {!instanceCreated ? (
-            <PhoneNumberInput
-              phoneNumber={phoneNumber}
-              instanceName={instanceName}
-              isCreating={isCreatingInstance}
-              hasProfile={!!profile}
-              onPhoneChange={handlePhoneChange}
-              onSubmit={handleCreateInstance}
-            />
-          ) : (
-            <>
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-3">
-                  <Phone className="h-4 w-4 text-gray-600" />
-                  <div>
-                    <span className="font-medium">{phoneNumber}</span>
-                    <p className="text-xs text-gray-500">{instanceName}</p>
-                  </div>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleChangeNumber}
-                >
-                  Trocar
-                </Button>
+          <div className="flex items-center justify-center p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center space-x-3">
+              <Phone className="h-4 w-4 text-gray-600" />
+              <div className="text-center">
+                <span className="font-medium">{phoneNumber}</span>
+                <p className="text-xs text-gray-500">{instanceName}</p>
               </div>
+            </div>
+          </div>
 
-              <ConnectionStatus
-                connectionState={connectionState}
-                isLoading={connectionStateLoading}
-                onRefresh={refetchConnectionState}
-              />
+          <ConnectionStatus
+            connectionState={connectionState}
+            isLoading={connectionStateLoading}
+            onRefresh={refetchConnectionState}
+          />
 
-              {connectionState?.state === 'open' ? (
-                <div className="text-center space-y-4">
-                  <CheckCircle className="h-16 w-16 text-green-500 mx-auto" />
-                  <div>
-                    <h3 className="text-lg font-semibold text-green-700">
-                      WhatsApp Conectado!
-                    </h3>
-                    <p className="text-gray-600">
-                      Sistema configurado e pronto para receber mensagens.
-                    </p>
-                    <p className="text-sm text-gray-500 mt-2">
-                      Redirecionando para o painel...
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {(!qrCode || !qrCode.trim()) && connectionState?.state !== 'open' && (
-                    <Button
-                      onClick={handleGenerateQRCode}
-                      disabled={isGettingQRCode || isCreatingInstance}
-                      className="w-full"
-                    >
-                      <QrCode className="h-4 w-4 mr-2" />
-                      {isGettingQRCode || isCreatingInstance ? 'Gerando QR Code...' : 'Gerar QR Code'}
-                    </Button>
-                  )}
+          {connectionState?.state === 'open' ? (
+            <div className="text-center space-y-4">
+              <CheckCircle className="h-16 w-16 text-green-500 mx-auto" />
+              <div>
+                <h3 className="text-lg font-semibold text-green-700">
+                  WhatsApp Conectado!
+                </h3>
+                <p className="text-gray-600">
+                  Sistema configurado e pronto para receber mensagens.
+                </p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Redirecionando para o painel...
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {(!qrCode || !qrCode.trim()) && connectionState?.state !== 'open' && (
+                <Button
+                  onClick={handleGenerateQRCode}
+                  disabled={isGettingQRCode || isCreatingInstance}
+                  className="w-full"
+                >
+                  <QrCode className="h-4 w-4 mr-2" />
+                  {isGettingQRCode || isCreatingInstance ? 'Gerando QR Code...' : 'Gerar QR Code'}
+                </Button>
+              )}
 
-                  {qrCode && qrCode.trim() && (
-                    <QRCodeDisplay
-                      qrCode={qrCode}
-                      isGenerating={isGettingQRCode}
-                      onRegenerate={handleGenerateQRCode}
-                    />
-                  )}
+              {qrCode && qrCode.trim() && (
+                <QRCodeDisplay
+                  qrCode={qrCode}
+                  isGenerating={isGettingQRCode}
+                  onRegenerate={handleGenerateQRCode}
+                />
+              )}
 
-                  {!qrCode && (connectionState?.state === 'connecting' || isCreatingInstance) && (
-                    <div className="text-center space-y-3 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                      <AlertCircle className="h-8 w-8 text-yellow-600 mx-auto" />
-                      <p className="text-yellow-800 font-medium">
-                        {isCreatingInstance ? 'Criando instância...' : 'Instância conectando...'}
-                      </p>
-                      <p className="text-yellow-700 text-sm">
-                        {isCreatingInstance 
-                          ? 'Configurando a instância WhatsApp...' 
-                          : 'Aguarde um momento para gerar o QR Code'
-                        }
-                      </p>
-                    </div>
-                  )}
+              {!qrCode && (connectionState?.state === 'connecting' || isCreatingInstance) && (
+                <div className="text-center space-y-3 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <AlertCircle className="h-8 w-8 text-yellow-600 mx-auto" />
+                  <p className="text-yellow-800 font-medium">
+                    {isCreatingInstance ? 'Criando instância...' : 'Instância conectando...'}
+                  </p>
+                  <p className="text-yellow-700 text-sm">
+                    {isCreatingInstance 
+                      ? 'Configurando a instância WhatsApp...' 
+                      : 'Aguarde um momento para gerar o QR Code'
+                    }
+                  </p>
                 </div>
               )}
-            </>
+            </div>
           )}
         </CardContent>
       </Card>
