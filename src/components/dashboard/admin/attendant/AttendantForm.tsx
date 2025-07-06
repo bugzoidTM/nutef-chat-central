@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -42,13 +42,30 @@ export const AttendantForm: React.FC<AttendantFormProps> = ({
   isCreating,
   isUpdating,
 }) => {
+  // Definir setor "Suporte" como padrão para novos atendentes
+  useEffect(() => {
+    if (!editingAttendant && !formData.sector_id && activeSectors.length > 0) {
+      const supportSector = activeSectors.find(sector => 
+        sector.name.toLowerCase() === 'suporte'
+      );
+      
+      if (supportSector) {
+        setFormData({
+          ...formData,
+          sector_id: supportSector.id
+        });
+        console.log('🎯 Setor Suporte selecionado automaticamente:', supportSector.id);
+      }
+    }
+  }, [activeSectors, editingAttendant, formData, setFormData]);
+
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       {!editingAttendant && (
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Uma senha temporária será criada. O atendente deve alterá-la no primeiro acesso.
+            O atendente será criado automaticamente no setor "Suporte". Você pode alterar o setor após a criação.
           </AlertDescription>
         </Alert>
       )}
@@ -112,7 +129,9 @@ export const AttendantForm: React.FC<AttendantFormProps> = ({
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="sector" className="text-sm font-medium">Setor</Label>
+        <Label htmlFor="sector" className="text-sm font-medium">
+          Setor {!editingAttendant && '(Suporte será selecionado automaticamente)'}
+        </Label>
         <Select 
           value={formData.sector_id || 'none'} 
           onValueChange={(value) => setFormData({ ...formData, sector_id: value === 'none' ? null : value })}

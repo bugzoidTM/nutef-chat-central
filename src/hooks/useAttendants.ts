@@ -34,7 +34,7 @@ export interface CreateAttendantData {
   email: string;
   phone: string;
   password: string;
-  sector_id: string | null;
+  sector_id?: string | null;
   can_transfer?: boolean;
   max_concurrent_chats?: number;
 }
@@ -49,12 +49,15 @@ export const useAttendants = () => {
     queryFn: async () => {
       console.log('🔍 Buscando atendentes...');
       
-      // Query mais robusta que busca todos os profiles com role 'attendant'
       const { data, error } = await supabase
         .from('profiles')
         .select(`
           *,
-          sectors!left(id, name, color)
+          sectors (
+            id,
+            name,
+            color
+          )
         `)
         .eq('role', 'attendant')
         .order('name');
@@ -98,7 +101,11 @@ export const useAttendants = () => {
         .from('profiles')
         .select(`
           *,
-          sectors!left(id, name, color)
+          sectors (
+            id,
+            name,
+            color
+          )
         `)
         .eq('role', 'attendant')
         .eq('is_active', true)
@@ -128,13 +135,28 @@ export const useAttendants = () => {
         throw new Error('Não autenticado');
       }
 
+      // Se não especificado setor, buscar o setor "Suporte" por padrão
+      let finalAttendantData = { ...attendantData };
+      if (!attendantData.sector_id) {
+        const { data: supportSector } = await supabase
+          .from('sectors')
+          .select('id')
+          .eq('name', 'Suporte')
+          .single();
+        
+        if (supportSector) {
+          finalAttendantData.sector_id = supportSector.id;
+          console.log('🎯 Atribuindo setor Suporte automaticamente:', supportSector.id);
+        }
+      }
+
       const response = await fetch(`https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/create-attendant`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify(attendantData),
+        body: JSON.stringify(finalAttendantData),
       });
 
       const result = await response.json();
