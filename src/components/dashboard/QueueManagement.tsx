@@ -16,9 +16,9 @@ const QueueManagement = () => {
   // Usar as propriedades corretas do hook
   const queueItems = queueData.queueItems || [];
   const queueStats = queueData.queueStats;
-  const assignQueueItem = queueData.assignQueueItem;
-  const completeQueueItem = queueData.completeQueueItem;
-  const isLoading = queueData.isLoading || false;
+  const assignFromQueue = queueData.assignFromQueue;
+  const removeFromQueue = queueData.removeFromQueue;
+  const isLoading = queueData.loadingQueue || false;
 
   const waitingItems = queueItems.filter(item => item.status === 'waiting') || [];
   const assignedItems = queueItems.filter(item => item.status === 'assigned') || [];
@@ -34,19 +34,19 @@ const QueueManagement = () => {
               <div className="flex items-center gap-2">
                 <User className="h-4 w-4 text-gray-500" />
                 <span className="font-medium text-sm truncate">
-                  Cliente: +{item.conversations?.client_phone}
+                  Cliente: +{item.conversation?.client_phone}
                 </span>
               </div>
-              {item.sectors && (
+              {item.sector && (
                 <Badge 
                   variant="outline" 
                   className="text-xs"
                   style={{ 
-                    borderColor: item.sectors.color,
-                    color: item.sectors.color 
+                    borderColor: item.sector.color,
+                    color: item.sector.color 
                   }}
                 >
-                  {item.sectors.name}
+                  {item.sector.name}
                 </Badge>
               )}
             </div>
@@ -86,9 +86,9 @@ const QueueManagement = () => {
                 Prioridade: {item.priority}
               </Badge>
 
-              {item.assigned_to_profile && (
+              {item.attendant && (
                 <Badge variant="outline" className="text-xs">
-                  {item.assigned_to_profile.nickname || item.assigned_to_profile.name}
+                  {item.attendant.name}
                 </Badge>
               )}
             </div>
@@ -97,20 +97,20 @@ const QueueManagement = () => {
           {/* Ações */}
           {showActions && (
             <div className="flex flex-col gap-2 ml-4">
-              {item.status === 'waiting' && assignQueueItem && (
+              {item.status === 'waiting' && assignFromQueue && (
                 <Button
                   size="sm"
-                  onClick={() => assignQueueItem(item.id)}
+                  onClick={() => assignFromQueue({ queueId: item.id })}
                   className="h-8 px-3 text-xs"
                 >
                   Assumir
                 </Button>
               )}
-              {item.status === 'assigned' && completeQueueItem && (
+              {item.status === 'assigned' && removeFromQueue && (
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => completeQueueItem(item.id)}
+                  onClick={() => removeFromQueue(item.id)}
                   className="h-8 px-3 text-xs"
                 >
                   <CheckCircle className="h-3 w-3 mr-1" />
