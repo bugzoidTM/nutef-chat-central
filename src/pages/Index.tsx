@@ -75,14 +75,14 @@ const Index = () => {
       }
     };
 
-    // Only check if profile says it's connected
-    if (profile?.whatsapp_connected && instanceName) {
+    // SEMPRE verificar a conexão se o usuário é admin
+    if (profile?.role === 'admin' && instanceName) {
       checkEvolutionConnection();
-    } else if (profile && !profile.whatsapp_connected) {
-      // If profile says not connected, show QR setup
+    } else if (profile && profile.role === 'admin') {
+      // Se é admin mas não tem instância configurada, mostrar setup
       setNeedsQRSetup(true);
     }
-  }, [profile?.phone, profile?.whatsapp_connected, instanceName, profile?.id]);
+  }, [profile?.phone, profile?.whatsapp_connected, instanceName, profile?.id, profile?.role]);
 
   if (!isInitialized) {
     console.log('Index.tsx - Waiting for initialization');
@@ -135,8 +135,8 @@ const Index = () => {
       );
     }
 
-    // Show QR setup if not connected or if verification failed
-    if (!profile.whatsapp_connected || needsQRSetup) {
+    // SEMPRE mostrar QR setup se needsQRSetup for true OU se whatsapp_connected for false
+    if (needsQRSetup || !profile.whatsapp_connected) {
       console.log('Index.tsx - Admin needs QR code setup');
       return <QRCodeSetup />;
     }

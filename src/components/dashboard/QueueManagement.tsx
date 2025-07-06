@@ -63,20 +63,26 @@ export const QueueManagement = () => {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="p-3 border-b border-gray-200 bg-white flex-shrink-0">
-        <div className="flex items-center justify-between mb-3">
+      <div className="p-4 border-b border-gray-200 bg-white flex-shrink-0">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-base font-semibold text-gray-900">Fila</h2>
-            <p className="text-xs text-gray-600">Gerenciamento</p>
+            <h2 className="text-lg font-semibold text-gray-900">Fila</h2>
+            <p className="text-sm text-gray-600">Gerenciamento</p>
           </div>
           
-          <Button variant="outline" size="sm" onClick={() => refetchQueue()} disabled={loadingQueue}>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => refetchQueue()} 
+            disabled={loadingQueue}
+            className="shrink-0"
+          >
             <RefreshCw className={`h-4 w-4 ${loadingQueue ? 'animate-spin' : ''}`} />
           </Button>
         </div>
         
         <Select value={selectedSector} onValueChange={setSelectedSector}>
-          <SelectTrigger className="w-full h-8">
+          <SelectTrigger className="w-full">
             <SelectValue placeholder="Filtrar por setor" />
           </SelectTrigger>
           <SelectContent>
@@ -85,10 +91,10 @@ export const QueueManagement = () => {
               <SelectItem key={sector.id} value={sector.id}>
                 <div className="flex items-center gap-2">
                   <div 
-                    className="w-2 h-2 rounded-full" 
+                    className="w-3 h-3 rounded-full shrink-0" 
                     style={{ backgroundColor: sector.color }}
                   />
-                  <span className="text-xs">{sector.name}</span>
+                  <span className="truncate">{sector.name}</span>
                 </div>
               </SelectItem>
             ))}
@@ -97,21 +103,21 @@ export const QueueManagement = () => {
       </div>
 
       {/* Stats */}
-      <div className="p-3 border-b border-gray-200 bg-white flex-shrink-0">
+      <div className="p-4 border-b border-gray-200 bg-white flex-shrink-0">
         <QueueStats stats={queueStats} isLoading={loadingQueue} />
       </div>
 
       {/* Controls */}
-      <div className="p-3 border-b border-gray-200 bg-white flex-shrink-0">
+      <div className="p-4 border-b border-gray-200 bg-white flex-shrink-0">
         <Button
           onClick={handleProcessTimeouts}
           disabled={isProcessingTimeouts}
           variant="outline"
           size="sm"
-          className="w-full h-8"
+          className="w-full"
         >
-          <Settings className="h-3 w-3 mr-2" />
-          <span className="text-xs">
+          <Settings className="h-4 w-4 mr-2 shrink-0" />
+          <span className="truncate">
             {isProcessingTimeouts ? 'Processando...' : 'Processar Timeouts'}
           </span>
         </Button>
@@ -120,16 +126,16 @@ export const QueueManagement = () => {
       {/* Queue Items */}
       <div className="flex-1 overflow-hidden bg-gray-50">
         <Tabs defaultValue="waiting" className="h-full flex flex-col">
-          <div className="bg-white border-b border-gray-200 p-2 flex-shrink-0">
-            <TabsList className="grid w-full grid-cols-3 h-8">
-              <TabsTrigger value="waiting" className="text-xs">
-                Aguardando ({waitingItems.length})
+          <div className="bg-white border-b border-gray-200 px-4 py-2 flex-shrink-0">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="waiting" className="text-xs px-2 py-1">
+                <span className="truncate">Aguardando ({waitingItems.length})</span>
               </TabsTrigger>
-              <TabsTrigger value="assigned" className="text-xs">
-                Atribuídas ({assignedItems.length})
+              <TabsTrigger value="assigned" className="text-xs px-2 py-1">
+                <span className="truncate">Atribuídas ({assignedItems.length})</span>
               </TabsTrigger>
-              <TabsTrigger value="timeout" className="text-xs">
-                Timeout ({timeoutItems.length})
+              <TabsTrigger value="timeout" className="text-xs px-2 py-1">
+                <span className="truncate">Timeout ({timeoutItems.length})</span>
               </TabsTrigger>
             </TabsList>
           </div>
@@ -138,7 +144,7 @@ export const QueueManagement = () => {
             <TabsContent value="waiting" className="h-full mt-0">
               <ScrollArea className="h-full">
                 {waitingItems.length > 0 ? (
-                  <div className="p-3 space-y-3">
+                  <div className="p-4 space-y-3">
                     {waitingItems.map((item) => (
                       <QueueItemCard
                         key={item.id}
@@ -152,7 +158,7 @@ export const QueueManagement = () => {
                 ) : (
                   <div className="h-full flex items-center justify-center text-gray-500 p-4">
                     <div className="text-center">
-                      <Clock className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                      <Clock className="h-10 w-10 mx-auto mb-3 text-gray-300" />
                       <p className="text-sm">Nenhum item aguardando</p>
                     </div>
                   </div>
@@ -163,7 +169,7 @@ export const QueueManagement = () => {
             <TabsContent value="assigned" className="h-full mt-0">
               <ScrollArea className="h-full">
                 {assignedItems.length > 0 ? (
-                  <div className="p-3 space-y-3">
+                  <div className="p-4 space-y-3">
                     {assignedItems.map((item) => (
                       <QueueItemCard
                         key={item.id}
@@ -177,7 +183,7 @@ export const QueueManagement = () => {
                 ) : (
                   <div className="h-full flex items-center justify-center text-gray-500 p-4">
                     <div className="text-center">
-                      <Clock className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                      <Clock className="h-10 w-10 mx-auto mb-3 text-gray-300" />
                       <p className="text-sm">Nenhum item atribuído</p>
                     </div>
                   </div>
@@ -188,7 +194,7 @@ export const QueueManagement = () => {
             <TabsContent value="timeout" className="h-full mt-0">
               <ScrollArea className="h-full">
                 {timeoutItems.length > 0 ? (
-                  <div className="p-3 space-y-3">
+                  <div className="p-4 space-y-3">
                     {timeoutItems.map((item) => (
                       <QueueItemCard
                         key={item.id}
@@ -205,7 +211,7 @@ export const QueueManagement = () => {
                 ) : (
                   <div className="h-full flex items-center justify-center text-gray-500 p-4">
                     <div className="text-center">
-                      <Clock className="h-8 w-8 mx-auto mb-2 text-gray-300" />
+                      <Clock className="h-10 w-10 mx-auto mb-3 text-gray-300" />
                       <p className="text-sm">Nenhum item com timeout</p>
                     </div>
                   </div>
