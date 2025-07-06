@@ -20,7 +20,7 @@ interface AttendantFormData {
 }
 
 const AttendantManagement = () => {
-  const { attendants, createAttendant, updateAttendant, toggleAttendant, isCreating, isUpdating, refetch } = useAttendants();
+  const { attendants, createAttendant, updateAttendant, toggleAttendant, isCreating, isUpdating, refetch, isLoading, error } = useAttendants();
   const { activeSectors } = useSectors();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -35,13 +35,16 @@ const AttendantManagement = () => {
     max_concurrent_chats: 10,
   });
 
-  // Log para debug
+  // Debug detalhado
   useEffect(() => {
-    console.log('📊 AttendantManagement - Atendentes carregados:', {
-      count: attendants?.length || 0,
-      attendants: attendants
+    console.log('📊 AttendantManagement - Status completo:', {
+      isLoading,
+      error: error?.message,
+      attendantsCount: attendants?.length || 0,
+      attendants: attendants,
+      activeSectorsCount: activeSectors?.length || 0
     });
-  }, [attendants]);
+  }, [attendants, isLoading, error, activeSectors]);
 
   const resetForm = () => {
     setFormData({
@@ -102,6 +105,34 @@ const AttendantManagement = () => {
     setIsEditDialogOpen(false);
     resetForm();
   };
+
+  // Mostrar loading enquanto carrega
+  if (isLoading) {
+    return (
+      <div className="space-y-6 p-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="ml-2">Carregando atendentes...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // Mostrar erro se houver
+  if (error) {
+    return (
+      <div className="space-y-6 p-6">
+        <div className="flex items-center justify-center py-12">
+          <div className="text-red-600">
+            Erro ao carregar atendentes: {error.message}
+            <Button onClick={() => refetch()} className="ml-4">
+              Tentar novamente
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 p-6">

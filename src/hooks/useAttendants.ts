@@ -48,11 +48,13 @@ export const useAttendants = () => {
     queryKey: ['attendants'],
     queryFn: async () => {
       console.log('🔍 Buscando atendentes...');
+      
+      // Query mais robusta que busca todos os profiles com role 'attendant'
       const { data, error } = await supabase
         .from('profiles')
         .select(`
           *,
-          sector:sectors(id, name, color)
+          sectors!left(id, name, color)
         `)
         .eq('role', 'attendant')
         .order('name');
@@ -62,18 +64,26 @@ export const useAttendants = () => {
         throw error;
       }
       
-      console.log('✅ Atendentes encontrados:', data?.length || 0);
+      console.log('✅ Atendentes encontrados:', {
+        total: data?.length || 0,
+        data: data
+      });
       
-      return data.map(item => ({
+      // Mapear os dados corretamente
+      const mappedData = data?.map(item => ({
         ...item,
         can_transfer: item.can_transfer ?? true,
         max_concurrent_chats: item.max_concurrent_chats ?? 10,
-        sector: item.sector ? {
-          id: item.sector.id,
-          name: item.sector.name,
-          color: item.sector.color,
+        sector: item.sectors ? {
+          id: item.sectors.id,
+          name: item.sectors.name,
+          color: item.sectors.color,
         } : undefined,
       })) as Attendant[];
+      
+      console.log('🔄 Dados mapeados:', mappedData);
+      
+      return mappedData;
     },
     enabled: profile?.role === 'admin',
     refetchOnWindowFocus: true,
@@ -88,21 +98,21 @@ export const useAttendants = () => {
         .from('profiles')
         .select(`
           *,
-          sector:sectors(id, name, color)
+          sectors!left(id, name, color)
         `)
         .eq('role', 'attendant')
         .eq('is_active', true)
         .order('name');
       
       if (error) throw error;
-      return data.map(item => ({
+      return data?.map(item => ({
         ...item,
         can_transfer: item.can_transfer ?? true,
         max_concurrent_chats: item.max_concurrent_chats ?? 10,
-        sector: item.sector ? {
-          id: item.sector.id,
-          name: item.sector.name,
-          color: item.sector.color,
+        sector: item.sectors ? {
+          id: item.sectors.id,
+          name: item.sectors.name,
+          color: item.sectors.color,
         } : undefined,
       })) as Attendant[];
     },
