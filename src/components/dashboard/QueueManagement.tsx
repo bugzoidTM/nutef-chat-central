@@ -1,237 +1,229 @@
 
-import React, { useState } from 'react';
+import React from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { RefreshCw, Settings, Clock } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
-import { useSectors } from '@/hooks/useSectors';
 import { useQueueSystem } from '@/hooks/useQueueSystem';
-import QueueStats from './QueueStats';
-import QueueItemCard from './QueueItemCard';
-import { toast } from 'sonner';
+import { QueueStats } from './QueueStats';
+import { Clock, User, ArrowRight, CheckCircle } from 'lucide-react';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
-export const QueueManagement = () => {
-  const { profile } = useAuth();
-  const { activeSectors } = useSectors();
-  const [selectedSector, setSelectedSector] = useState<string>('all');
+const QueueManagement = () => {
+  const { 
+    queueItems, 
+    isLoading, 
+    assignToMe, 
+    completeItem,
+    stats 
+  } = useQueueSystem();
 
-  const {
-    queueItems,
-    queueStats,
-    loadingQueue,
-    assignFromQueue,
-    removeFromQueue,
-    processTimeouts,
-    refetchQueue,
-    isAssigningFromQueue,
-    isRemovingFromQueue,
-    isProcessingTimeouts,
-    canTakeFromQueue,
-    getItemsByStatus,
-  } = useQueueSystem(selectedSector === 'all' ? undefined : selectedSector);
+  const waitingItems = queueItems?.filter(item => item.status === 'waiting') || [];
+  const assignedItems = queueItems?.filter(item => item.status === 'assigned') || [];
+  const completedItems = queueItems?.filter(item => item.status === 'completed') || [];
 
-  if (profile?.role !== 'admin') {
+  const QueueItem = ({ item, showActions = true }: { item: any, showActions?: boolean }) => (
+    <Card className="mb-3">
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            {/* Cliente e setor */}
+            <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4 text-gray-500" />
+                <span className="font-medium text-sm truncate">
+                  Cliente: +{item.conversations?.client_phone}
+                </span>
+              </div>
+              {item.sectors && (
+                <Badge 
+                  variant="outline" 
+                  className="text-xs"
+                  style={{ 
+                    borderColor: item.sectors.color,
+                    color: item.sectors.color 
+                  }}
+                >
+                  {item.sectors.name}
+                </Badge>
+              )}
+            </div>
+
+            {/* Informações de tempo */}
+            <div className="flex items-center gap-4 text-xs text-gray-500 mb-3">
+              <div className="flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                <span>
+                  Criado: {format(new Date(item.created_at), 'dd/MM HH:mm', { locale: ptBR })}
+                </span>
+              </div>
+              {item.assigned_at && (
+                <div className="flex items-center gap-1">
+                  <ArrowRight className="h-3 w-3" />
+                  <span>
+                    Atribuído: {format(new Date(item.assigned_at), 'dd/MM HH:mm', { locale: ptBR })}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Status e prioridade */}
+            <div className="flex items-center gap-2">
+              <Badge 
+                variant={
+                  item.status === 'waiting' ? 'destructive' : 
+                  item.status === 'assigned' ? 'default' : 'secondary'
+                }
+                className="text-xs"
+              >
+                {item.status === 'waiting' ? 'Aguardando' : 
+                 item.status === 'assigned' ? 'Atribuído' : 'Concluído'}
+              </Badge>
+              
+              <Badge variant="outline" className="text-xs">
+                Prioridade: {item.priority}
+              </Badge>
+
+              {item.assigned_to_profile && (
+                <Badge variant="outline" className="text-xs">
+                  {item.assigned_to_profile.nickname || item.assigned_to_profile.name}
+                </Badge>
+              )}
+            </div>
+          </div>
+
+          {/* Ações */}
+          {showActions && (
+            <div className="flex flex-col gap-2 ml-4">
+              {item.status === 'waiting' && (
+                <Button
+                  size="sm"
+                  onClick={() => assignToMe(item.id)}
+                  className="h-8 px-3 text-xs"
+                >
+                  Assumir
+                </Button>
+              )}
+              {item.status === 'assigned' && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => completeItem(item.id)}
+                  className="h-8 px-3 text-xs"
+                >
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Concluir
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  if (isLoading) {
     return (
-      <div className="h-full flex items-center justify-center p-4">
-        <div className="text-center">
-          <Clock className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-          <h3 className="text-base font-semibold mb-2">Fila de Atendimento</h3>
-          <p className="text-sm text-gray-500">Acesso restrito a administradores.</p>
+      <div className="p-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+          <div className="space-y-3">
+            <div className="h-20 bg-gray-200 rounded"></div>
+            <div className="h-20 bg-gray-200 rounded"></div>
+            <div className="h-20 bg-gray-200 rounded"></div>
+          </div>
         </div>
       </div>
     );
   }
 
-  const handleAssignToMe = (queueId: string) => {
-    if (!canTakeFromQueue()) {
-      toast.warning('Você já atingiu o limite de conversas simultâneas');
-      return;
-    }
-    assignFromQueue({ queueId });
-  };
-
-  const handleProcessTimeouts = () => {
-    processTimeouts();
-  };
-
-  const waitingItems = getItemsByStatus('waiting');
-  const assignedItems = getItemsByStatus('assigned');
-  const timeoutItems = getItemsByStatus('timeout');
-
   return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="p-4 border-b border-gray-200 bg-white flex-shrink-0">
-        <div className="flex items-center justify-between mb-4">
-          <div className="min-w-0">
-            <h2 className="text-lg font-semibold text-gray-900 truncate">Fila</h2>
-            <p className="text-sm text-gray-600 truncate">Gerenciamento</p>
-          </div>
-          
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => refetchQueue()} 
-            disabled={loadingQueue}
-            className="shrink-0 ml-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${loadingQueue ? 'animate-spin' : ''}`} />
-          </Button>
-        </div>
-        
-        <div className="w-full">
-          <Select value={selectedSector} onValueChange={setSelectedSector}>
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Filtrar por setor" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os setores</SelectItem>
-              {activeSectors.map((sector) => (
-                <SelectItem key={sector.id} value={sector.id}>
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div 
-                      className="w-3 h-3 rounded-full shrink-0" 
-                      style={{ backgroundColor: sector.color }}
-                    />
-                    <span className="truncate">{sector.name}</span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+    <div className="p-6 max-w-6xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">Gerenciamento de Fila</h1>
+        <p className="text-gray-600">Gerencie e monitore o atendimento de conversas</p>
       </div>
 
-      {/* Stats */}
-      <div className="p-4 border-b border-gray-200 bg-white flex-shrink-0">
-        <QueueStats stats={queueStats} isLoading={loadingQueue} />
+      {/* Estatísticas */}
+      <div className="mb-6">
+        <QueueStats stats={stats} />
       </div>
 
-      {/* Controls */}
-      <div className="p-4 border-b border-gray-200 bg-white flex-shrink-0">
-        <Button
-          onClick={handleProcessTimeouts}
-          disabled={isProcessingTimeouts}
-          variant="outline"
-          size="sm"
-          className="w-full"
-        >
-          <Settings className="h-4 w-4 mr-2 shrink-0" />
-          <span className="truncate min-w-0">
-            {isProcessingTimeouts ? 'Processando...' : 'Processar Timeouts'}
-          </span>
-        </Button>
-      </div>
+      {/* Abas da fila */}
+      <Tabs defaultValue="waiting" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-3 h-11">
+          <TabsTrigger value="waiting" className="text-sm">
+            Aguardando ({waitingItems.length})
+          </TabsTrigger>
+          <TabsTrigger value="assigned" className="text-sm">
+            Atribuídas ({assignedItems.length})
+          </TabsTrigger>
+          <TabsTrigger value="completed" className="text-sm">
+            Concluídas ({completedItems.length})
+          </TabsTrigger>
+        </TabsList>
 
-      {/* Queue Items */}
-      <div className="flex-1 overflow-hidden bg-gray-50">
-        <Tabs defaultValue="waiting" className="h-full flex flex-col">
-          <div className="bg-white border-b border-gray-200 px-4 py-2 flex-shrink-0">
-            <TabsList className="grid w-full grid-cols-3 gap-1">
-              <TabsTrigger value="waiting" className="text-xs px-1 py-1 min-w-0">
-                <div className="flex flex-col items-center min-w-0">
-                  <span className="truncate w-full text-center">Aguardando</span>
-                  <span className="text-xs opacity-75">({waitingItems.length})</span>
+        <TabsContent value="waiting" className="space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Conversas Aguardando Atendimento</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-0">
+              {waitingItems.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Clock className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                  <p>Nenhuma conversa aguardando atendimento</p>
                 </div>
-              </TabsTrigger>
-              <TabsTrigger value="assigned" className="text-xs px-1 py-1 min-w-0">
-                <div className="flex flex-col items-center min-w-0">
-                  <span className="truncate w-full text-center">Atribuídas</span>
-                  <span className="text-xs opacity-75">({assignedItems.length})</span>
+              ) : (
+                waitingItems.map((item) => (
+                  <QueueItem key={item.id} item={item} />
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="assigned" className="space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Conversas Atribuídas</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-0">
+              {assignedItems.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <User className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                  <p>Nenhuma conversa atribuída</p>
                 </div>
-              </TabsTrigger>
-              <TabsTrigger value="timeout" className="text-xs px-1 py-1 min-w-0">
-                <div className="flex flex-col items-center min-w-0">
-                  <span className="truncate w-full text-center">Timeout</span>
-                  <span className="text-xs opacity-75">({timeoutItems.length})</span>
+              ) : (
+                assignedItems.map((item) => (
+                  <QueueItem key={item.id} item={item} />
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="completed" className="space-y-4">
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Conversas Concluídas</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-0">
+              {completedItems.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <CheckCircle className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                  <p>Nenhuma conversa concluída hoje</p>
                 </div>
-              </TabsTrigger>
-            </TabsList>
-          </div>
-          
-          <div className="flex-1 overflow-hidden">
-            <TabsContent value="waiting" className="h-full mt-0">
-              <ScrollArea className="h-full">
-                {waitingItems.length > 0 ? (
-                  <div className="p-4 space-y-3">
-                    {waitingItems.map((item) => (
-                      <QueueItemCard
-                        key={item.id}
-                        item={item}
-                        onAssign={handleAssignToMe}
-                        canAssign={true}
-                        isAssigning={isAssigningFromQueue}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="h-full flex items-center justify-center text-gray-500 p-4">
-                    <div className="text-center">
-                      <Clock className="h-10 w-10 mx-auto mb-3 text-gray-300" />
-                      <p className="text-sm">Nenhum item aguardando</p>
-                    </div>
-                  </div>
-                )}
-              </ScrollArea>
-            </TabsContent>
-            
-            <TabsContent value="assigned" className="h-full mt-0">
-              <ScrollArea className="h-full">
-                {assignedItems.length > 0 ? (
-                  <div className="p-4 space-y-3">
-                    {assignedItems.map((item) => (
-                      <QueueItemCard
-                        key={item.id}
-                        item={item}
-                        onRemove={removeFromQueue}
-                        canRemove={true}
-                        isRemoving={isRemovingFromQueue}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="h-full flex items-center justify-center text-gray-500 p-4">
-                    <div className="text-center">
-                      <Clock className="h-10 w-10 mx-auto mb-3 text-gray-300" />
-                      <p className="text-sm">Nenhum item atribuído</p>
-                    </div>
-                  </div>
-                )}
-              </ScrollArea>
-            </TabsContent>
-            
-            <TabsContent value="timeout" className="h-full mt-0">
-              <ScrollArea className="h-full">
-                {timeoutItems.length > 0 ? (
-                  <div className="p-4 space-y-3">
-                    {timeoutItems.map((item) => (
-                      <QueueItemCard
-                        key={item.id}
-                        item={item}
-                        onAssign={handleAssignToMe}
-                        onRemove={removeFromQueue}
-                        canAssign={true}
-                        canRemove={true}
-                        isAssigning={isAssigningFromQueue}
-                        isRemoving={isRemovingFromQueue}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="h-full flex items-center justify-center text-gray-500 p-4">
-                    <div className="text-center">
-                      <Clock className="h-10 w-10 mx-auto mb-3 text-gray-300" />
-                      <p className="text-sm">Nenhum item com timeout</p>
-                    </div>
-                  </div>
-                )}
-              </ScrollArea>
-            </TabsContent>
-          </div>
-        </Tabs>
-      </div>
+              ) : (
+                completedItems.map((item) => (
+                  <QueueItem key={item.id} item={item} showActions={false} />
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

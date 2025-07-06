@@ -843,6 +843,7 @@ export type Database = {
           managed_by: string | null
           max_concurrent_chats: number | null
           name: string
+          nickname: string | null
           phone: string
           role: Database["public"]["Enums"]["user_role"]
           sector: Database["public"]["Enums"]["sector_type"] | null
@@ -863,6 +864,7 @@ export type Database = {
           managed_by?: string | null
           max_concurrent_chats?: number | null
           name: string
+          nickname?: string | null
           phone: string
           role?: Database["public"]["Enums"]["user_role"]
           sector?: Database["public"]["Enums"]["sector_type"] | null
@@ -883,6 +885,7 @@ export type Database = {
           managed_by?: string | null
           max_concurrent_chats?: number | null
           name?: string
+          nickname?: string | null
           phone?: string
           role?: Database["public"]["Enums"]["user_role"]
           sector?: Database["public"]["Enums"]["sector_type"] | null
