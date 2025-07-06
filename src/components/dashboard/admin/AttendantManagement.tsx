@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAttendants, type Attendant, type CreateAttendantData } from '@/hooks/useAttendants';
 import { useSectors } from '@/hooks/useSectors';
 import { Button } from '@/components/ui/button';
@@ -21,7 +20,7 @@ interface AttendantFormData {
 }
 
 const AttendantManagement = () => {
-  const { attendants, createAttendant, updateAttendant, toggleAttendant, isCreating, isUpdating } = useAttendants();
+  const { attendants, createAttendant, updateAttendant, toggleAttendant, isCreating, isUpdating, refetch } = useAttendants();
   const { activeSectors } = useSectors();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -35,6 +34,14 @@ const AttendantManagement = () => {
     can_transfer: true,
     max_concurrent_chats: 10,
   });
+
+  // Log para debug
+  useEffect(() => {
+    console.log('📊 AttendantManagement - Atendentes carregados:', {
+      count: attendants?.length || 0,
+      attendants: attendants
+    });
+  }, [attendants]);
 
   const resetForm = () => {
     setFormData({

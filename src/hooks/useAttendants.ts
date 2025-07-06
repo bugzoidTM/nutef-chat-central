@@ -44,9 +44,10 @@ export const useAttendants = () => {
   const queryClient = useQueryClient();
 
   // Buscar todos os atendentes
-  const { data: attendants = [], isLoading, error } = useQuery({
+  const { data: attendants = [], isLoading, error, refetch } = useQuery({
     queryKey: ['attendants'],
     queryFn: async () => {
+      console.log('🔍 Buscando atendentes...');
       const { data, error } = await supabase
         .from('profiles')
         .select(`
@@ -56,7 +57,13 @@ export const useAttendants = () => {
         .eq('role', 'attendant')
         .order('name');
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erro ao buscar atendentes:', error);
+        throw error;
+      }
+      
+      console.log('✅ Atendentes encontrados:', data?.length || 0);
+      
       return data.map(item => ({
         ...item,
         can_transfer: item.can_transfer ?? true,
@@ -69,6 +76,8 @@ export const useAttendants = () => {
       })) as Attendant[];
     },
     enabled: profile?.role === 'admin',
+    refetchOnWindowFocus: true,
+    staleTime: 0, // Sempre buscar dados frescos
   });
 
   // Buscar atendentes ativos
@@ -127,7 +136,11 @@ export const useAttendants = () => {
       return result;
     },
     onSuccess: () => {
+      // Invalidar múltiplas queries para garantir atualização
       queryClient.invalidateQueries({ queryKey: ['attendants'] });
+      queryClient.invalidateQueries({ queryKey: ['profiles'] });
+      // Forçar refetch imediato
+      refetch();
       toast.success('Atendente criado com sucesso!');
     },
     onError: (error: any) => {
@@ -229,5 +242,6 @@ export const useAttendants = () => {
     isUpdating: updateAttendantMutation.isPending,
     isToggling: toggleAttendantMutation.isPending,
     isAssigning: assignSectorMutation.isPending,
+    refetch, // Expor refetch para uso manual se necessário
   };
 };
