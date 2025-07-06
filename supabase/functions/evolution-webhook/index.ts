@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -13,7 +14,7 @@ serve(async (req) => {
   }
 
   console.log('🚀 Evolution webhook received request:', req.method, req.url);
-  console.log('🔄 WEBHOOK VERSION: v3.1.0 - EVOLUTION API COMPLIANT');
+  console.log('🔄 WEBHOOK VERSION: v3.2.0 - IMPROVED MESSAGE PROCESSING');
 
   try {
     // Initialize Supabase client with service role key
@@ -78,7 +79,7 @@ serve(async (req) => {
         .single();
 
       if (instanceError || !instanceData) {
-        console.log('❌ Instance not found:', instanceName);
+        console.log('❌ Instance not found:', instanceName, 'Error:', instanceError);
         
         // Log available instances for debugging
         const { data: allInstances } = await supabase
@@ -98,7 +99,7 @@ serve(async (req) => {
 
       console.log('✅ Instance found:', instanceData.instance_name);
 
-      // Process messages array
+      // Process messages array - handle both single message and array
       const messages = Array.isArray(eventData) ? eventData : [eventData];
       console.log('🔍 Processing', messages.length, 'messages');
 
@@ -108,9 +109,9 @@ serve(async (req) => {
         try {
           console.log('💬 Processing message:', message.key?.id);
           
-          // Skip messages sent by us
-          if (message.key?.fromMe) {
-            console.log('⏭️ Skipping outgoing message');
+          // Skip messages sent by us (fromMe = true)
+          if (message.key?.fromMe === true) {
+            console.log('⏭️ Skipping outgoing message (fromMe = true)');
             continue;
           }
 
@@ -120,7 +121,7 @@ serve(async (req) => {
             continue;
           }
 
-          // Extract phone number from remoteJid
+          // Extract phone number from remoteJid (remove @s.whatsapp.net or @c.us)
           const clientPhone = remoteJid.replace(/@s\.whatsapp\.net|@c\.us/g, '');
           console.log('📞 Client phone:', clientPhone);
 
@@ -178,7 +179,7 @@ serve(async (req) => {
           
           const { data: existingConversation, error: convError } = await supabase
             .from('conversations')
-            .select('id')
+            .select('id, status')
             .eq('client_phone', clientPhone)
             .eq('instance_id', instanceData.id)
             .maybeSingle();
@@ -192,24 +193,41 @@ serve(async (req) => {
             conversationId = existingConversation.id;
             console.log('🔄 Using existing conversation:', conversationId);
 
-            // Update conversation
+            // Update conversation timestamp and reopen if finished
+            const updateData: any = { 
+              last_message_at: new Date().toISOString(),
+            };
+            
+            // If conversation was finished, reopen it
+            if (existingConversation.status === 'finished') {
+              updateData.status = 'new';
+              updateData.assigned_to = null;
+              console.log('🔄 Reopening finished conversation');
+            }
+
             await supabase
               .from('conversations')
-              .update({ 
-                last_message_at: new Date().toISOString(),
-                status: 'new'
-              })
+              .update(updateData)
               .eq('id', conversationId);
           } else {
             console.log('🆕 Creating new conversation for:', clientPhone);
             
+            // Get the first active sector as default
+            const { data: defaultSector } = await supabase
+              .from('sectors')
+              .select('id')
+              .eq('is_active', true)
+              .limit(1)
+              .single();
+
             const { data: newConversation, error: newConvError } = await supabase
               .from('conversations')
               .insert({
                 client_phone: clientPhone,
                 client_name: message.pushName || clientPhone,
                 instance_id: instanceData.id,
-                sector: 'support',
+                sector: 'support', // Keep legacy field for compatibility
+                sector_id: defaultSector?.id || null,
                 status: 'new',
                 last_message_at: new Date().toISOString(),
               })
@@ -229,7 +247,7 @@ serve(async (req) => {
           const messageToInsert = {
             conversation_id: conversationId,
             content: messageContent,
-            direction: 'incoming',
+            direction: 'incoming' as const,
             from_phone: clientPhone,
             to_phone: instanceData.phone,
             message_type: messageType,

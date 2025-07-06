@@ -65,9 +65,9 @@ export const QueueManagement = () => {
       {/* Header */}
       <div className="p-4 border-b border-gray-200 bg-white flex-shrink-0">
         <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">Fila</h2>
-            <p className="text-sm text-gray-600">Gerenciamento</p>
+          <div className="min-w-0">
+            <h2 className="text-lg font-semibold text-gray-900 truncate">Fila</h2>
+            <p className="text-sm text-gray-600 truncate">Gerenciamento</p>
           </div>
           
           <Button 
@@ -75,31 +75,33 @@ export const QueueManagement = () => {
             size="sm" 
             onClick={() => refetchQueue()} 
             disabled={loadingQueue}
-            className="shrink-0"
+            className="shrink-0 ml-2"
           >
             <RefreshCw className={`h-4 w-4 ${loadingQueue ? 'animate-spin' : ''}`} />
           </Button>
         </div>
         
-        <Select value={selectedSector} onValueChange={setSelectedSector}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Filtrar por setor" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os setores</SelectItem>
-            {activeSectors.map((sector) => (
-              <SelectItem key={sector.id} value={sector.id}>
-                <div className="flex items-center gap-2">
-                  <div 
-                    className="w-3 h-3 rounded-full shrink-0" 
-                    style={{ backgroundColor: sector.color }}
-                  />
-                  <span className="truncate">{sector.name}</span>
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="w-full">
+          <Select value={selectedSector} onValueChange={setSelectedSector}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Filtrar por setor" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os setores</SelectItem>
+              {activeSectors.map((sector) => (
+                <SelectItem key={sector.id} value={sector.id}>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div 
+                      className="w-3 h-3 rounded-full shrink-0" 
+                      style={{ backgroundColor: sector.color }}
+                    />
+                    <span className="truncate">{sector.name}</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Stats */}
@@ -117,7 +119,7 @@ export const QueueManagement = () => {
           className="w-full"
         >
           <Settings className="h-4 w-4 mr-2 shrink-0" />
-          <span className="truncate">
+          <span className="truncate min-w-0">
             {isProcessingTimeouts ? 'Processando...' : 'Processar Timeouts'}
           </span>
         </Button>
@@ -127,15 +129,24 @@ export const QueueManagement = () => {
       <div className="flex-1 overflow-hidden bg-gray-50">
         <Tabs defaultValue="waiting" className="h-full flex flex-col">
           <div className="bg-white border-b border-gray-200 px-4 py-2 flex-shrink-0">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="waiting" className="text-xs px-2 py-1">
-                <span className="truncate">Aguardando ({waitingItems.length})</span>
+            <TabsList className="grid w-full grid-cols-3 gap-1">
+              <TabsTrigger value="waiting" className="text-xs px-1 py-1 min-w-0">
+                <div className="flex flex-col items-center min-w-0">
+                  <span className="truncate w-full text-center">Aguardando</span>
+                  <span className="text-xs opacity-75">({waitingItems.length})</span>
+                </div>
               </TabsTrigger>
-              <TabsTrigger value="assigned" className="text-xs px-2 py-1">
-                <span className="truncate">Atribuídas ({assignedItems.length})</span>
+              <TabsTrigger value="assigned" className="text-xs px-1 py-1 min-w-0">
+                <div className="flex flex-col items-center min-w-0">
+                  <span className="truncate w-full text-center">Atribuídas</span>
+                  <span className="text-xs opacity-75">({assignedItems.length})</span>
+                </div>
               </TabsTrigger>
-              <TabsTrigger value="timeout" className="text-xs px-2 py-1">
-                <span className="truncate">Timeout ({timeoutItems.length})</span>
+              <TabsTrigger value="timeout" className="text-xs px-1 py-1 min-w-0">
+                <div className="flex flex-col items-center min-w-0">
+                  <span className="truncate w-full text-center">Timeout</span>
+                  <span className="text-xs opacity-75">({timeoutItems.length})</span>
+                </div>
               </TabsTrigger>
             </TabsList>
           </div>
