@@ -7,7 +7,7 @@ import * as evolutionApi from '@/services/evolutionApi';
 export const useEvolutionQueries = (instanceName: string, phoneNumber: string) => {
   const { profile } = useAuth();
 
-  // Connection state query with better error handling
+  // Connection state query with better error handling and more frequent polling
   const {
     data: connectionState,
     isLoading: connectionStateLoading,
@@ -50,12 +50,15 @@ export const useEvolutionQueries = (instanceName: string, phoneNumber: string) =
       }
     },
     refetchInterval: (query) => {
-      // Only refetch if we have data and instance is connecting
+      // More aggressive polling when state is not 'open'
       const connectionData = query.state.data;
-      if (connectionData?.instance?.state === 'connecting') {
-        return 5000; // Check every 5 seconds when connecting
+      const currentState = connectionData?.instance?.state;
+      
+      if (currentState === 'connecting' || currentState === 'close') {
+        return 2000; // Check every 2 seconds when connecting or closed
       }
-      return false; // Don't refetch if no data or if connected/disconnected
+      
+      return false; // Don't refetch if connected
     },
     retry: (failureCount, error: any) => {
       // Don't retry 404 errors

@@ -14,6 +14,7 @@ const QRCodeSetup = () => {
   const { profile, user } = useAuth();
   const { toast } = useToast();
   const [instanceCreated, setInstanceCreated] = useState(false);
+  const [isCheckingConnection, setIsCheckingConnection] = useState(false);
   
   // Use o número do telefone já cadastrado no perfil
   const phoneNumber = profile?.phone || '';
@@ -31,9 +32,45 @@ const QRCodeSetup = () => {
     instanceName,
   } = useEvolutionInstance(phoneNumber);
 
+  // Verificação mais ativa do estado da conexão após QR Code ser gerado
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout | null = null;
+    
+    if (qrCode && connectionState?.state !== 'open' && !isCheckingConnection) {
+      console.log('QRCodeSetup - Starting active connection checking...');
+      setIsCheckingConnection(true);
+      
+      // Verificar estado da conexão a cada 3 segundos quando QR Code estiver ativo
+      intervalId = setInterval(async () => {
+        console.log('QRCodeSetup - Checking connection state actively...');
+        try {
+          await refetchConnectionState();
+        } catch (error) {
+          console.error('QRCodeSetup - Error checking connection state:', error);
+        }
+      }, 3000);
+    }
+    
+    // Parar verificação se conectado ou QR Code removido
+    if (connectionState?.state === 'open' || !qrCode) {
+      if (intervalId) {
+        clearInterval(intervalId);
+        intervalId = null;
+      }
+      setIsCheckingConnection(false);
+    }
+    
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [qrCode, connectionState?.state, refetchConnectionState, isCheckingConnection]);
+
   useEffect(() => {
     // Se a instância estiver conectada, finalizar setup
     if (connectionState?.state === 'open' && instanceCreated && profile && instanceName) {
+      console.log('QRCodeSetup - WhatsApp connected, completing setup...');
       handleSetupComplete();
     }
   }, [connectionState?.state, instanceCreated, profile, instanceName]);
@@ -200,11 +237,24 @@ const QRCodeSetup = () => {
               )}
 
               {qrCode && qrCode.trim() && (
-                <QRCodeDisplay
-                  qrCode={qrCode}
-                  isGenerating={isGettingQRCode}
-                  onRegenerate={handleGenerateQRCode}
-                />
+                <>
+                  <QRCodeDisplay
+                    qrCode={qrCode}
+                    isGenerating={isGettingQRCode}
+                    onRegenerate={handleGenerateQRCode}
+                  />
+                  {isCheckingConnection && (
+                    <div className="text-center space-y-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <div className="flex items-center justify-center space-x-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                        <span className="text-blue-800 font-medium">Aguardando conexão...</span>
+                      </div>
+                      <p className="text-blue-700 text-sm">
+                        Escaneie o QR Code com seu WhatsApp para conectar
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
 
               {!qrCode && (connectionState?.state === 'connecting' || isCreatingInstance) && (
