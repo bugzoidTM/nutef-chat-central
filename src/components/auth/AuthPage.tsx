@@ -1,274 +1,283 @@
 
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Mail, Lock, User, Phone } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
-import Logo from '@/components/Logo';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { toast } from 'sonner';
+import { Loader2, Shield, User, AlertCircle, ArrowLeft } from 'lucide-react';
 
-export const AuthPage: React.FC = () => {
-  const [loading, setLoading] = useState(false);
+const AuthPage = () => {
+  const { profile } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [activeTab, setActiveTab] = useState('login');
-  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState('admin');
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email || !password) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Por favor, preencha email e senha.",
-        variant: "destructive",
-      });
-      return;
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (profile) {
+      window.location.href = '/';
     }
+  }, [profile]);
 
-    setLoading(true);
+  const handleAdminLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password: password,
+      const { data, error: loginError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      if (error) {
-        throw error;
+      if (loginError) {
+        if (loginError.message.includes('Invalid login credentials')) {
+          setError('Email ou senha incorretos');
+        } else {
+          setError(loginError.message);
+        }
+        return;
       }
 
       if (data.user) {
-        toast({
-          title: "Login realizado",
-          description: "Bem-vindo de volta!",
-        });
+        // Check if user is an admin
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role, is_active, name')
+          .eq('user_id', data.user.id)
+          .single();
+
+        if (profileError || !profile) {
+          setError('Usuário não encontrado no sistema');
+          await supabase.auth.signOut();
+          return;
+        }
+
+        if (profile.role !== 'admin') {
+          setError('Acesso restrito a administradores.');
+          await supabase.auth.signOut();
+          return;
+        }
+
+        toast.success(`Bem-vindo, ${profile.name}!`);
+        window.location.href = '/';
       }
     } catch (error: any) {
       console.error('Login error:', error);
-      toast({
-        title: "Erro no login",
-        description: error.message || "Erro ao fazer login. Verifique suas credenciais.",
-        variant: "destructive",
-      });
+      setError('Erro ao fazer login. Tente novamente.');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleAttendantLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password || !name) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Por favor, preencha todos os campos obrigatórios.",
-        variant: "destructive",
-      });
-      return;
-    }
+    setIsLoading(true);
+    setError('');
 
-    if (password.length < 6) {
-      toast({
-        title: "Senha muito curta",
-        description: "A senha deve ter pelo menos 6 caracteres.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email: email.trim(),
-        password: password,
-        options: {
-          data: {
-            name: name.trim(),
-            phone: phone.trim(),
-          }
-        }
+      const { data, error: loginError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
 
-      if (error) {
-        throw error;
+      if (loginError) {
+        if (loginError.message.includes('Invalid login credentials')) {
+          setError('Email ou senha incorretos');
+        } else {
+          setError(loginError.message);
+        }
+        return;
       }
 
       if (data.user) {
-        toast({
-          title: "Cadastro realizado",
-          description: "Sua conta foi criada com sucesso!",
-        });
+        // Check if user is an attendant
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role, is_active, name')
+          .eq('user_id', data.user.id)
+          .single();
+
+        if (profileError || !profile) {
+          setError('Usuário não encontrado no sistema');
+          await supabase.auth.signOut();
+          return;
+        }
+
+        if (profile.role !== 'attendant') {
+          setError('Acesso restrito a atendentes. Use o login de administrador se necessário.');
+          await supabase.auth.signOut();
+          return;
+        }
+
+        if (!profile.is_active) {
+          setError('Sua conta está inativa. Contate o administrador.');
+          await supabase.auth.signOut();
+          return;
+        }
+
+        toast.success(`Bem-vindo, ${profile.name}!`);
+        window.location.href = '/';
       }
     } catch (error: any) {
-      console.error('SignUp error:', error);
-      toast({
-        title: "Erro no cadastro",
-        description: error.message || "Erro ao criar conta. Tente novamente.",
-        variant: "destructive",
-      });
+      console.error('Login error:', error);
+      setError('Erro ao fazer login. Tente novamente.');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-blue-50 p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center space-y-4">
-          <div className="flex justify-center">
-            <Logo />
-          </div>
-          <CardTitle className="text-2xl font-bold">NutefTalk</CardTitle>
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl">Sistema de Atendimento</CardTitle>
           <CardDescription>
-            Sistema de Atendimento via WhatsApp
+            Escolha o tipo de acesso
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="signup">Cadastro</TabsTrigger>
+              <TabsTrigger value="admin" className="flex items-center gap-2">
+                <Shield className="h-4 w-4" />
+                Administrador
+              </TabsTrigger>
+              <TabsTrigger value="attendant" className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Atendente
+              </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="login" className="space-y-4">
-              <form onSubmit={handleLogin} className="space-y-4">
+            <TabsContent value="admin" className="space-y-4 mt-6">
+              <div className="text-center mb-4">
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <Shield className="h-8 w-8 text-blue-600" />
+                </div>
+                <h3 className="font-semibold">Acesso Administrativo</h3>
+                <p className="text-sm text-gray-500">Gerencie o sistema e atendentes</p>
+              </div>
+              
+              <form onSubmit={handleAdminLogin} className="space-y-4">
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+                
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="seu@email.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10"
-                      disabled={loading}
-                      required
-                    />
-                  </div>
+                  <Label htmlFor="admin-email">Email</Label>
+                  <Input
+                    id="admin-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="admin@empresa.com"
+                    required
+                    disabled={isLoading}
+                  />
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="password">Senha</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10"
-                      disabled={loading}
-                      required
-                    />
-                  </div>
+                  <Label htmlFor="admin-password">Senha</Label>
+                  <Input
+                    id="admin-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    disabled={isLoading}
+                  />
                 </div>
                 
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? (
+                <Button 
+                  type="submit" 
+                  className="w-full bg-blue-600 hover:bg-blue-700"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       Entrando...
                     </>
                   ) : (
-                    'Entrar'
+                    'Entrar como Admin'
                   )}
                 </Button>
               </form>
             </TabsContent>
             
-            <TabsContent value="signup" className="space-y-4">
-              <Alert>
-                <AlertDescription>
-                  O primeiro usuário cadastrado será automaticamente definido como administrador.
-                </AlertDescription>
-              </Alert>
+            <TabsContent value="attendant" className="space-y-4 mt-6">
+              <div className="text-center mb-4">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                  <User className="h-8 w-8 text-green-600" />
+                </div>
+                <h3 className="font-semibold">Acesso Atendente</h3>
+                <p className="text-sm text-gray-500">Atenda conversas e clientes</p>
+              </div>
               
-              <form onSubmit={handleSignUp} className="space-y-4">
+              <form onSubmit={handleAttendantLogin} className="space-y-4">
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+                
                 <div className="space-y-2">
-                  <Label htmlFor="signup-name">Nome Completo *</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input
-                      id="signup-name"
-                      type="text"
-                      placeholder="Seu nome completo"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="pl-10"
-                      disabled={loading}
-                      required
-                    />
-                  </div>
+                  <Label htmlFor="attendant-email">Email</Label>
+                  <Input
+                    id="attendant-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="atendente@empresa.com"
+                    required
+                    disabled={isLoading}
+                  />
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="signup-email">Email *</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="seu@email.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10"
-                      disabled={loading}
-                      required
-                    />
-                  </div>
+                  <Label htmlFor="attendant-password">Senha</Label>
+                  <Input
+                    id="attendant-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    disabled={isLoading}
+                  />
                 </div>
                 
-                <div className="space-y-2">
-                  <Label htmlFor="signup-phone">Telefone</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input
-                      id="signup-phone"
-                      type="tel"
-                      placeholder="(11) 99999-9999"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      className="pl-10"
-                      disabled={loading}
-                    />
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="signup-password">Senha *</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                    <Input
-                      id="signup-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10"
-                      disabled={loading}
-                      required
-                      minLength={6}
-                    />
-                  </div>
-                </div>
-                
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? (
+                <Button 
+                  type="submit" 
+                  className="w-full bg-green-600 hover:bg-green-700"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Criando conta...
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Entrando...
                     </>
                   ) : (
-                    'Criar Conta'
+                    'Entrar como Atendente'
                   )}
                 </Button>
+                
+                <div className="text-center text-sm text-gray-500 mt-4">
+                  <p>Primeira vez no sistema?</p>
+                  <p>Sua senha temporária é: <strong>temp123456</strong></p>
+                </div>
               </form>
             </TabsContent>
           </Tabs>
@@ -277,3 +286,5 @@ export const AuthPage: React.FC = () => {
     </div>
   );
 };
+
+export default AuthPage;

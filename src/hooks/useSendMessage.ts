@@ -72,8 +72,8 @@ export const useSendMessage = (conversations: any[]) => {
         }
       }
 
-      // ⭐ Criar mensagem com prefixo para WhatsApp
-      const senderName = profile?.name || 'Atendente';
+      // ⭐ Usar nickname se disponível, senão usar nome completo
+      const senderName = profile?.nickname || profile?.name || 'Atendente';
       const messageWithPrefix = `*${senderName} (${userSectorName})*:\n${content}`;
 
       // Send message via Evolution API
@@ -103,7 +103,7 @@ export const useSendMessage = (conversations: any[]) => {
             message_type: 'text',
             timestamp: messageTimestamp,
             is_read: true,
-            // ⭐ Adicionar informações do remetente
+            // ⭐ Usar nickname se disponível
             sender_name: senderName,
             sender_sector: userSectorName,
           });
