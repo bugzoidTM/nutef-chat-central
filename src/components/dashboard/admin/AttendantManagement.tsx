@@ -45,6 +45,8 @@ const AttendantManagement = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    console.log('🚀 Criando atendente com dados:', formData);
+    
     if (editingAttendant) {
       const { password, ...updateData } = formData;
       updateAttendant({
@@ -259,7 +261,7 @@ const AttendantManagement = () => {
               Novo Atendente
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white shadow-2xl border-0 rounded-lg">
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white shadow-2xl border-0 rounded-lg fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] z-50">
             <DialogHeader className="pb-4 border-b">
               <DialogTitle className="text-xl font-semibold text-gray-900">
                 Criar Novo Atendente
@@ -396,7 +398,7 @@ const AttendantManagement = () => {
       )}
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white shadow-2xl border-0 rounded-lg">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white shadow-2xl border-0 rounded-lg fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] z-50">
           <DialogHeader className="pb-4 border-b">
             <DialogTitle className="text-xl font-semibold text-gray-900">
               Editar Atendente

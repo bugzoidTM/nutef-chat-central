@@ -7,7 +7,7 @@ import { useChatbotIntegration } from '@/hooks/useChatbotIntegration';
 import ConversationList from './ConversationList';
 import { ChatArea } from './ChatArea';
 import QueueManagement from './QueueManagement';
-import AttendantManagement from '../admin/AttendantManagement';
+import AttendantManagement from './admin/AttendantManagement';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MessageSquare, Users, BarChart3, Settings, PanelLeftOpen, PanelRightOpen } from 'lucide-react';
