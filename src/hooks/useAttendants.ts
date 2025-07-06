@@ -109,7 +109,7 @@ export const useAttendants = () => {
         throw new Error('Não autenticado');
       }
 
-      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/create-attendant`, {
+      const response = await fetch(`https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/create-attendant`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
