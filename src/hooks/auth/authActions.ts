@@ -63,6 +63,18 @@ export const createAuthActions = () => {
         // Aguardar um pouco antes de criar o perfil
         await new Promise(resolve => setTimeout(resolve, 1000));
         
+        // Buscar o setor "Suporte" para atribuir como padrão
+        const { data: supportSector, error: sectorError } = await supabase
+          .from('sectors')
+          .select('id')
+          .eq('name', 'Suporte')
+          .eq('is_active', true)
+          .single();
+
+        if (sectorError) {
+          console.error('useAuth - Error finding support sector:', sectorError);
+        }
+
         // Create profile with better error handling
         const { error: profileError } = await supabase
           .from('profiles')
@@ -72,7 +84,8 @@ export const createAuthActions = () => {
             email: email,
             phone: userData.phone || '',
             role: userData.role || 'admin',
-            sector: userData.sector || null,
+            sector: 'support', // Setor enum padrão
+            sector_id: supportSector?.id || null, // ID do setor dinâmico
             setup_completed: false,
             whatsapp_connected: false,
             is_active: true,
@@ -84,7 +97,7 @@ export const createAuthActions = () => {
           console.error('useAuth - Profile creation error:', profileError);
           // Não retornar erro aqui pois o usuário foi criado com sucesso
         } else {
-          console.log('useAuth - Profile created successfully');
+          console.log('useAuth - Profile created successfully with default support sector');
         }
       }
 

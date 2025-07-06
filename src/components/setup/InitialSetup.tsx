@@ -27,8 +27,22 @@ const InitialSetup = () => {
     setLoading(true);
 
     try {
+      // Buscar o setor "Suporte" para atribuir como padrão
+      const { data: supportSector, error: sectorError } = await supabase
+        .from('sectors')
+        .select('id')
+        .eq('name', 'Suporte')
+        .eq('is_active', true)
+        .single();
+
+      if (sectorError) {
+        console.error('InitialSetup - Error finding support sector:', sectorError);
+      }
+
       const profileData = {
         setup_completed: true,
+        sector: 'support' as const, // Setor enum padrão
+        sector_id: supportSector?.id || null, // ID do setor dinâmico
       };
 
       // Primeiro, verificar se o perfil já existe
@@ -45,7 +59,7 @@ const InitialSetup = () => {
 
       if (existingProfile) {
         // Se o perfil existe, apenas atualizar
-        console.log('InitialSetup - Updating existing profile');
+        console.log('InitialSetup - Updating existing profile with support sector');
         const { error: updateError } = await supabase
           .from('profiles')
           .update(profileData)
@@ -57,7 +71,7 @@ const InitialSetup = () => {
         }
       } else {
         // Se não existe perfil, criar um novo
-        console.log('InitialSetup - Creating new profile');
+        console.log('InitialSetup - Creating new profile with support sector');
         const { error: insertError } = await supabase
           .from('profiles')
           .insert({
@@ -89,11 +103,11 @@ const InitialSetup = () => {
         }
       }
 
-      console.log('InitialSetup - Profile operation completed successfully');
+      console.log('InitialSetup - Profile operation completed successfully with support sector');
 
       toast({
         title: "Configuração inicial concluída",
-        description: "Agora vamos configurar sua instância WhatsApp.",
+        description: "Você foi atribuído ao setor de Suporte. Agora vamos configurar sua instância WhatsApp.",
       });
 
       // Forçar recarregamento da página para atualizar o estado
@@ -130,7 +144,7 @@ const InitialSetup = () => {
           </div>
           <CardTitle className="text-2xl">Configuração Inicial</CardTitle>
           <CardDescription>
-            Complete a configuração para usar o WhatsApp
+            Complete a configuração para usar o WhatsApp (será atribuído ao setor Suporte)
           </CardDescription>
         </CardHeader>
         <CardContent>
