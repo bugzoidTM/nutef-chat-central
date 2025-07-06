@@ -12,7 +12,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [profileProcessed, setProfileProcessed] = useState(false);
   const { toast } = useToast();
 
   // Função para buscar perfil do usuário
@@ -28,7 +27,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('AuthProvider - Error fetching profile:', error);
-        // Se for erro de recursão, retornar null em vez de throw
         if (error.code === '42P17') {
           console.warn('AuthProvider - RLS recursion detected, returning null');
           return null;
@@ -69,8 +67,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .select('*', { count: 'exact', head: true });
         isFirstUser = count === 0;
       } catch (countError) {
-        console.warn('AuthProvider - Could not check user count, assuming not first user:', countError);
-        isFirstUser = false;
+        console.warn('AuthProvider - Could not check user count, assuming first user:', countError);
+        isFirstUser = true; // Assume é o primeiro usuário se não conseguir verificar
       }
       
       const profileData = {
@@ -92,7 +90,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('AuthProvider - Error creating profile:', error);
-        // Se for erro de duplicata, tentar buscar o perfil existente
         if (error.code === '23505') {
           console.log('AuthProvider - Profile already exists, trying to fetch...');
           return await fetchProfile(user.id);
@@ -110,12 +107,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Processar usuário logado
   const processLoggedInUser = async (user: User) => {
-    if (profileProcessed) {
-      console.log('AuthProvider - Profile already processed, skipping');
-      return;
-    }
-    
-    setProfileProcessed(true);
     console.log('AuthProvider - Processing logged in user:', user.id);
     
     try {
@@ -137,9 +128,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setProfile(userProfile);
       } else {
         console.error('AuthProvider - Failed to get or create profile');
+        // Se não conseguir criar/buscar perfil, continue mesmo assim
+        setProfile(null);
       }
     } catch (error) {
       console.error('AuthProvider - Error processing user:', error);
+      setProfile(null);
     } finally {
       setLoading(false);
     }
@@ -170,7 +164,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(currentSession.user);
           setSession(currentSession);
           
-          // Processar usuário imediatamente
+          // Processar usuário
           await processLoggedInUser(currentSession.user);
         } else {
           console.log('AuthProvider - No existing session found');
@@ -204,7 +198,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           console.log('AuthProvider - User signed in:', newSession.user.id);
           setUser(newSession.user);
           setSession(newSession);
-          setProfileProcessed(false); // Reset para permitir nova busca
           
           // Processar usuário
           await processLoggedInUser(newSession.user);
@@ -213,7 +206,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(null);
           setSession(null);
           setProfile(null);
-          setProfileProcessed(false);
           setLoading(false);
         } else if (event === 'TOKEN_REFRESHED' && newSession) {
           console.log('AuthProvider - Token refreshed');
@@ -226,7 +218,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []); // Apenas uma vez na montagem
+  }, []);
 
   const signOut = async () => {
     try {
@@ -236,7 +228,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(null);
       setSession(null);
       setProfile(null);
-      setProfileProcessed(false);
     } catch (error) {
       console.error('AuthProvider - Error signing out:', error);
       toast({
@@ -251,7 +242,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return null;
     
     console.log('AuthProvider - Refetching profile for user:', user.id);
-    setProfileProcessed(false);
     const userProfile = await fetchProfile(user.id);
     if (userProfile) {
       setProfile(userProfile);
