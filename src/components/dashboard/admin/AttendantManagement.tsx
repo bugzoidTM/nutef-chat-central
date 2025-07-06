@@ -389,28 +389,7 @@ const AttendantManagement = () => {
         <div className="text-center py-12">
           <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum atendente cadastrado</h3>
-          <p className="text-gray-600 mb-4">Comece adicionando seu primeiro atendente à equipe</p>
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={() => resetForm()}>
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar Primeiro Atendente
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-              <DialogHeader className="pb-4 border-b">
-                <DialogTitle className="text-xl font-semibold text-gray-900">
-                  Criar Novo Atendente
-                </DialogTitle>
-                <DialogDescription className="text-gray-600">
-                  Adicione um novo atendente à sua equipe de suporte
-                </DialogDescription>
-              </DialogHeader>
-              <div className="py-4">
-                <AttendantForm />
-              </div>
-            </DialogContent>
-          </Dialog>
+          <p className="text-gray-600">Comece adicionando seu primeiro atendente à equipe usando o botão acima</p>
         </div>
       )}
 
