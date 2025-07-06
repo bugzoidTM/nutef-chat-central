@@ -7,11 +7,13 @@ import InitialSetup from '@/components/setup/InitialSetup';
 import { AuthPage } from '@/components/auth/AuthPage';
 import { useEvolutionInstance } from '@/hooks/useEvolutionInstance';
 import * as evolutionApi from '@/services/evolutionApi';
+import { supabase } from '@/integrations/supabase/client';
 
 const Index = () => {
   console.log('Index.tsx - Component rendering');
   const { user, profile, isInitialized } = useAuth();
   const [isCheckingEvolutionConnection, setIsCheckingEvolutionConnection] = useState(false);
+  const [needsQRSetup, setNeedsQRSetup] = useState(false);
   
   console.log('Index.tsx - Auth state:', { user: !!user, profile: !!profile, isInitialized });
 
@@ -38,8 +40,18 @@ const Index = () => {
         // If instance exists and is connected, we can show dashboard
         if (connectionState?.instance?.state === 'open') {
           console.log('Index.tsx - Instance is connected, can show dashboard');
+          setNeedsQRSetup(false);
         } else {
           console.log('Index.tsx - Instance exists but not connected, needs setup');
+          setNeedsQRSetup(true);
+          
+          // Reset whatsapp_connected in database since instance is not properly connected
+          if (profile.whatsapp_connected) {
+            await supabase
+              .from('profiles')
+              .update({ whatsapp_connected: false })
+              .eq('id', profile.id);
+          }
         }
       } catch (error: any) {
         console.log('Index.tsx - Evolution API connection check failed:', error?.message);
@@ -47,16 +59,30 @@ const Index = () => {
         // If instance doesn't exist (404), we need to go through setup
         if (error?.message?.includes('404') || error?.message?.includes('does not exist')) {
           console.log('Index.tsx - Instance does not exist, needs complete setup');
+          setNeedsQRSetup(true);
+          
+          // Reset whatsapp_connected in database since instance doesn't exist
+          if (profile.whatsapp_connected) {
+            console.log('Index.tsx - Resetting whatsapp_connected to false due to missing instance');
+            await supabase
+              .from('profiles')
+              .update({ whatsapp_connected: false })
+              .eq('id', profile.id);
+          }
         }
       } finally {
         setIsCheckingEvolutionConnection(false);
       }
     };
 
+    // Only check if profile says it's connected
     if (profile?.whatsapp_connected && instanceName) {
       checkEvolutionConnection();
+    } else if (profile && !profile.whatsapp_connected) {
+      // If profile says not connected, show QR setup
+      setNeedsQRSetup(true);
     }
-  }, [profile?.phone, profile?.whatsapp_connected, instanceName]);
+  }, [profile?.phone, profile?.whatsapp_connected, instanceName, profile?.id]);
 
   if (!isInitialized) {
     console.log('Index.tsx - Waiting for initialization');
@@ -109,8 +135,8 @@ const Index = () => {
       );
     }
 
-    // Always show QR setup if whatsapp_connected is false or if we can't verify the connection
-    if (!profile.whatsapp_connected) {
+    // Show QR setup if not connected or if verification failed
+    if (!profile.whatsapp_connected || needsQRSetup) {
       console.log('Index.tsx - Admin needs QR code setup');
       return <QRCodeSetup />;
     }
