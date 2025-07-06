@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogOverlay } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -259,8 +259,7 @@ const AttendantManagement = () => {
               Novo Atendente
             </Button>
           </DialogTrigger>
-          <DialogOverlay className="bg-black/50 backdrop-blur-sm" />
-          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white shadow-2xl border-0">
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white shadow-2xl border-0 rounded-lg">
             <DialogHeader className="pb-4 border-b">
               <DialogTitle className="text-xl font-semibold text-gray-900">
                 Criar Novo Atendente
@@ -397,8 +396,7 @@ const AttendantManagement = () => {
       )}
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogOverlay className="bg-black/50 backdrop-blur-sm" />
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white shadow-2xl border-0">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white shadow-2xl border-0 rounded-lg">
           <DialogHeader className="pb-4 border-b">
             <DialogTitle className="text-xl font-semibold text-gray-900">
               Editar Atendente
