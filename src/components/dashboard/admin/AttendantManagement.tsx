@@ -168,14 +168,14 @@ const AttendantManagement = () => {
       <div className="space-y-2">
         <Label htmlFor="sector" className="text-sm font-medium">Setor</Label>
         <Select 
-          value={formData.sector_id || ''} 
-          onValueChange={(value) => setFormData({ ...formData, sector_id: value || null })}
+          value={formData.sector_id || 'none'} 
+          onValueChange={(value) => setFormData({ ...formData, sector_id: value === 'none' ? null : value })}
         >
           <SelectTrigger className="h-10">
             <SelectValue placeholder="Selecione um setor" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">Nenhum setor</SelectItem>
+            <SelectItem value="none">Nenhum setor</SelectItem>
             {activeSectors.map((sector) => (
               <SelectItem key={sector.id} value={sector.id}>
                 <div className="flex items-center gap-2">
@@ -247,7 +247,7 @@ const AttendantManagement = () => {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Gerenciar Atendentes</h2>
@@ -261,7 +261,7 @@ const AttendantManagement = () => {
               Novo Atendente
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white shadow-2xl border-0 rounded-lg fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] z-50">
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
             <DialogHeader className="pb-4 border-b">
               <DialogTitle className="text-xl font-semibold text-gray-900">
                 Criar Novo Atendente
@@ -390,15 +390,32 @@ const AttendantManagement = () => {
           <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Nenhum atendente cadastrado</h3>
           <p className="text-gray-600 mb-4">Comece adicionando seu primeiro atendente à equipe</p>
-          <Button onClick={() => setIsCreateDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Adicionar Primeiro Atendente
-          </Button>
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button onClick={() => resetForm()}>
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar Primeiro Atendente
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+              <DialogHeader className="pb-4 border-b">
+                <DialogTitle className="text-xl font-semibold text-gray-900">
+                  Criar Novo Atendente
+                </DialogTitle>
+                <DialogDescription className="text-gray-600">
+                  Adicione um novo atendente à sua equipe de suporte
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4">
+                <AttendantForm />
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       )}
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white shadow-2xl border-0 rounded-lg fixed top-[50%] left-[50%] translate-x-[-50%] translate-y-[-50%] z-50">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader className="pb-4 border-b">
             <DialogTitle className="text-xl font-semibold text-gray-900">
               Editar Atendente
