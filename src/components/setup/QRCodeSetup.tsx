@@ -82,6 +82,22 @@ const QRCodeSetup = () => {
     }
   }, [phoneNumber, profile]);
 
+  // Reset whatsapp_connected to false when component mounts
+  // This ensures we always verify the actual connection
+  useEffect(() => {
+    const resetConnectionStatus = async () => {
+      if (profile?.whatsapp_connected) {
+        console.log('QRCodeSetup - Resetting whatsapp_connected to verify real connection');
+        await supabase
+          .from('profiles')
+          .update({ whatsapp_connected: false })
+          .eq('id', profile.id);
+      }
+    };
+    
+    resetConnectionStatus();
+  }, [profile?.id]);
+
   const handleSetupComplete = async () => {
     if (!profile || !instanceName) return;
 
@@ -135,12 +151,14 @@ const QRCodeSetup = () => {
       setInstanceCreated(true);
       await createInstance({});
       
-      // Wait a moment for instance to be created, then try to get QR code
-      setTimeout(() => {
-        getQRCode().catch(error => {
-          console.error('Error getting QR code after instance creation:', error);
-        });
-      }, 2000);
+      // Wait a moment for instance to be created, then try to get QR code if not already available
+      if (!qrCode) {
+        setTimeout(() => {
+          getQRCode().catch(error => {
+            console.error('Error getting QR code after instance creation:', error);
+          });
+        }, 2000);
+      }
       
     } catch (error) {
       console.error('Error creating instance:', error);

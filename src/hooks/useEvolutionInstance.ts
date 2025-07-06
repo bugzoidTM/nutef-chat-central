@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useEvolutionMutations } from './useEvolutionMutations';
 import { useEvolutionQueries } from './useEvolutionQueries';
+import * as evolutionApi from '@/services/evolutionApi';
 
 export const useEvolutionInstance = (phoneNumber: string) => {
   const { toast } = useToast();
@@ -26,7 +27,7 @@ export const useEvolutionInstance = (phoneNumber: string) => {
   const { createInstance, getQRCode, sendMessage, isCreatingInstance, isGettingQRCode, isSendingMessage } = 
     useEvolutionMutations(instanceName, refetchChats);
 
-  // Enhanced create instance with database integration
+  // Enhanced create instance with database integration and real API verification
   const handleCreateInstance = async (options?: any) => {
     if (!user || !profile) {
       throw new Error('Usuário não autenticado ou perfil não encontrado');
@@ -35,14 +36,51 @@ export const useEvolutionInstance = (phoneNumber: string) => {
     try {
       console.log('Creating instance:', instanceName);
       
-      // First, save instance in database
+      // First check if instance already exists in Evolution API
+      let instanceExists = false;
+      try {
+        const connectionState = await evolutionApi.getConnectionState(instanceName);
+        instanceExists = true;
+        console.log('Instance already exists in Evolution API with state:', connectionState?.instance?.state);
+        
+        // If it exists and is connected, update database and return
+        if (connectionState?.instance?.state === 'open') {
+          await supabase
+            .from('instances')
+            .upsert({
+              instance_name: instanceName,
+              phone: phoneNumber,
+              admin_id: profile.id,
+              status: 'connected',
+              webhook_url: 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook',
+            }, {
+              onConflict: 'instance_name',
+            });
+          
+          await supabase
+            .from('profiles')
+            .update({ whatsapp_connected: true, instance_name: instanceName })
+            .eq('id', profile.id);
+          
+          return { instance: { instanceName, status: 'connected' } };
+        }
+      } catch (error: any) {
+        if (error?.message?.includes('404') || error?.message?.includes('does not exist')) {
+          instanceExists = false;
+          console.log('Instance does not exist in Evolution API, will create new one');
+        } else {
+          throw error;
+        }
+      }
+      
+      // Save/update instance in database
       const { error: instanceError } = await supabase
         .from('instances')
         .upsert({
           instance_name: instanceName,
           phone: phoneNumber,
           admin_id: profile.id,
-          status: 'creating',
+          status: instanceExists ? 'connecting' : 'creating',
           webhook_url: 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook',
         }, {
           onConflict: 'instance_name',
@@ -55,21 +93,30 @@ export const useEvolutionInstance = (phoneNumber: string) => {
       
       console.log('Instance saved to database, creating in Evolution API...');
       
-      // Then create in Evolution API
-      const response = await createInstance(options);
-      
-      // Update database status
-      await supabase
-        .from('instances')
-        .update({ status: 'connecting' })
-        .eq('instance_name', instanceName);
-      
-      if (response?.qrcode?.base64) {
-        setQrCode(response.qrcode.base64);
+      // Create in Evolution API if it doesn't exist
+      if (!instanceExists) {
+        const response = await createInstance(options);
+        
+        // Update database status
+        await supabase
+          .from('instances')
+          .update({ status: 'connecting' })
+          .eq('instance_name', instanceName);
+        
+        if (response?.qrcode?.base64) {
+          setQrCode(response.qrcode.base64);
+        }
+        
+        console.log('Instance creation completed successfully');
+        return response;
+      } else {
+        // Instance exists but not connected, get QR code
+        const qrResponse = await evolutionApi.getQRCode(instanceName);
+        if (qrResponse?.base64) {
+          setQrCode(qrResponse.base64);
+        }
+        return { instance: { instanceName, status: 'connecting' } };
       }
-      
-      console.log('Instance creation completed successfully');
-      return response;
     } catch (error) {
       console.error('Error in handleCreateInstance:', error);
       
