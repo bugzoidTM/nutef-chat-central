@@ -27,11 +27,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (error) {
         console.error('AuthProvider - Error fetching profile:', error);
-        if (error.code === '42P17') {
-          console.warn('AuthProvider - RLS recursion detected, returning null');
-          return null;
-        }
-        throw error;
+        return null;
       }
 
       if (!profile) {
@@ -66,9 +62,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .from('profiles')
           .select('*', { count: 'exact', head: true });
         isFirstUser = count === 0;
+        console.log('AuthProvider - Is first user:', isFirstUser, 'Profile count:', count);
       } catch (countError) {
         console.warn('AuthProvider - Could not check user count, assuming first user:', countError);
-        isFirstUser = true; // Assume é o primeiro usuário se não conseguir verificar
+        isFirstUser = true;
       }
       
       const profileData = {
@@ -81,6 +78,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setup_completed: false,
         whatsapp_connected: false,
       };
+
+      console.log('AuthProvider - Creating profile with data:', profileData);
 
       const { data: newProfile, error } = await supabase
         .from('profiles')
@@ -110,6 +109,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('AuthProvider - Processing logged in user:', user.id);
     
     try {
+      setLoading(true);
+      
       // Tentar buscar perfil existente
       let userProfile = await fetchProfile(user.id);
       
@@ -119,18 +120,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         userProfile = await createInitialProfile(user);
       }
       
-      if (userProfile) {
-        console.log('AuthProvider - Setting profile:', {
-          name: userProfile.name,
-          role: userProfile.role,
-          setup_completed: userProfile.setup_completed
-        });
-        setProfile(userProfile);
-      } else {
-        console.error('AuthProvider - Failed to get or create profile');
-        // Se não conseguir criar/buscar perfil, continue mesmo assim
-        setProfile(null);
-      }
+      setProfile(userProfile);
+      console.log('AuthProvider - Profile set:', userProfile ? 'Success' : 'Failed');
     } catch (error) {
       console.error('AuthProvider - Error processing user:', error);
       setProfile(null);
@@ -164,8 +155,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(currentSession.user);
           setSession(currentSession);
           
-          // Processar usuário
-          await processLoggedInUser(currentSession.user);
+          // Processar usuário em timeout para evitar bloqueios
+          setTimeout(() => {
+            if (mounted) {
+              processLoggedInUser(currentSession.user);
+            }
+          }, 100);
         } else {
           console.log('AuthProvider - No existing session found');
           if (mounted) {
@@ -199,8 +194,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(newSession.user);
           setSession(newSession);
           
-          // Processar usuário
-          await processLoggedInUser(newSession.user);
+          // Processar usuário em timeout para evitar bloqueios
+          setTimeout(() => {
+            if (mounted) {
+              processLoggedInUser(newSession.user);
+            }
+          }, 100);
         } else if (event === 'SIGNED_OUT') {
           console.log('AuthProvider - User signed out');
           setUser(null);
@@ -222,6 +221,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     try {
+      setLoading(true);
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       
@@ -235,6 +235,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: "Erro ao fazer logout. Tente novamente.",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
