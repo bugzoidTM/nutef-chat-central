@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Dashboard } from '@/components/dashboard/Dashboard';
 import QRCodeSetup from '@/components/setup/QRCodeSetup';
 import InitialSetup from '@/components/setup/InitialSetup';
-import { AuthPage } from '@/components/auth/AuthPage';
+import AuthPage from '@/components/auth/AuthPage';
 import { useEvolutionInstance } from '@/hooks/useEvolutionInstance';
 import * as evolutionApi from '@/services/evolutionApi';
 import { supabase } from '@/integrations/supabase/client';
