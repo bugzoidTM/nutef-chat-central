@@ -11,17 +11,18 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const QueueManagement = () => {
-  const { 
-    queueItems, 
-    isLoading, 
-    assignToMe, 
-    completeItem,
-    stats 
-  } = useQueueSystem();
+  const queueData = useQueueSystem();
+  
+  // Usar as propriedades corretas do hook
+  const queueItems = queueData.queueItems || [];
+  const queueStats = queueData.queueStats;
+  const assignQueueItem = queueData.assignQueueItem;
+  const completeQueueItem = queueData.completeQueueItem;
+  const isLoading = queueData.isLoading || false;
 
-  const waitingItems = queueItems?.filter(item => item.status === 'waiting') || [];
-  const assignedItems = queueItems?.filter(item => item.status === 'assigned') || [];
-  const completedItems = queueItems?.filter(item => item.status === 'completed') || [];
+  const waitingItems = queueItems.filter(item => item.status === 'waiting') || [];
+  const assignedItems = queueItems.filter(item => item.status === 'assigned') || [];
+  const completedItems = queueItems.filter(item => item.status === 'completed') || [];
 
   const QueueItem = ({ item, showActions = true }: { item: any, showActions?: boolean }) => (
     <Card className="mb-3">
@@ -96,20 +97,20 @@ const QueueManagement = () => {
           {/* Ações */}
           {showActions && (
             <div className="flex flex-col gap-2 ml-4">
-              {item.status === 'waiting' && (
+              {item.status === 'waiting' && assignQueueItem && (
                 <Button
                   size="sm"
-                  onClick={() => assignToMe(item.id)}
+                  onClick={() => assignQueueItem(item.id)}
                   className="h-8 px-3 text-xs"
                 >
                   Assumir
                 </Button>
               )}
-              {item.status === 'assigned' && (
+              {item.status === 'assigned' && completeQueueItem && (
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => completeItem(item.id)}
+                  onClick={() => completeQueueItem(item.id)}
                   className="h-8 px-3 text-xs"
                 >
                   <CheckCircle className="h-3 w-3 mr-1" />
@@ -146,9 +147,11 @@ const QueueManagement = () => {
       </div>
 
       {/* Estatísticas */}
-      <div className="mb-6">
-        <QueueStats stats={stats} />
-      </div>
+      {queueStats && (
+        <div className="mb-6">
+          <QueueStats stats={queueStats} />
+        </div>
+      )}
 
       {/* Abas da fila */}
       <Tabs defaultValue="waiting" className="space-y-4">

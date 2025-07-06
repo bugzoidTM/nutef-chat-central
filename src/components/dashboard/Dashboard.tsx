@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import ConversationList from './ConversationList';
 import { ChatArea } from './ChatArea';
-import { QueueManagement } from './QueueManagement';
+import QueueManagement from './QueueManagement';
 import { useConversations } from '@/hooks/useConversations';
 import { useConversationSelection } from '@/hooks/useConversationSelection';
 import { useChatbotIntegration } from '@/hooks/useChatbotIntegration';

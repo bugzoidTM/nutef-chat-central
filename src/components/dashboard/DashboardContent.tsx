@@ -4,7 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePermissions } from '@/hooks/usePermissions';
 import ConversationList from './ConversationList';
 import { ChatArea } from './ChatArea';
-import { QueueManagement } from './QueueManagement';
+import QueueManagement from './QueueManagement';
 import { TransferNotifications } from './TransferNotifications';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';

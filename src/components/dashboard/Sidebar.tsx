@@ -177,7 +177,7 @@ const Sidebar = ({
                       }`}
                     >
                       <div className="flex items-center space-x-2 min-w-0 flex-1">
-                        {option.value !== 'all' && option.color && (
+                        {option.value !== 'all' && 'color' in option && option.color && (
                           <div 
                             className="w-2 h-2 rounded-full shrink-0" 
                             style={{ backgroundColor: option.color }}
