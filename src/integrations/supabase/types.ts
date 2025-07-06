@@ -1314,7 +1314,12 @@ export type Database = {
       }
     }
     Enums: {
-      conversation_status: "new" | "in_progress" | "finished"
+      conversation_status:
+        | "new"
+        | "in_progress"
+        | "finished"
+        | "completed"
+        | "closed"
       message_direction: "incoming" | "outgoing"
       message_type: "text" | "image" | "audio" | "document"
       sector_type: "support" | "financial" | "sales"
@@ -1434,7 +1439,13 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      conversation_status: ["new", "in_progress", "finished"],
+      conversation_status: [
+        "new",
+        "in_progress",
+        "finished",
+        "completed",
+        "closed",
+      ],
       message_direction: ["incoming", "outgoing"],
       message_type: ["text", "image", "audio", "document"],
       sector_type: ["support", "financial", "sales"],
