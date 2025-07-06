@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -58,8 +59,8 @@ export const useAttendants = () => {
       if (error) throw error;
       return data.map(item => ({
         ...item,
-        can_transfer: true, // Default value since column may not exist yet
-        max_concurrent_chats: 10, // Default value since column may not exist yet
+        can_transfer: item.can_transfer ?? true,
+        max_concurrent_chats: item.max_concurrent_chats ?? 10,
         sector: item.sector ? {
           id: item.sector.id,
           name: item.sector.name,
@@ -87,8 +88,8 @@ export const useAttendants = () => {
       if (error) throw error;
       return data.map(item => ({
         ...item,
-        can_transfer: true, // Default value since column may not exist yet
-        max_concurrent_chats: 10, // Default value since column may not exist yet
+        can_transfer: item.can_transfer ?? true,
+        max_concurrent_chats: item.max_concurrent_chats ?? 10,
         sector: item.sector ? {
           id: item.sector.id,
           name: item.sector.name,
@@ -99,38 +100,31 @@ export const useAttendants = () => {
     enabled: profile?.role === 'admin',
   });
 
-  // Criar atendente
+  // Criar atendente usando Edge Function
   const createAttendantMutation = useMutation({
     mutationFn: async (attendantData: CreateAttendantData) => {
-      // 1. Criar usuário no Auth
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: attendantData.email,
-        password: attendantData.password,
-        email_confirm: true,
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        throw new Error('Não autenticado');
+      }
+
+      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/create-attendant`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(attendantData),
       });
 
-      if (authError) throw authError;
+      const result = await response.json();
 
-      // 2. Criar perfil
-      const { data, error } = await supabase
-        .from('profiles')
-        .insert({
-          user_id: authData.user.id,
-          name: attendantData.name,
-          email: attendantData.email,
-          phone: attendantData.phone,
-          role: 'attendant',
-          sector_id: attendantData.sector_id,
-          managed_by: profile?.id,
-          can_transfer: attendantData.can_transfer ?? true,
-          max_concurrent_chats: attendantData.max_concurrent_chats ?? 10,
-          is_active: true,
-        })
-        .select()
-        .single();
-      
-      if (error) throw error;
-      return data;
+      if (!response.ok) {
+        throw new Error(result.error || `Erro ${response.status}`);
+      }
+
+      return result;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['attendants'] });

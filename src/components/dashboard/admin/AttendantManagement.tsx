@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useAttendants, type Attendant, type CreateAttendantData } from '@/hooks/useAttendants';
 import { useSectors } from '@/hooks/useSectors';
@@ -6,13 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogOverlay } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Plus, Edit3, UserCheck, UserX, MoreHorizontal, Users, Phone, Mail } from 'lucide-react';
+import { Plus, Edit3, UserCheck, UserX, MoreHorizontal, Users, Phone, Mail, AlertCircle } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface AttendantFormData {
   name: string;
@@ -93,21 +95,31 @@ const AttendantManagement = () => {
   };
 
   const AttendantForm = () => (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {!editingAttendant && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            Uma senha temporária será criada. O atendente deve alterá-la no primeiro acesso.
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="grid gap-2">
-          <Label htmlFor="name">Nome Completo</Label>
+        <div className="space-y-2">
+          <Label htmlFor="name" className="text-sm font-medium">Nome Completo *</Label>
           <Input
             id="name"
             value={formData.name}
             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            placeholder="Nome do atendente"
+            placeholder="Digite o nome completo"
             required
+            className="h-10"
           />
         </div>
 
-        <div className="grid gap-2">
-          <Label htmlFor="email">E-mail</Label>
+        <div className="space-y-2">
+          <Label htmlFor="email" className="text-sm font-medium">E-mail *</Label>
           <Input
             id="email"
             type="email"
@@ -116,45 +128,48 @@ const AttendantManagement = () => {
             placeholder="email@exemplo.com"
             required
             disabled={!!editingAttendant}
+            className="h-10"
           />
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="grid gap-2">
-          <Label htmlFor="phone">Telefone</Label>
+        <div className="space-y-2">
+          <Label htmlFor="phone" className="text-sm font-medium">Telefone *</Label>
           <Input
             id="phone"
             value={formData.phone}
             onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
             placeholder="(11) 99999-9999"
             required
+            className="h-10"
           />
         </div>
 
         {!editingAttendant && (
-          <div className="grid gap-2">
-            <Label htmlFor="password">Senha</Label>
+          <div className="space-y-2">
+            <Label htmlFor="password" className="text-sm font-medium">Senha Inicial *</Label>
             <Input
               id="password"
               type="password"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              placeholder="Senha inicial"
+              placeholder="Mínimo 6 caracteres"
               required
               minLength={6}
+              className="h-10"
             />
           </div>
         )}
       </div>
 
-      <div className="grid gap-2">
-        <Label htmlFor="sector">Setor</Label>
+      <div className="space-y-2">
+        <Label htmlFor="sector" className="text-sm font-medium">Setor</Label>
         <Select 
           value={formData.sector_id || ''} 
           onValueChange={(value) => setFormData({ ...formData, sector_id: value || null })}
         >
-          <SelectTrigger>
+          <SelectTrigger className="h-10">
             <SelectValue placeholder="Selecione um setor" />
           </SelectTrigger>
           <SelectContent>
@@ -175,8 +190,8 @@ const AttendantManagement = () => {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="grid gap-2">
-          <Label htmlFor="max_chats">Limite de Chats Simultâneos</Label>
+        <div className="space-y-2">
+          <Label htmlFor="max_chats" className="text-sm font-medium">Limite de Chats Simultâneos</Label>
           <Input
             id="max_chats"
             type="number"
@@ -184,6 +199,7 @@ const AttendantManagement = () => {
             max="50"
             value={formData.max_concurrent_chats}
             onChange={(e) => setFormData({ ...formData, max_concurrent_chats: parseInt(e.target.value) || 10 })}
+            className="h-10"
           />
         </div>
 
@@ -193,11 +209,11 @@ const AttendantManagement = () => {
             checked={formData.can_transfer}
             onCheckedChange={(checked) => setFormData({ ...formData, can_transfer: checked })}
           />
-          <Label htmlFor="can_transfer">Pode transferir conversas</Label>
+          <Label htmlFor="can_transfer" className="text-sm font-medium">Pode transferir conversas</Label>
         </div>
       </div>
 
-      <DialogFooter>
+      <DialogFooter className="gap-2">
         <Button
           type="button"
           variant="outline"
@@ -206,11 +222,23 @@ const AttendantManagement = () => {
             setIsEditDialogOpen(false);
             resetForm();
           }}
+          className="px-6"
         >
           Cancelar
         </Button>
-        <Button type="submit" disabled={isCreating || isUpdating}>
-          {editingAttendant ? 'Atualizar' : 'Criar'} Atendente
+        <Button 
+          type="submit" 
+          disabled={isCreating || isUpdating}
+          className="px-6 bg-green-600 hover:bg-green-700"
+        >
+          {isCreating || isUpdating ? (
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              {editingAttendant ? 'Atualizando...' : 'Criando...'}
+            </div>
+          ) : (
+            editingAttendant ? 'Atualizar Atendente' : 'Criar Atendente'
+          )}
         </Button>
       </DialogFooter>
     </form>
@@ -226,19 +254,24 @@ const AttendantManagement = () => {
         
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => resetForm()}>
+            <Button onClick={() => resetForm()} className="bg-green-600 hover:bg-green-700">
               <Plus className="h-4 w-4 mr-2" />
               Novo Atendente
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>Criar Novo Atendente</DialogTitle>
-              <DialogDescription>
-                Adicione um novo atendente à sua equipe
+          <DialogOverlay className="bg-black/50 backdrop-blur-sm" />
+          <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white shadow-2xl border-0">
+            <DialogHeader className="pb-4 border-b">
+              <DialogTitle className="text-xl font-semibold text-gray-900">
+                Criar Novo Atendente
+              </DialogTitle>
+              <DialogDescription className="text-gray-600">
+                Adicione um novo atendente à sua equipe de suporte
               </DialogDescription>
             </DialogHeader>
-            <AttendantForm />
+            <div className="py-4">
+              <AttendantForm />
+            </div>
           </DialogContent>
         </Dialog>
       </div>
@@ -364,18 +397,23 @@ const AttendantManagement = () => {
       )}
 
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Editar Atendente</DialogTitle>
-            <DialogDescription>
+        <DialogOverlay className="bg-black/50 backdrop-blur-sm" />
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto bg-white shadow-2xl border-0">
+          <DialogHeader className="pb-4 border-b">
+            <DialogTitle className="text-xl font-semibold text-gray-900">
+              Editar Atendente
+            </DialogTitle>
+            <DialogDescription className="text-gray-600">
               Faça alterações nos dados do atendente
             </DialogDescription>
           </DialogHeader>
-          <AttendantForm />
+          <div className="py-4">
+            <AttendantForm />
+          </div>
         </DialogContent>
       </Dialog>
     </div>
   );
 };
 
-export default AttendantManagement; 
+export default AttendantManagement;
