@@ -256,7 +256,7 @@ const AttendantManagement = () => {
         
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => resetForm()} className="bg-green-600 hover:bg-green-700">
+            <Button onClick={() => resetForm()}>
               <Plus className="h-4 w-4 mr-2" />
               Novo Atendente
             </Button>
