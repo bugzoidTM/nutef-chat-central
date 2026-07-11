@@ -26,7 +26,7 @@ export const useNewMessageNotification = () => {
         'postgres_changes',
         {
           event: 'INSERT',
-          schema: 'public',
+          schema: 'watende',
           table: 'messages',
           filter: 'direction=eq.incoming', // Só mensagens recebidas
         },

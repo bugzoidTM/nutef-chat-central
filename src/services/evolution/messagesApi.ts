@@ -1,44 +1,26 @@
 
 import { makeRequest } from './httpClient';
-import type { FetchMessagesResponse, FetchMessagesRequest, EvolutionMessage } from './types';
+import type { FetchMessagesResponse, EvolutionMessage } from './types';
 
-// Fetch messages from Evolution API - GET /chat/fetchMessages/{instanceName}
+// Busca histórico direto do whatsai (fallback/diagnóstico — a fonte primária
+// do painel é a tabela messages do banco, alimentada pelo webhook).
 export const fetchMessages = async (
   instanceName: string,
   remoteJid: string,
   limit: number = 100
 ): Promise<EvolutionMessage[]> => {
-  console.log('Fetching messages from Evolution API:', { 
-    instanceName, 
-    remoteJid, 
-    limit 
-  });
-  
-  const requestBody: FetchMessagesRequest = {
-    where: {
-      key: {
-        remoteJid: remoteJid
-      }
-    },
-    limit,
-    page: 1
-  };
-  
   try {
-    const response = await makeRequest<FetchMessagesResponse>(`/chat/fetchMessages/${instanceName}`, {
-      method: 'POST',
-      body: JSON.stringify(requestBody),
-    });
-    
-    console.log('Evolution API messages response:', response);
+    const response = await makeRequest<FetchMessagesResponse>(
+      `/api/wa/messages/${instanceName}?jid=${encodeURIComponent(remoteJid)}&limit=${limit}`
+    );
     return response.messages || [];
   } catch (error) {
-    console.error('Error fetching messages from Evolution API:', error);
+    console.error('Error fetching messages from whatsai:', error);
     return [];
   }
 };
 
-// Convert Evolution message format to our internal format
+// Converte o formato do whatsai (Evolution-like) para o formato interno
 export const convertEvolutionMessage = (evolutionMsg: EvolutionMessage, instancePhone: string): {
   id: string;
   content: string;
@@ -47,16 +29,15 @@ export const convertEvolutionMessage = (evolutionMsg: EvolutionMessage, instance
   from_phone: string;
   to_phone: string;
 } => {
-  const content = evolutionMsg.message.conversation || 
-                  evolutionMsg.message.extendedTextMessage?.text || 
+  const content = evolutionMsg.message.conversation ||
+                  evolutionMsg.message.extendedTextMessage?.text ||
                   '[Mensagem não suportada]';
-  
+
   const direction = evolutionMsg.key.fromMe ? 'outgoing' : 'incoming';
   const timestamp = new Date(evolutionMsg.messageTimestamp * 1000).toISOString();
-  
-  // Extract phone number from remoteJid (remove @s.whatsapp.net)
-  const phoneNumber = evolutionMsg.key.remoteJid.replace('@s.whatsapp.net', '');
-  
+
+  const phoneNumber = evolutionMsg.key.remoteJid.replace(/@s\.whatsapp\.net|@c\.us|@lid/g, '');
+
   return {
     id: evolutionMsg.key.id,
     content,

@@ -2,56 +2,33 @@
 import { makeRequest } from './httpClient';
 import type { CreateInstanceRequest, CreateInstanceResponse, ConnectionStateResponse, QRCodeResponse } from './types';
 
-// Create instance with webhook configuration included from the start
+// Cria a instância no whatsai; o bridge já configura o webhook e o modo
+// "humano atendeu" (bot interno do whatsai desligado) e dispara a geração do QR.
 export const createInstance = async (
   instanceName: string,
-  options: Partial<CreateInstanceRequest> = {}
+  _options: Partial<CreateInstanceRequest> = {}
 ): Promise<CreateInstanceResponse> => {
-  console.log('Creating Evolution API instance:', instanceName, 'with options:', options);
-  
-  const webhookUrl = 'https://webhook.nutef.com/webhook/c2785fe6-f5bc-4233-8e92-d0f47f9d7b80';
-  
-  const requestBody = {
-    instanceName,
-    qrcode: true,
-    integration: 'WHATSAPP-BAILEYS',
-    webhook: {
-      url: webhookUrl,
-      webhook_by_events: false,
-      webhook_base64: false,
-      events: [
-        'MESSAGES_UPSERT',
-        'MESSAGES_UPDATE',
-        'CONNECTION_UPDATE',
-        'SEND_MESSAGE'
-      ]
-    },
-    ...options,
-  };
+  console.log('Creating whatsai instance:', instanceName);
 
-  console.log('Instance creation request body:', requestBody);
-  
-  return makeRequest<CreateInstanceResponse>('/instance/create', {
+  return makeRequest<CreateInstanceResponse>('/api/wa/instances', {
     method: 'POST',
-    body: JSON.stringify(requestBody),
+    body: JSON.stringify({ instanceName }),
   });
 };
 
-// Generate QR Code
+// Obter QR Code
 export const getQRCode = async (instanceName: string): Promise<QRCodeResponse> => {
   console.log('Getting QR code for instance:', instanceName);
-  
-  return makeRequest<QRCodeResponse>(`/instance/connect/${instanceName}`);
+
+  return makeRequest<QRCodeResponse>(`/api/wa/qr/${instanceName}`);
 };
 
-// Check connection state
+// Estado da conexão — formato compatível: { instance: { instanceName, state } }
 export const getConnectionState = async (instanceName: string): Promise<ConnectionStateResponse> => {
-  console.log('Checking connection state for instance:', instanceName);
-  
-  return makeRequest<ConnectionStateResponse>(`/instance/connectionState/${instanceName}`);
+  return makeRequest<ConnectionStateResponse>(`/api/wa/connection-state/${instanceName}`);
 };
 
-// Check if instance exists
+// Verifica se a instância existe no whatsai
 export const checkInstanceExists = async (instanceName: string): Promise<boolean> => {
   try {
     await getConnectionState(instanceName);

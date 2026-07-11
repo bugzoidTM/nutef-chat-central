@@ -15,7 +15,7 @@ export const useRealtimeSubscriptions = () => {
         'postgres_changes',
         {
           event: '*',
-          schema: 'public',
+          schema: 'watende',
           table: 'conversations',
         },
         (payload) => {

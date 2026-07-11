@@ -52,7 +52,7 @@ export const useEvolutionInstance = (phoneNumber: string) => {
               phone: phoneNumber,
               admin_id: profile.id,
               status: 'connected',
-              webhook_url: 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook',
+              webhook_url: 'https://watende.nutef.com/webhook/whatsai',
             }, {
               onConflict: 'instance_name',
             });
@@ -81,7 +81,7 @@ export const useEvolutionInstance = (phoneNumber: string) => {
           phone: phoneNumber,
           admin_id: profile.id,
           status: instanceExists ? 'connecting' : 'creating',
-          webhook_url: 'https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook',
+          webhook_url: 'https://watende.nutef.com/webhook/whatsai',
         }, {
           onConflict: 'instance_name',
         });

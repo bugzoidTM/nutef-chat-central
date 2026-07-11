@@ -150,7 +150,7 @@ export const useAttendants = () => {
         }
       }
 
-      const response = await fetch(`https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/create-attendant`, {
+      const response = await fetch(`/api/fn/create-attendant`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

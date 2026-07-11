@@ -19,7 +19,7 @@ const WebhookSettings = () => {
 
   // Generate webhook URL for the instance
   const generateWebhookUrl = (instance: string) => {
-    return `https://ojfdzfgcysxoxzszhbzr.supabase.co/functions/v1/evolution-webhook`;
+    return `https://watende.nutef.com/webhook/whatsai`;
   };
 
   const handleSaveWebhook = () => {

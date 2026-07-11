@@ -1,6 +1,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { invokeFn } from '@/lib/invokeFn';
 import { useAuth } from './useAuth';
 import { usePermissions } from './usePermissions';
 import { toast } from 'sonner';
@@ -152,9 +153,7 @@ export const useSatisfactionSurveys = (filters: SurveyFilters = {}) => {
   // Enviar pesquisa manualmente
   const sendSurveyMutation = useMutation({
     mutationFn: async (conversationId: string) => {
-      const { error } = await supabase.functions.invoke('send-satisfaction-survey', {
-        body: { conversationId }
-      });
+      const { error } = await invokeFn('send-satisfaction-survey', { conversationId });
 
       if (error) throw error;
     },

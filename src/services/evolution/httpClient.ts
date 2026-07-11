@@ -1,51 +1,33 @@
 
-import { EVOLUTION_API_CONFIG } from '@/config/evolution';
+import { supabase } from '@/integrations/supabase/client';
 
+// Cliente HTTP do bridge whatsai (mesma origem). Autentica com o access token
+// da sessão Supabase do usuário logado.
 export const makeRequest = async <T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> => {
-  const url = `${EVOLUTION_API_CONFIG.BASE_URL}${endpoint}`;
-  
-  console.log('🌐 Making Evolution API request:', {
-    url,
-    method: options.method || 'GET',
-    headers: options.headers
-  });
+  const { data: { session } } = await supabase.auth.getSession();
 
-  const response = await fetch(url, {
+  const response = await fetch(endpoint, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      'apikey': EVOLUTION_API_CONFIG.API_KEY,
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
       ...options.headers,
     },
   });
 
-  console.log('📡 Evolution API response:', {
-    status: response.status,
-    statusText: response.statusText,
-    url: response.url
-  });
-
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('❌ Evolution API Error:', {
+    console.error('❌ WhatsApp bridge error:', { status: response.status, errorText, url: endpoint });
+    throw new Error(`WhatsApp API Error: ${JSON.stringify({
       status: response.status,
       statusText: response.statusText,
       errorText,
-      url: response.url
-    });
-    
-    throw new Error(`Evolution API Error: ${JSON.stringify({
-      status: response.status,
-      statusText: response.statusText,
-      errorText,
-      url: response.url
+      url: endpoint,
     })}`);
   }
 
-  const data = await response.json();
-  console.log('✅ Evolution API success:', data);
-  return data;
+  return response.json();
 };

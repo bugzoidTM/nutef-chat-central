@@ -1,6 +1,7 @@
 
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { invokeFn } from '@/lib/invokeFn';
 import { useAuth } from './useAuth';
 
 export const useAutomaticSurveys = () => {
@@ -16,7 +17,7 @@ export const useAutomaticSurveys = () => {
         'postgres_changes',
         {
           event: 'UPDATE',
-          schema: 'public',
+          schema: 'watende',
           table: 'conversations',
           filter: 'status=eq.finished'
         },
@@ -28,9 +29,7 @@ export const useAutomaticSurveys = () => {
           
           try {
             // Chamar a edge function para enviar a pesquisa
-            await supabase.functions.invoke('send-satisfaction-survey', {
-              body: { conversationId: payload.new.id }
-            });
+            await invokeFn('send-satisfaction-survey', { conversationId: payload.new.id });
             
             console.log('Pesquisa de satisfação enviada automaticamente');
           } catch (error) {

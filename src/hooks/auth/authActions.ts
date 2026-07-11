@@ -1,13 +1,13 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import { cleanupAuthState } from './authUtils';
+import { invokeFn } from '@/lib/invokeFn';
 
 export const createAuthActions = () => {
   const signIn = async (email: string, password: string) => {
     try {
       // Limpar estado antes de fazer login
       cleanupAuthState();
-      
+
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -22,47 +22,37 @@ export const createAuthActions = () => {
   const signUp = async (email: string, password: string, userData: any) => {
     try {
       console.log('useAuth - Starting signup process for:', email);
-      
+
       // Limpar estado antes de fazer signup
       cleanupAuthState();
-      
+
       // Tentar fazer logout global primeiro
       try {
         await supabase.auth.signOut({ scope: 'global' });
-        console.log('useAuth - Global signout completed');
       } catch (signOutError) {
         console.log('useAuth - Global signout failed (continuing anyway):', signOutError);
       }
-      
-      // Aguardar um pouco para garantir que o logout foi processado
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-        },
-      });
 
-      if (error) {
-        console.error('useAuth - Signup error:', error);
-        
-        // Se o usuário já existe, tentar fazer login
-        if (error.message?.includes('User already registered') || error.message?.includes('already registered')) {
-          console.log('useAuth - User already exists, attempting sign in');
-          return await signIn(email, password);
-        }
-        
-        return { error };
+      // O signup público do GoTrue compartilhado está desabilitado; o cadastro
+      // é feito pelo bridge via admin API (usuário já confirmado).
+      const { error: signupError } = await invokeFn('signup', { email, password });
+
+      if (signupError && !signupError.message?.includes('already registered')) {
+        console.error('useAuth - Signup error:', signupError);
+        return { error: signupError };
       }
 
-      if (data.user) {
+      // Login para obter a sessão (necessária para criar o perfil com RLS)
+      const { error: signInError } = await signIn(email, password);
+      if (signInError) {
+        return { error: signInError };
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
         console.log('useAuth - User created successfully, creating profile');
-        
-        // Aguardar um pouco antes de criar o perfil
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
+
         // Buscar o setor "Suporte" para atribuir como padrão
         const { data: supportSector, error: sectorError } = await supabase
           .from('sectors')
@@ -79,7 +69,7 @@ export const createAuthActions = () => {
         const { error: profileError } = await supabase
           .from('profiles')
           .upsert({
-            user_id: data.user.id,
+            user_id: user.id,
             name: userData.name || '',
             email: email,
             phone: userData.phone || '',

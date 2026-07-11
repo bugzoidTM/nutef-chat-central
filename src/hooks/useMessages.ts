@@ -67,7 +67,7 @@ export const useMessages = (selectedConversation: string | null) => {
         'postgres_changes',
         {
           event: '*',
-          schema: 'public',
+          schema: 'watende',
           table: 'messages',
           filter: `conversation_id=eq.${selectedConversation}`,
         },
