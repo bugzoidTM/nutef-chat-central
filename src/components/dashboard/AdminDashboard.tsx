@@ -8,9 +8,10 @@ import ConversationList from './ConversationList';
 import { ChatArea } from './ChatArea';
 import QueueManagement from './QueueManagement';
 import AttendantManagement from './admin/AttendantManagement';
+import { CrmBoard } from '@/components/crm/CrmBoard';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MessageSquare, Users, BarChart3, Settings, PanelLeftOpen, PanelRightOpen } from 'lucide-react';
+import { MessageSquare, Users, BarChart3, Settings, PanelLeftOpen, PanelRightOpen, KanbanSquare } from 'lucide-react';
 import type { SectorType, StatusType } from '@/types/dashboard';
 
 export const AdminDashboard = () => {
@@ -91,10 +92,14 @@ export const AdminDashboard = () => {
         `}>
           <div className="p-4">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full">
-              <TabsList className="grid w-full grid-cols-3 mb-4">
+              <TabsList className="grid w-full grid-cols-4 mb-4">
                 <TabsTrigger value="conversations" className="text-xs">
                   <MessageSquare className="h-3 w-3 mr-1" />
                   Conversas
+                </TabsTrigger>
+                <TabsTrigger value="crm" className="text-xs">
+                  <KanbanSquare className="h-3 w-3 mr-1" />
+                  CRM
                 </TabsTrigger>
                 <TabsTrigger value="attendants" className="text-xs">
                   <Users className="h-3 w-3 mr-1" />
@@ -116,6 +121,15 @@ export const AdminDashboard = () => {
                 />
               </TabsContent>
               
+              <TabsContent value="crm" className="h-full">
+                <div className="text-center py-8">
+                  <KanbanSquare className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-sm text-gray-500">
+                    Funil de vendas na área principal: arraste os cards entre as etapas e clique para etiquetas e notas
+                  </p>
+                </div>
+              </TabsContent>
+
               <TabsContent value="attendants" className="h-full">
                 <div className="text-center py-8">
                   <Users className="h-12 w-12 text-gray-300 mx-auto mb-4" />
@@ -141,6 +155,8 @@ export const AdminDashboard = () => {
         <div className="flex-1 min-w-0 flex flex-col bg-white">
           {activeTab === 'conversations' && selectedConversationData ? (
             <ChatArea conversation={selectedConversationData} />
+          ) : activeTab === 'crm' ? (
+            <CrmBoard onOpenConversation={handleConversationSelect} />
           ) : activeTab === 'attendants' ? (
             <AttendantManagement />
           ) : activeTab === 'conversations' ? (
