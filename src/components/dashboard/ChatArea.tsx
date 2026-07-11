@@ -7,7 +7,10 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Send, Phone, User, Clock, MessageSquare, CheckSquare, Settings, Loader2 } from 'lucide-react';
+import { Send, Phone, User, Clock, MessageSquare, CheckSquare, Settings, Loader2, Archive } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { useMessages } from '@/hooks/useMessages';
 import { useSendMessage } from '@/hooks/useSendMessage';
 import { useAuth } from '@/hooks/useAuth';
@@ -58,6 +61,20 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ conversation }) => {
     setNewMessage(content);
   };
 
+  const queryClient = useQueryClient();
+  const handleArchive = async () => {
+    const { error } = await supabase
+      .from('conversations')
+      .update({ status: 'archived', assigned_to: null })
+      .eq('id', conversation.id);
+    if (error) {
+      toast.error(`Erro ao arquivar: ${error.message}`);
+    } else {
+      toast.success('Conversa arquivada. Ela reabre se o cliente mandar nova mensagem.');
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    }
+  };
+
   const formatMessageTime = (timestamp: string) => {
     return format(new Date(timestamp), 'HH:mm', { locale: ptBR });
   };
@@ -83,6 +100,8 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ conversation }) => {
         return 'Em Andamento';
       case 'finished':
         return 'Finalizada';
+      case 'archived':
+        return 'Arquivada';
       default:
         return status;
     }
@@ -124,6 +143,17 @@ export const ChatArea: React.FC<ChatAreaProps> = ({ conversation }) => {
             <Badge variant={getStatusBadgeVariant(conversation.status)}>
               {getStatusLabel(conversation.status)}
             </Badge>
+            {conversation.status !== 'archived' && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleArchive}
+                className="p-2"
+                title="Arquivar conversa"
+              >
+                <Archive className="h-4 w-4" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="sm"

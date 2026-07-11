@@ -11,7 +11,10 @@ import AttendantManagement from './admin/AttendantManagement';
 import { CrmBoard } from '@/components/crm/CrmBoard';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MessageSquare, Users, BarChart3, Settings, PanelLeftOpen, PanelRightOpen, KanbanSquare } from 'lucide-react';
+import { MessageSquare, Users, BarChart3, Settings, PanelLeftOpen, PanelRightOpen, KanbanSquare, Archive, Trash2, Loader2 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { invokeFn } from '@/lib/invokeFn';
+import { toast } from 'sonner';
 import type { SectorType, StatusType } from '@/types/dashboard';
 
 export const AdminDashboard = () => {
@@ -23,8 +26,29 @@ export const AdminDashboard = () => {
   const [rightSidebarOpen, setRightSidebarOpen] = useState(true);
   const [activeTab, setActiveTab] = useState('conversations');
 
+  const [deletingArchived, setDeletingArchived] = useState(false);
+  const queryClient = useQueryClient();
+
   const { conversations, conversationsLoading } = useConversations(selectedSector, selectedStatus);
   const { selectedConversation, handleSelectConversation } = useConversationSelection(conversations, selectedSector, selectedStatus);
+
+  const showingArchived = selectedStatus === 'archived';
+
+  const handleDeleteArchived = async () => {
+    if (!window.confirm('Excluir DEFINITIVAMENTE todas as conversas arquivadas e suas mensagens? Esta ação não pode ser desfeita.')) return;
+    setDeletingArchived(true);
+    try {
+      const { data, error } = await invokeFn<{ deleted: number }>('delete-archived', {});
+      if (error) throw error;
+      toast.success(`${data?.deleted ?? 0} conversas arquivadas excluídas.`);
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['crm-conversations'] });
+    } catch (e: any) {
+      toast.error(`Erro ao excluir arquivadas: ${e.message}`);
+    } finally {
+      setDeletingArchived(false);
+    }
+  };
   
   // Initialize chatbot integration
   useChatbotIntegration();
@@ -112,6 +136,31 @@ export const AdminDashboard = () => {
               </TabsList>
               
               <TabsContent value="conversations" className="h-full">
+                <div className="flex items-center gap-2 mb-3">
+                  <Button
+                    variant={showingArchived ? 'default' : 'outline'}
+                    size="sm"
+                    className="text-xs h-7"
+                    onClick={() => setSelectedStatus(showingArchived ? 'all' : 'archived')}
+                  >
+                    <Archive className="h-3 w-3 mr-1" />
+                    {showingArchived ? 'Voltar às ativas' : 'Arquivadas'}
+                  </Button>
+                  {showingArchived && conversations.length > 0 && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="text-xs h-7"
+                      onClick={handleDeleteArchived}
+                      disabled={deletingArchived}
+                    >
+                      {deletingArchived
+                        ? <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        : <Trash2 className="h-3 w-3 mr-1" />}
+                      Excluir todas ({conversations.length})
+                    </Button>
+                  )}
+                </div>
                 <ConversationList
                   conversations={conversations}
                   selectedConversation={selectedConversation}

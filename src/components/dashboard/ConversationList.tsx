@@ -56,6 +56,8 @@ const ConversationList = ({
         return 'Em andamento';
       case 'finished':
         return 'Finalizada';
+      case 'archived':
+        return 'Arquivada';
       default:
         return status;
     }

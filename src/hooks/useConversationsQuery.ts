@@ -56,6 +56,9 @@ export const useConversationsQuery = (selectedSector: SectorType, selectedStatus
       if (selectedStatus !== 'all') {
         query = query.eq('status', selectedStatus);
         console.log('🔽 Filtering by status:', selectedStatus);
+      } else {
+        // Arquivadas só aparecem quando o filtro 'archived' é selecionado
+        query = query.neq('status', 'archived');
       }
 
       const result = await query;

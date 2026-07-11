@@ -1425,6 +1425,7 @@ export type Database = {
         | "finished"
         | "completed"
         | "closed"
+        | "archived"
       message_direction: "incoming" | "outgoing"
       message_type: "text" | "image" | "audio" | "document"
       sector_type: "support" | "financial" | "sales"
@@ -1550,6 +1551,7 @@ export const Constants = {
         "finished",
         "completed",
         "closed",
+        "archived",
       ],
       message_direction: ["incoming", "outgoing"],
       message_type: ["text", "image", "audio", "document"],

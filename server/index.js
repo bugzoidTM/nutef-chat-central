@@ -29,6 +29,12 @@ const WHATSAI_PASSWORD = process.env.WHATSAI_PASSWORD || "";
 const WEBHOOK_TOKEN = process.env.WEBHOOK_TOKEN || "";
 const WEBHOOK_URL = process.env.WEBHOOK_URL || `http://watende:${PORT}/webhook/whatsai`;
 const APP_URL = (process.env.APP_URL || "https://watende.nutef.com").replace(/\/$/, "");
+// Mensagens com timestamp mais antigo que isso são ignoradas — evita que o
+// history sync do WhatsApp (enviado ao escanear o QR) inunde o painel e que
+// o chatbot responda mensagem velha. 0 desativa o filtro.
+const MESSAGE_MAX_AGE_MINUTES = Number(process.env.MESSAGE_MAX_AGE_MINUTES || 30);
+// Conversas sem atividade há N dias são arquivadas automaticamente. 0 desativa.
+const ARCHIVE_AFTER_DAYS = Number(process.env.ARCHIVE_AFTER_DAYS || 30);
 
 for (const [k, v] of Object.entries({ SUPABASE_SERVICE_ROLE_KEY, SUPABASE_JWT_SECRET, WHATSAI_PASSWORD, WEBHOOK_TOKEN })) {
   if (!v) console.warn(`⚠️  Variável ${k} não definida — funcionalidades dependentes vão falhar.`);
@@ -331,6 +337,11 @@ function extractClientIdentity(data) {
 async function handleMessagesUpsert(instanceName, data) {
   if (!data?.key) return;
 
+  if (MESSAGE_MAX_AGE_MINUTES > 0 && data.messageTimestamp) {
+    const ageMinutes = (Date.now() / 1000 - Number(data.messageTimestamp)) / 60;
+    if (ageMinutes > MESSAGE_MAX_AGE_MINUTES) return;
+  }
+
   const { data: instanceRow } = await db.from("instances").select("*").eq("instance_name", instanceName).maybeSingle();
   if (!instanceRow) {
     console.warn(`Instância ${instanceName} não cadastrada no painel — evento ignorado`);
@@ -360,7 +371,7 @@ async function handleMessagesUpsert(instanceName, data) {
 
   if (conversation) {
     const update = { last_message_at: new Date().toISOString(), remote_jid: remoteJid || undefined };
-    if (incoming && conversation.status === "finished") {
+    if (incoming && (conversation.status === "finished" || conversation.status === "archived")) {
       update.status = "new";
       update.assigned_to = null;
       conversation.status = "new";
@@ -550,6 +561,30 @@ app.post("/api/fn/signup", async (req, res) => {
   }
 });
 
+// delete-archived — exclui definitivamente todas as conversas arquivadas (exige admin)
+app.post("/api/fn/delete-archived", requireUser, async (req, res) => {
+  try {
+    const me = await getProfile(req.userId);
+    if (!me || me.role !== "admin") return res.status(403).json({ error: "Forbidden: Admin access required" });
+
+    const { data: archived, error: listError } = await db.from("conversations").select("id").eq("status", "archived");
+    if (listError) throw listError;
+    const ids = (archived || []).map((c) => c.id);
+    if (!ids.length) return res.json({ deleted: 0 });
+
+    // Tabelas sem ON DELETE CASCADE precisam ser limpas antes
+    await db.from("chatbot_interactions").delete().in("conversation_id", ids);
+    await db.from("conversation_context").delete().in("conversation_id", ids);
+    const { error } = await db.from("conversations").delete().in("id", ids);
+    if (error) throw error;
+
+    console.log(`🗑️  ${ids.length} conversas arquivadas excluídas por ${me.name}`);
+    res.json({ deleted: ids.length });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // create-attendant (exige admin)
 app.post("/api/fn/create-attendant", requireUser, async (req, res) => {
   try {
@@ -670,8 +705,25 @@ app.get("*", (req, res, next) => {
   res.sendFile(path.join(DIST, "index.html"));
 });
 
+// Varredura de arquivamento: conversas sem atividade há ARCHIVE_AFTER_DAYS
+// viram 'archived' (saem da lista; nova mensagem do cliente reabre como 'new').
+async function archiveInactiveConversations() {
+  if (!ARCHIVE_AFTER_DAYS) return;
+  const cutoff = new Date(Date.now() - ARCHIVE_AFTER_DAYS * 86400000).toISOString();
+  const { data, error } = await db
+    .from("conversations")
+    .update({ status: "archived", assigned_to: null })
+    .neq("status", "archived")
+    .lt("last_message_at", cutoff)
+    .select("id");
+  if (error) console.error("❌ Auto-arquivamento:", error.message);
+  else if (data?.length) console.log(`🗄️  ${data.length} conversas arquivadas por inatividade (> ${ARCHIVE_AFTER_DAYS} dias)`);
+}
+
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 Nutef Chat Central bridge na porta ${PORT}`);
   console.log(`   whatsai: ${WHATSAI_URL} | supabase: ${SUPABASE_URL} (schema ${DB_SCHEMA})`);
   console.log(`   webhook: ${WEBHOOK_URL}`);
+  archiveInactiveConversations();
+  setInterval(archiveInactiveConversations, 6 * 3600 * 1000);
 });
