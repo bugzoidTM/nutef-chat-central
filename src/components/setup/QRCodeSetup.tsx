@@ -9,15 +9,42 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ConnectionStatus } from './ConnectionStatus';
 import { QRCodeDisplay } from './QRCodeDisplay';
+import { PhoneNumberInput } from './PhoneNumberInput';
 
 const QRCodeSetup = () => {
   const { profile, user } = useAuth();
   const { toast } = useToast();
   const [instanceCreated, setInstanceCreated] = useState(false);
   const [isCheckingConnection, setIsCheckingConnection] = useState(false);
-  
+  const [phoneInput, setPhoneInput] = useState('');
+  const [savingPhone, setSavingPhone] = useState(false);
+
   // Use o número do telefone já cadastrado no perfil
   const phoneNumber = profile?.phone || '';
+
+  const handleSavePhone = async () => {
+    const cleanPhone = phoneInput.replace(/\D/g, '');
+    if (!cleanPhone || !profile) return;
+
+    setSavingPhone(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ phone: cleanPhone })
+        .eq('id', profile.id);
+
+      if (error) throw error;
+      window.location.reload();
+    } catch (error: any) {
+      console.error('Error saving phone:', error);
+      toast({
+        title: "Erro ao salvar número",
+        description: error.message,
+        variant: "destructive",
+      });
+      setSavingPhone(false);
+    }
+  };
   
   const {
     qrCode,
@@ -177,20 +204,22 @@ const QRCodeSetup = () => {
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
-              <AlertCircle className="h-16 w-16 text-red-500" />
+              <Smartphone className="h-16 w-16 text-green-600" />
             </div>
-            <CardTitle className="text-2xl">Número não encontrado</CardTitle>
+            <CardTitle className="text-2xl">Número do WhatsApp</CardTitle>
             <CardDescription>
-              Não foi possível encontrar o número do WhatsApp no seu perfil.
+              Informe o número que será conectado ao sistema de atendimento.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button 
-              onClick={() => window.location.reload()} 
-              className="w-full"
-            >
-              Recarregar página
-            </Button>
+            <PhoneNumberInput
+              phoneNumber={phoneInput}
+              instanceName={phoneInput ? `whatsapp_${phoneInput.replace(/\D/g, '')}` : ''}
+              isCreating={savingPhone}
+              hasProfile={!!profile}
+              onPhoneChange={(e) => setPhoneInput(e.target.value)}
+              onSubmit={handleSavePhone}
+            />
           </CardContent>
         </Card>
       </div>
