@@ -530,10 +530,13 @@ async function processChatbot(instanceName, conversation, userInput, clientPhone
 // /api/fn — portes dos edge functions
 // =====================================
 
-// Cadastro do (primeiro) administrador — signup público do GoTrue está
-// desabilitado no stack compartilhado; criamos via admin API já confirmado.
+// Cadastro público — desabilitado até o lançamento dos planos de assinatura
+// (reativar com SIGNUP_ENABLED=1 no ambiente quando o fluxo de trial existir).
 app.post("/api/fn/signup", async (req, res) => {
   try {
+    if (process.env.SIGNUP_ENABLED !== "1") {
+      return res.status(403).json({ error: "Cadastro desabilitado. Contate o administrador." });
+    }
     const { email, password } = req.body || {};
     if (!email || !password) return res.status(400).json({ error: "email e password são obrigatórios" });
     const { data, error } = await db.auth.admin.createUser({ email, password, email_confirm: true });
